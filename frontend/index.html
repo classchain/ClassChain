@@ -2,376 +2,316 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>WebGIS ایران - بر اساس سرانه جمعیت</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClassChain | Transparent School Building with Blockchain</title>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100vh; overflow: hidden; }
-        .container { display: flex; height: 100vh; }
-        
-        .info-panel {
-            width: 350px;
-            background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            box-shadow: -2px 0 10px rgba(0,0,0,0.3);
-            z-index: 500;
+        :root {
+            --bg: #0a0e17;
+            --card: #111827;
+            --border: #1f2937;
+            --primary: #8b5cf6;
+            --accent: #a78bfa;
+            --success: #10b981;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+            --neon-blue: #4cc9f0;
+            --neon-purple: #7209b7;
         }
-        .panel-header {
-            background: rgba(0,0,0,0.3);
-            padding: 20px;
-            text-align: center;
-            border-bottom: 2px solid #3498db;
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { 
+            font-family: 'Vazirmatn', sans-serif; 
+            background: var(--bg); 
+            color: var(--text); 
+            line-height: 1.8; 
+            overflow-x: hidden;
+            position: relative;
         }
-        .panel-header h1 { font-size: 1.4em; margin-bottom: 5px; color: #ecf0f1; }
-        .panel-header p { opacity: 0.9; font-size: 0.9em; color: #bdc3c7; }
-        .panel-content { flex: 1; padding: 20px; overflow-y: auto; }
-        .province-info {
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-right: 4px solid #3498db;
-        }
-        .province-info h3 {
-            color: #ecf0f1;
-            margin-bottom: 10px;
-            font-size: 1.3em;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
-            padding-bottom: 8px;
-        }
-        .info-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 8px;
-            padding: 5px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            font-size: 0.95em;
-        }
-        .info-label { font-weight: bold; color: #bdc3c7; }
-        .info-value { color: #ecf0f1; text-align: left; }
+        .en { font-family: 'Inter', sans-serif; }
 
-        .no-selection {
-            text-align: center;
-            padding: 40px 20px;
-            color: #bdc3c7;
-            opacity: 0.7;
+        /* بک‌گراند بلاکچین زنده */
+        #particles-js {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0; left: 0; z-index: 1;
         }
-        .no-selection .icon { font-size: 3.5em; margin-bottom: 15px; opacity: 0.5; }
+        .hexagon-grid {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                radial-gradient(circle at 25% 25%, rgba(67,97,238,0.08) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(114,9,183,0.08) 0%, transparent 50%);
+            background-size: 60px 60px;
+            opacity: 0.15;
+            z-index: 2;
+            pointer-events: none;
+        }
 
-        #map { flex: 1; height: 100vh; }
-
-        .panel-content::-webkit-scrollbar { width: 6px; }
-        .panel-content::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 3px; }
-        .panel-content::-webkit-scrollbar-thumb { background: #3498db; border-radius: 3px; }
-
-        .custom-basemap-selector, .home-button {
-            position: absolute;
-            z-index: 1000;
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(12px);
-            border-radius: 30px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
-            border: 1px solid rgba(255,255,255,0.4);
-            font-family: inherit;
-            user-select: none;
-            transition: all 0.3s ease;
-        }
-        .custom-basemap-selector {
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 10px 20px;
-        }
-        #basemapSelect {
-            padding: 12px 24px;
-            font-size: 15px;
-            border: none;
-            background: transparent;
-            color: #2c3e50;
-            cursor: pointer;
-            outline: none;
-            min-width: 240px;
-            text-align: center;
-            font-weight: 500;
-        }
-        .home-button {
-            top: 86px;
-            left: 10px;
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
+        header {
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            text-align: center;
+            position: relative;
+            z-index: 5;
+            padding: 2rem;
+        }
+
+        /* نوار تیره فقط پشت تیتر اصلی — دقیقاً همان چیزی که خواستی */
+        .hero-content::before {
+            content: "";
+            position: absolute;
+            top: 17%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100vw;
+            height: 200px; /* تنظیم کن اگر تیتر خیلی بزرگ/کوچک شد */
+            background: linear-gradient(90deg, 
+                rgba(17,24,39,0.98) 0%, 
+                rgba(31,41,55,0.98) 50%, 
+                rgba(17,24,39,0.98) 100%);
+            /*border-top: 4px solid #10b981;*/
+            /*border-bottom: 4px solid #8b5cf6;*/
+            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+            z-index: 10;
+            /*border-radius: 24px;*/
+            pointer-events: none;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 5;
+            max-width: 1100px;
+        }
+
+        .hero-title {
+            font-size: 4.8rem;
+            font-weight: 900;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(120deg, #4cc9f0, #8b5cf6, #c084fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .hero-subtitle {
+            font-size: 1.9rem;
+            color: #cbd5e1;
+            max-width: 800px;
+            margin: 0 auto 3rem;
+            font-weight: 300;
+        }
+
+        .btn {
+            padding: 1.2rem 3rem;
+            font-size: 1.4rem;
+            font-weight: 700;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.4s;
+            margin: 0.8rem;
+            display: inline-block;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #10b981, #34d399);
+            color: white;
+            border: none;
+        }
+        .btn-primary:hover { transform: translateY(-6px); box-shadow: 0 20px 50px rgba(16,185,129,0.5); }
+        .btn-outline {
+            background: transparent;
+            color: #e2e8f0;
+            border: 2px solid #6366f1;
+        }
+        .btn-outline:hover { background: #6366f1; border-color: #6366f1; }
+
+        .lang-switch {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            z-index: 10;
+            background: rgba(17,24,39,0.8);
+            padding: 0.6rem 1.2rem;
+            border-radius: 50px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(139,92,246,0.3);
+        }
+        .lang-switch button {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-weight: 600;
+            padding: 0.4rem 0.8rem;
             cursor: pointer;
         }
-        .home-button:hover {
-            background: #3498db;
-            transform: scale(1.1);
+        .lang-switch button.active {
+            color: #8b5cf6;
+            background: rgba(139,92,246,0.2);
+            border-radius: 30px;
         }
-        .home-button:hover svg { fill: white; }
+
+        section { padding: 120px 20px; text-align: center; position: relative; z-index: 5; }
+        .section-title {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 4rem;
+            color: #e2e8f0;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2.5rem;
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+        .card {
+            background: var(--card);
+            padding: 3rem 2rem;
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            transition: all 0.4s;
+        }
+        .card:hover { transform: translateY(-12px); box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+        .card h3 { font-size: 1.8rem; margin: 1.5rem 0; color: #a78bfa; }
+        .progress {
+            height: 12px;
+            background: #1f2937;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 1.5rem 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #34d399);
+            border-radius: 6px;
+            transition: width 2s ease;
+        }
+
+        footer {
+            padding: 100px 20px;
+            text-align: center;
+            border-top: 1px solid #1f2937;
+            color: #64748b;
+            position: relative;
+            z-index: 5;
+            font-size: 1.3rem;
+        }
+
+        /* ریسپانسیو بودن تیتر در موبایل */
+        @media (max-width: 768px) {
+            .hero-title { font-size: 3.4rem; }
+            .hero-content::before { height: 220px; }
+        }
+        @media (max-width: 480px) {
+            .hero-title { font-size: 2.8rem; }
+            .hero-content::before { height: 190px; border-radius: 16px; }
+        }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="info-panel">
-        <div class="panel-header">
-            <h1>WebGIS ایران</h1>
-            <p>رنگ بر اساس سرانه جمعیت (روشن‌تر = سرانه بالاتر)</p>
-        </div>
-        <div class="panel-content" id="provinceInfo">
-            <div class="no-selection">
-                <div class="icon">نقشه</div>
-                <h3>استان مورد نظر را انتخاب کنید</h3>
-                <p>روی هر استان کلیک کنید</p>
-            </div>
+<div id="particles-js"></div>
+<div class="hexagon-grid"></div>
+
+<div class="lang-switch">
+    <button class="active" onclick="setLang('fa')">فارسی</button>
+    <button onclick="setLang('en')">English</button>
+</div>
+
+<header>
+    <div class="hero-content">
+        <h1 class="hero-title" data-fa="هر کودکی شایسته‌ی کلاس امن است" data-en="Every Child Deserves a Safe Classroom"></h1>
+        <p class="hero-subtitle" data-fa="کلاس‌چین اولین پلتفرم شفاف مدرسه‌سازی با بلاکچین در جهان است.<br>هر کمک شما مستقیم و قابل ردیابی به کودکان نیازمند می‌رسد."
+                            data-en="ClassChain is the world's first fully transparent school-building platform on blockchain.<br>Every donation is direct, trackable, and reaches children in need."></p>
+        <div>
+            <a href="#projects" class="btn btn-primary" data-fa="حمایت از یک مدرسه" data-en="Support a School"></a>
+            <a href="webgis.html" class="btn btn-outline" data-fa="نقشه زنده پروژه‌ها" data-en="Live Project Map"></a>
         </div>
     </div>
-    <div id="map"></div>
-</div>
+</header>
 
-<div class="custom-basemap-selector">
-    <select id="basemapSelect" onchange="changeBasemap(this.value)">
-        <option value="carto">رنگارنگ و سریع (پیش‌فرض)</option>
-        <option value="persiangis">نقشه فارسی (PersianGIS)</option>
-        <option value="satellite">ماهواره‌ای (Esri)</option>
-        <option value="light">خاکستری روشن</option>
-        <option value="osm">استاندارد (OSM)</option>
-    </select>
-</div>
+<section id="projects">
+    <h2 class="section-title" data-fa="پروژه‌های در حال ساخت" data-en="Active School Projects"></h2>
+    <div class="grid">
+        <div class="card">
+            <h3>Sistan & Baluchestan</h3>
+            <p data-fa="دبستان امید — زاهدان">Omid Primary School — Zahedan</p>
+            <div class="progress"><div class="progress-bar" style="width:68%"></div></div>
+            <p><strong>68%</strong> — ۳۱۰ میلیون از ۴۵۰ میلیون</p>
+            <a href="buy.html" class="btn btn-primary" style="margin-top:1.5rem;">Donate Now</a>
+        </div>
+        <div class="card">
+            <h3>Kurdistan</h3>
+            <p data-fa="دبستان مهر — سنندج">Mehr Primary School — Sanandaj</p>
+            <div class="progress"><div class="progress-bar" style="width:52%"></div></div>
+            <p><strong>52%</strong> — ۱۹۸ میلیون از ۳۸۰ میلیون</p>
+            <a href="buy.html" class="btn btn-primary" style="margin-top:1.5rem;">Donate Now</a>
+        </div>
+        <div class="card">
+            <h3>Hormozgan</h3>
+            <p data-fa="دبستان آینده — بندرعباس">Ayandeh School — Bandar Abbas</p>
+            <div class="progress"><div class="progress-bar" style="width:15%"></div></div>
+            <p><strong>15%</strong> — ۷۸ میلیون از ۵۲۰ میلیون</p>
+            <a href="buy.html" class="btn btn-primary" style="margin-top:1.5rem;">Donate Now</a>
+        </div>
+    </div>
+</section>
 
-<div class="home-button" onclick="zoomToIran()" title="بازگشت به ایران">
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-    </svg>
-</div>
+<footer>
+    <p data-fa="کلاس‌چین — آینده آموزش ایران را با هم بسازیم" data-en="ClassChain — Building Tomorrow's Iran, Together"></p>
+    <p style="margin-top:1rem;">© 2025 ClassChain Foundation. All rights reserved.</p>
+</footer>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    const map = L.map('map').setView([32.4279, 53.6880], 5);
-    let selectedLayer = null;
-    let selectedCountyLayer = null;
-    let geo;
-    let countiesLayer = null;
-
-    // رنگ استان‌ها: آبی سیر → آبی خیلی روشن
-    function getProvinceColor(capita, min, max) {
-        if (capita === 0 || capita == null) return '#34495e'; // خاکستری-آبی تیره
-        const ratio = max === min ? 0.5 : (capita - min) / (max - min);
-        const r = Math.min(255, Math.round(52 + ratio * 200));  // 52 → 252
-        const g = Math.min(255, Math.round(73 + ratio * 182));  // 73 → 255
-        const b = Math.min(255, Math.round(94 + ratio * 161));  // 94 → 255
-        return `rgb(${r}, ${g}, ${b})`; // #345e94 → #ccffff
+// Particles بلاکچین
+particlesJS("particles-js", {
+    "particles": {
+        "number": { "value": 100 },
+        "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] },
+        "shape": { "type": "circle" },
+        "opacity": { "value": 0.6, "random": true },
+        "size": { "value": 3, "random": true },
+        "line_linked": {
+            "enable": true,
+            "distance": 140,
+            "color": "#6366f1",
+            "opacity": 0.3,
+            "width": 1
+        },
+        "move": { "enable": true, "speed": 1.5 }
+    },
+    "interactivity": {
+        "events": { "onhover": { "enable": true, "mode": "repulse" } }
     }
+});
 
-    // رنگ شهرستان‌ها: زرشکی → صورتی خیلی ملایم + صفر → خاکستری
-    function getCountyColor(capita, min, max) {
-        if (capita === 0 || capita == null) return '#777777'; // خاکستری
-        const ratio = max === min ? 0.5 : (capita - min) / (max - min);
-        const r = Math.round(139 + ratio * 113); // 139 → 252 (زرشکی → صورتی)
-        const g = Math.round(0 + ratio * 228);   // 0 → 228
-        const b = Math.round(0 + ratio * 236);   // 0 → 236
-        return `rgb(${r}, ${g}, ${b})`; // #8b0000 → #fce4ec
-    }
-
-    // بارگذاری استان‌ها
-    fetch('ir-new.json')
-        .then(r => r.json())
-        .then(data => {
-            const features = data.features.map(f => ({
-                type: "Feature",
-                geometry: { type: "Polygon", coordinates: f.geometry.rings },
-                properties: f.attributes
-            }));
-
-            const capitas = features.map(f => f.properties.P_capita || 0).filter(c => c > 0);
-            const minCapita = capitas.length ? Math.min(...capitas) : 1;
-            const maxCapita = capitas.length ? Math.max(...capitas) : 1;
-
-            geo = L.geoJSON(features, {
-                style: feature => {
-                    const capita = feature.properties.P_capita || 0;
-                    return {
-                        color: "#2c3e50",
-                        weight: 2,
-                        fillColor: getProvinceColor(capita, minCapita, maxCapita),
-                        fillOpacity: 0.75
-                    };
-                },
-                onEachFeature: (feature, layer) => {
-                    const p = feature.properties;
-
-                    layer.on('click', e => {
-                        L.DomEvent.stopPropagation(e);
-                        if (selectedLayer) geo.resetStyle(selectedLayer);
-                        if (selectedCountyLayer) {
-                            countiesLayer?.resetStyle(selectedCountyLayer);
-                            selectedCountyLayer = null;
-                        }
-
-                        layer.setStyle({ weight: 6, color: "#e74c3c", fillOpacity: 0.9 });
-                        selectedLayer = layer;
-                        layer.bringToFront();
-
-                        map.fitBounds(layer.getBounds(), { padding: [40, 40], animate: true, duration: 1.3 });
-
-                        document.getElementById('provinceInfo').innerHTML = `
-                            <div class="province-info">
-                                <h3>استان ${p.Name || 'نامشخص'}</h3>
-                                ${p.pcenter ? `<div class="info-item"><span class="info-label">مرکز استان:</span><span class="info-value">${p.pcenter}</span></div>` : ''}
-                                ${p.population > 0 ? `<div class="info-item"><span class="info-label">جمعیت (۱۳۹۵):</span><span class="info-value">${Number(p.population).toLocaleString('fa-IR')}</span></div>` : ''}
-                                ${p.P_capita ? `<div class="info-item"><span class="info-label">سرانه استانی:</span><span class="info-value">${Number(p.P_capita).toFixed(2)}</span></div>` : ''}
-                                <div class="info-item"><span class="info-label">شهرستان‌ها:</span><span class="info-value">در حال بارگذاری...</span></div>
-                            </div>
-                        `;
-
-                        showCountiesOfProvince(p.Name);
-                    });
-
-                    layer.on('mouseover', () => { if (selectedLayer !== layer) layer.setStyle({ weight: 5 }); });
-                    layer.on('mouseout', () => { if (selectedLayer !== layer) layer.setStyle({ weight: 2 }); });
-                }
-            }).addTo(map);
-        });
-
-    // نمایش شهرستان‌ها
-    function showCountiesOfProvince(provinceName) {
-        if (!countiesLayer) {
-            fetch('counties.json')
-                .then(r => r.json())
-                .then(raw => {
-                    let features;
-                    if (raw.features?.[0]?.geometry?.rings) {
-                        features = raw.features.map(f => ({
-                            type: "Feature",
-                            geometry: { type: "Polygon", coordinates: f.geometry.rings },
-                            properties: f.attributes
-                        }));
-                    } else {
-                        features = raw.features || raw;
-                    }
-
-                    const capitas = features.map(f => f.properties.C_capita || 0).filter(c => c > 0);
-                    const minCapita = capitas.length ? Math.min(...capitas) : 1;
-                    const maxCapita = capitas.length ? Math.max(...capitas) : 1;
-
-                    countiesLayer = L.geoJSON(features, {
-                        style: feature => {
-                            const capita = feature.properties.C_capita || 0;
-                            return {
-                                color: capita === 0 ? "#555555" : "#880e4f",
-                                weight: capita === 0 ? 2.5 : 1.5,
-                                fillColor: getCountyColor(capita, minCapita, maxCapita),
-                                fillOpacity: capita === 0 ? 0.9 : 0.75
-                            };
-                        },
-                        onEachFeature: (feature, layer) => {
-                            const c = feature.properties;
-
-                            // نام شهرستان نمایش داده نمی‌شود (حذف کامل شده)
-
-                            layer.on('click', e => {
-                                L.DomEvent.stopPropagation(e);
-                                if (selectedCountyLayer && selectedCountyLayer !== layer) {
-                                    countiesLayer.resetStyle(selectedCountyLayer);
-                                }
-
-                                layer.setStyle({ weight: 6, color: "#c62828", fillOpacity: 0.9 });
-                                layer.bringToFront();
-                                selectedCountyLayer = layer;
-
-                                map.fitBounds(layer.getBounds(), { padding: [30, 30], animate: true, duration: 1 });
-
-                                document.getElementById('provinceInfo').innerHTML = `
-                                    <div class="province-info">
-                                        <h3>${c.Name || c.name || 'نامشخص'}</h3>
-                                        <div class="info-item"><span class="info-label">استان:</span><span class="info-value">${c.pname || c.Pname || provinceName}</span></div>
-                                        ${c.ccenter_na ? `<div class="info-item"><span class="info-label">مرکز شهرستان:</span><span class="info-value">${c.ccenter_na}</span></div>` : ''}
-                                        ${c.area ? `<div class="info-item"><span class="info-label">مساحت:</span><span class="info-value">${Number(c.area).toLocaleString('fa-IR')} هکتار</span></div>` : ''}
-                                        ${c.C_capita !== undefined ? `<div class="info-item"><span class="info-label">سرانه شهرستانی:</span><span class="info-value">${c.C_capita === 0 ? 'صفر' : Number(c.C_capita).toFixed(2)}</span></div>` : ''}
-                                    </div>
-                                `;
-                            });
-
-                            layer.on('mouseover', () => {
-                                if (layer !== selectedCountyLayer) {
-                                    layer.setStyle({ weight: c.C_capita === 0 ? 3.5 : 3.5, color: "#e91e63" });
-                                }
-                            });
-                            layer.on('mouseout', () => {
-                                if (layer !== selectedCountyLayer) {
-                                    countiesLayer.resetStyle(layer);
-                                }
-                            });
-
-                            if ((c.pname || c.Pname) === provinceName) {
-                                layer.addTo(map);
-                            }
-                        }
-                    });
-
-                    showCountiesOfProvince(provinceName);
-                });
-            return;
-        }
-
-        let count = 0;
-        countiesLayer.eachLayer(l => {
-            const props = l.feature.properties;
-            const pname = props.pname || props.Pname;
-            if (pname === provinceName) {
-                l.addTo(map);
-                countiesLayer.resetStyle(l);
-                if (l === selectedCountyLayer) {
-                    l.setStyle({ weight: 6, color: "#c62828" });
-                    l.bringToFront();
-                }
-                count++;
-            } else {
-                map.removeLayer(l);
-            }
-        });
-
-        const panel = document.getElementById('provinceInfo');
-        const item = panel.querySelector('.info-item:last-child');
-        if (item && item.querySelector('.info-label')?.textContent.includes('شهرستان')) {
-            item.innerHTML = `<span class="info-label">تعداد شهرستان:</span><span class="info-value">${count} شهرستان</span>`;
-        }
-    }
-
-    function zoomToIran() {
-        map.flyTo([32.4279, 53.6880], 5, { animate: true, duration: 1.5 });
-        if (selectedLayer) { geo.resetStyle(selectedLayer); selectedLayer = null; }
-        if (selectedCountyLayer) { countiesLayer?.resetStyle(selectedCountyLayer); selectedCountyLayer = null; }
-        if (countiesLayer) map.removeLayer(countiesLayer);
-
-        document.getElementById('provinceInfo').innerHTML = `
-            <div class="no-selection">
-                <div class="icon">نقشه</div>
-                <h3>استان مورد نظر را انتخاب کنید</h3>
-                <p>رنگ بر اساس سرانه جمعیت</p>
-            </div>
-        `;
-    }
-
-    const basemapLayers = {
-        carto: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }),
-        persiangis: L.tileLayer('https://map.persiangis.ir/tile/{z}/{x}/{y}.png', { attribution: '© PersianGIS' }),
-        satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' }),
-        light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }),
-        osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' })
-    };
-    let currentBasemap = basemapLayers.carto;
-    currentBasemap.addTo(map);
-
-    function changeBasemap(val) {
-        map.removeLayer(currentBasemap);
-        currentBasemap = basemapLayers[val];
-        currentBasemap.addTo(map);
-    }
+function setLang(lang) {
+    document.querySelectorAll('[data-fa]').forEach(el => {
+        el.textContent = lang === 'fa' ? el.dataset.fa : el.dataset.en;
+    });
+    document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang === 'fa' ? 'fa' : 'en';
+    document.body.classList.toggle('en', lang === 'en');
+    document.querySelectorAll('.lang-switch button').forEach(b => b.classList.remove('active'));
+    document.querySelector(`.lang-switch button[onclick="setLang('${lang}')"]`).classList.add('active');
+}
 </script>
+
 </body>
 </html>
+
+
+
+
+
+
+
+
