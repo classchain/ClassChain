@@ -2,116 +2,101 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>WebGIS ایران - بر اساس سرانه جمعیت</title>
+    <title>نقشه پروژه‌های کلاس‌چین</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100vh; overflow: hidden; }
+        body { font-family: 'Vazirmatn', Tahoma, sans-serif; height: 100vh; overflow: hidden; background: #0f172a; color: #f1f5f9; }
         .container { display: flex; height: 100vh; }
         
         .info-panel {
-            width: 350px;
-            background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%);
+            width: 380px;
+            background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
             color: white;
             display: flex;
             flex-direction: column;
-            box-shadow: -2px 0 10px rgba(0,0,0,0.3);
+            box-shadow: -4px 0 20px rgba(0,0,0,0.5);
             z-index: 500;
+            border-left: 3px solid #10b981;
         }
         .panel-header {
-            background: rgba(0,0,0,0.3);
+            background: rgba(16,185,129,0.15);
             padding: 20px;
             text-align: center;
-            border-bottom: 2px solid #3498db;
+            border-bottom: 2px solid #10b981;
         }
-        .panel-header h1 { font-size: 1.4em; margin-bottom: 5px; color: #ecf0f1; }
-        .panel-header p { opacity: 0.9; font-size: 0.9em; color: #bdc3c7; }
+        .panel-header h1 { font-size: 1.5em; color: #34d399; }
         .panel-content { flex: 1; padding: 20px; overflow-y: auto; }
-        .province-info {
-            background: rgba(255,255,255,0.1);
-            border-radius: 8px;
-            padding: 15px;
+        
+        .province-info, .project-info {
+            background: rgba(30,41,59,0.6);
+            border-radius: 12px;
+            padding: 18px;
             margin-bottom: 15px;
-            border-right: 4px solid #3498db;
+            border-right: 5px solid #10b981;
+            backdrop-filter: blur(8px);
         }
-        .province-info h3 {
-            color: #ecf0f1;
-            margin-bottom: 10px;
-            font-size: 1.3em;
-            border-bottom: 1px solid rgba(255,255,255,0.2);
+        .province-info h3, .project-info h3 {
+            color: #34d399;
+            margin-bottom: 12px;
+            font-size: 1.4em;
+            border-bottom: 1px dashed rgba(52,211,153,0.3);
             padding-bottom: 8px;
         }
-        .info-item {
+        .info-row {
+            margin: 10px 0;
+            font-size: 0.98em;
             display: flex;
             justify-content: space-between;
-            margin-bottom: 8px;
-            padding: 5px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            font-size: 0.95em;
         }
-        .info-label { font-weight: bold; color: #bdc3c7; }
-        .info-value { color: #ecf0f1; text-align: left; }
+        .info-label { color: #94a3b8; font-weight: bold; }
+        .info-value { color: #e2e8f0; text-align: left; flex: 1; margin-right: 10px; }
 
         .no-selection {
             text-align: center;
-            padding: 40px 20px;
-            color: #bdc3c7;
-            opacity: 0.7;
+            padding: 60px 20px;
+            color: #64748b;
         }
-        .no-selection .icon { font-size: 3.5em; margin-bottom: 15px; opacity: 0.5; }
+        .no-selection h3 { margin: 20px 0; color: #94a3b8; }
 
         #map { flex: 1; height: 100vh; }
 
-        .panel-content::-webkit-scrollbar { width: 6px; }
-        .panel-content::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 3px; }
-        .panel-content::-webkit-scrollbar-thumb { background: #3498db; border-radius: 3px; }
-
-        .custom-basemap-selector, .home-button {
-            position: absolute;
-            z-index: 1000;
-            background: rgba(255,255,255,0.95);
-            backdrop-filter: blur(12px);
-            border-radius: 30px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
-            border: 1px solid rgba(255,255,255,0.4);
-            font-family: inherit;
-            user-select: none;
-            transition: all 0.3s ease;
-        }
-        .custom-basemap-selector {
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 10px 20px;
-        }
-        #basemapSelect {
-            padding: 12px 24px;
-            font-size: 15px;
-            border: none;
-            background: transparent;
-            color: #2c3e50;
-            cursor: pointer;
-            outline: none;
-            min-width: 240px;
-            text-align: center;
-            font-weight: 500;
-        }
-        .home-button {
-            top: 86px;
-            left: 10px;
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
+        /* آیکون پروژه — زیبا، پالسی و مقیاس‌پذیر */
+        .project-marker {
+            background: #10b981;
+            border: 3px solid #fff;
+            border-radius: 50%;
+            width: 32px !important;
+            height: 32px !important;
+            box-shadow: 0 0 20px rgba(16,185,129,0.8);
+            animation: pulse 2s infinite;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            font-size: 14px;
         }
-        .home-button:hover {
-            background: #3498db;
-            transform: scale(1.1);
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(16,185,129,0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(16,185,129,0); }
+            100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
         }
-        .home-button:hover svg { fill: white; }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: #10b981;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+        }
+        .back-btn:hover { background: #059669; }
     </style>
 </head>
 <body>
@@ -119,259 +104,171 @@
 <div class="container">
     <div class="info-panel">
         <div class="panel-header">
-            <h1>WebGIS ایران</h1>
-            <p>رنگ بر اساس سرانه جمعیت (روشن‌تر = سرانه بالاتر)</p>
+            <h1>نقشه کلاس‌چین</h1>
+            <p>استان‌ها: کلیک کنید • پروژه‌ها: نقاط سبز</p>
         </div>
-        <div class="panel-content" id="provinceInfo">
+        <div class="panel-content" id="infoContent">
             <div class="no-selection">
-                <div class="icon">نقشه</div>
-                <h3>استان مورد نظر را انتخاب کنید</h3>
-                <p>روی هر استان کلیک کنید</p>
+                <h3>یک استان یا پروژه را انتخاب کنید</h3>
+                <p>اطلاعات کامل در اینجا نمایش داده می‌شود</p>
             </div>
         </div>
     </div>
     <div id="map"></div>
 </div>
 
-<div class="custom-basemap-selector">
-    <select id="basemapSelect" onchange="changeBasemap(this.value)">
-        <option value="carto">رنگارنگ و سریع (پیش‌فرض)</option>
-        <option value="persiangis">نقشه فارسی (PersianGIS)</option>
-        <option value="satellite">ماهواره‌ای (Esri)</option>
-        <option value="light">خاکستری روشن</option>
-        <option value="osm">استاندارد (OSM)</option>
-    </select>
-</div>
-
-<div class="home-button" onclick="zoomToIran()" title="بازگشت به ایران">
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-    </svg>
-</div>
+<a href="index.html" class="back-btn">بازگشت به خانه</a>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    const map = L.map('map').setView([32.4279, 53.6880], 5);
-    let selectedLayer = null;
-    let selectedCountyLayer = null;
-    let geo;
-    let countiesLayer = null;
+// === نقشه اصلی ===
+const map = L.map('map').setView([32.4279, 53.6880], 6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    // رنگ استان‌ها: آبی سیر → آبی خیلی روشن
-    function getProvinceColor(capita, min, max) {
-        if (capita === 0 || capita == null) return '#34495e'; // خاکستری-آبی تیره
-        const ratio = max === min ? 0.5 : (capita - min) / (max - min);
-        const r = Math.min(255, Math.round(52 + ratio * 200));  // 52 → 252
-        const g = Math.min(255, Math.round(73 + ratio * 182));  // 73 → 255
-        const b = Math.min(255, Math.round(94 + ratio * 161));  // 94 → 255
-        return `rgb(${r}, ${g}, ${b})`; // #345e94 → #ccffff
-    }
+// متغیرهای سراسری
+let selectedLayer = null;
+let selectedCountyLayer = null;
+let countiesLayer = null;
+let projectsLayer = L.layerGroup().addTo(map);
 
-    // رنگ شهرستان‌ها: زرشکی → صورتی خیلی ملایم + صفر → خاکستری
-    function getCountyColor(capita, min, max) {
-        if (capita === 0 || capita == null) return '#777777'; // خاکستری
-        const ratio = max === min ? 0.5 : (capita - min) / (max - min);
-        const r = Math.round(139 + ratio * 113); // 139 → 252 (زرشکی → صورتی)
-        const g = Math.round(0 + ratio * 228);   // 0 → 228
-        const b = Math.round(0 + ratio * 236);   // 0 → 236
-        return `rgb(${r}, ${g}, ${b})`; // #8b0000 → #fce4ec
-    }
+// === لایه استان‌ها ===
+let geo;
+fetch('ir-new.json')
+    .then(r => r.json())
+    .then(data => {
+        geo = L.geoJSON(data, {
+            style: feature => {
+                const area = feature.properties.area || 0;
+                const intensity = Math.min(area / 150000, 1);
+                return {
+                    fillColor: `rgb(${Math.floor(50 + 150 * intensity)}, ${Math.floor(200 - 100 * intensity)}, 100)`,
+                    weight: 2,
+                    opacity: 1,
+                    color: 'white',
+                    fillOpacity: 0.7
+                };
+            },
+            onEachFeature: (feature, layer) => {
+                layer.on('click', () => {
+                    if (selectedLayer) geo.resetStyle(selectedLayer);
+                    layer.setStyle({ weight: 5, color: '#10b981' });
+                    selectedLayer = layer;
+                    showProvinceCounties(feature.properties.pname || feature.properties.Name);
+                });
+            }
+        }).addTo(map);
+    });
 
-    // بارگذاری استان‌ها
-    fetch('ir-new.json')
+// === لایه شهرستان‌ها ===
+function showProvinceCounties(provinceName) {
+    if (countiesLayer) map.removeLayer(countiesLayer);
+    countiesLayer = L.geoJSON(null, {
+        style: { color: '#6366f1', weight: 1, fillOpacity: 0.5 },
+        onEachFeature: (f, l) => {
+            const label = L.divIcon({
+                className: 'county-label',
+                html: f.properties.Name || f.properties.cname || '',
+                iconSize: [100, 40]
+            });
+            L.marker(l.getBounds().getCenter(), { icon: label }).addTo(countiesLayer);
+        }
+    });
+
+    fetch('counties.json')
         .then(r => r.json())
         .then(data => {
-            const features = data.features.map(f => ({
-                type: "Feature",
-                geometry: { type: "Polygon", coordinates: f.geometry.rings },
-                properties: f.attributes
-            }));
-
-            const capitas = features.map(f => f.properties.P_capita || 0).filter(c => c > 0);
-            const minCapita = capitas.length ? Math.min(...capitas) : 1;
-            const maxCapita = capitas.length ? Math.max(...capitas) : 1;
-
-            geo = L.geoJSON(features, {
-                style: feature => {
-                    const capita = feature.properties.P_capita || 0;
-                    return {
-                        color: "#2c3e50",
-                        weight: 2,
-                        fillColor: getProvinceColor(capita, minCapita, maxCapita),
-                        fillOpacity: 0.75
-                    };
-                },
-                onEachFeature: (feature, layer) => {
-                    const p = feature.properties;
-
-                    layer.on('click', e => {
-                        L.DomEvent.stopPropagation(e);
-                        if (selectedLayer) geo.resetStyle(selectedLayer);
-                        if (selectedCountyLayer) {
-                            countiesLayer?.resetStyle(selectedCountyLayer);
-                            selectedCountyLayer = null;
-                        }
-
-                        layer.setStyle({ weight: 6, color: "#e74c3c", fillOpacity: 0.9 });
-                        selectedLayer = layer;
-                        layer.bringToFront();
-
-                        map.fitBounds(layer.getBounds(), { padding: [40, 40], animate: true, duration: 1.3 });
-
-                        document.getElementById('provinceInfo').innerHTML = `
-                            <div class="province-info">
-                                <h3>استان ${p.Name || 'نامشخص'}</h3>
-                                ${p.pcenter ? `<div class="info-item"><span class="info-label">مرکز استان:</span><span class="info-value">${p.pcenter}</span></div>` : ''}
-                                ${p.population > 0 ? `<div class="info-item"><span class="info-label">جمعیت (۱۳۹۵):</span><span class="info-value">${Number(p.population).toLocaleString('fa-IR')}</span></div>` : ''}
-                                ${p.P_capita ? `<div class="info-item"><span class="info-label">سرانه استانی:</span><span class="info-value">${Number(p.P_capita).toFixed(2)}</span></div>` : ''}
-                                <div class="info-item"><span class="info-label">شهرستان‌ها:</span><span class="info-value">در حال بارگذاری...</span></div>
-                            </div>
-                        `;
-
-                        showCountiesOfProvince(p.Name);
-                    });
-
-                    layer.on('mouseover', () => { if (selectedLayer !== layer) layer.setStyle({ weight: 5 }); });
-                    layer.on('mouseout', () => { if (selectedLayer !== layer) layer.setStyle({ weight: 2 }); });
+            let count = 0;
+            data.features.forEach(f => {
+                if ((f.properties.pname || f.properties.Name) === provinceName) {
+                    countiesLayer.addData(f);
+                    count++;
                 }
-            }).addTo(map);
+            });
+            countiesLayer.addTo(map);
+            document.getElementById('infoContent').innerHTML = `
+                <div class="province-info">
+                    <h3>${provinceName}</h3>
+                    <div class="info-row"><span class="info-label">تعداد شهرستان:</span><span class="info-value">${count} شهرستان</span></div>
+                </div>
+            `;
         });
+}
 
-    // نمایش شهرستان‌ها
-    function showCountiesOfProvince(provinceName) {
-        if (!countiesLayer) {
-            fetch('counties.json')
-                .then(r => r.json())
-                .then(raw => {
-                    let features;
-                    if (raw.features?.[0]?.geometry?.rings) {
-                        features = raw.features.map(f => ({
-                            type: "Feature",
-                            geometry: { type: "Polygon", coordinates: f.geometry.rings },
-                            properties: f.attributes
-                        }));
-                    } else {
-                        features = raw.features || raw;
-                    }
+// === لایه پروژه‌ها (Projects.json) ===
+async function loadProjects() {
+    try {
+        const response = await fetch('Projects.json');
+        const data = await response.json();
 
-                    const capitas = features.map(f => f.properties.C_capita || 0).filter(c => c > 0);
-                    const minCapita = capitas.length ? Math.min(...capitas) : 1;
-                    const maxCapita = capitas.length ? Math.max(...capitas) : 1;
+        data.features.forEach(feature => {
+            const p = feature.attributes;
+            const x = feature.geometry.x;
+            const y = feature.geometry.y;
+            if (!x || !y) return;
 
-                    countiesLayer = L.geoJSON(features, {
-                        style: feature => {
-                            const capita = feature.properties.C_capita || 0;
-                            return {
-                                color: capita === 0 ? "#555555" : "#880e4f",
-                                weight: capita === 0 ? 2.5 : 1.5,
-                                fillColor: getCountyColor(capita, minCapita, maxCapita),
-                                fillOpacity: capita === 0 ? 0.9 : 0.75
-                            };
-                        },
-                        onEachFeature: (feature, layer) => {
-                            const c = feature.properties;
+            const marker = L.marker([y, x], {
+                icon: L.divIcon({
+                    className: 'project-marker',
+                    html: 'School',
+                    iconSize: [32, 32]
+                })
+            });
 
-                            // نام شهرستان نمایش داده نمی‌شود (حذف کامل شده)
+            marker.on('click', () => {
+                showProjectInfo(p);
+                map.flyTo([y, x], 15, { duration: 1.5 });
+            });
 
-                            layer.on('click', e => {
-                                L.DomEvent.stopPropagation(e);
-                                if (selectedCountyLayer && selectedCountyLayer !== layer) {
-                                    countiesLayer.resetStyle(selectedCountyLayer);
-                                }
-
-                                layer.setStyle({ weight: 6, color: "#c62828", fillOpacity: 0.9 });
-                                layer.bringToFront();
-                                selectedCountyLayer = layer;
-
-                                map.fitBounds(layer.getBounds(), { padding: [30, 30], animate: true, duration: 1 });
-
-                                document.getElementById('provinceInfo').innerHTML = `
-                                    <div class="province-info">
-                                        <h3>${c.Name || c.name || 'نامشخص'}</h3>
-                                        <div class="info-item"><span class="info-label">استان:</span><span class="info-value">${c.pname || c.Pname || provinceName}</span></div>
-                                        ${c.ccenter_na ? `<div class="info-item"><span class="info-label">مرکز شهرستان:</span><span class="info-value">${c.ccenter_na}</span></div>` : ''}
-                                        ${c.area ? `<div class="info-item"><span class="info-label">مساحت:</span><span class="info-value">${Number(c.area).toLocaleString('fa-IR')} هکتار</span></div>` : ''}
-                                        ${c.C_capita !== undefined ? `<div class="info-item"><span class="info-label">سرانه شهرستانی:</span><span class="info-value">${c.C_capita === 0 ? 'صفر' : Number(c.C_capita).toFixed(2)}</span></div>` : ''}
-                                    </div>
-                                `;
-                            });
-
-                            layer.on('mouseover', () => {
-                                if (layer !== selectedCountyLayer) {
-                                    layer.setStyle({ weight: c.C_capita === 0 ? 3.5 : 3.5, color: "#e91e63" });
-                                }
-                            });
-                            layer.on('mouseout', () => {
-                                if (layer !== selectedCountyLayer) {
-                                    countiesLayer.resetStyle(layer);
-                                }
-                            });
-
-                            if ((c.pname || c.Pname) === provinceName) {
-                                layer.addTo(map);
-                            }
-                        }
-                    });
-
-                    showCountiesOfProvince(provinceName);
-                });
-            return;
-        }
-
-        let count = 0;
-        countiesLayer.eachLayer(l => {
-            const props = l.feature.properties;
-            const pname = props.pname || props.Pname;
-            if (pname === provinceName) {
-                l.addTo(map);
-                countiesLayer.resetStyle(l);
-                if (l === selectedCountyLayer) {
-                    l.setStyle({ weight: 6, color: "#c62828" });
-                    l.bringToFront();
+            // فقط در زوم ۷ به بالا نمایش بده
+            map.on('zoomend', () => {
+                if (map.getZoom() >= 7) {
+                    marker.addTo(projectsLayer);
+                } else {
+                    projectsLayer.removeLayer(marker);
                 }
-                count++;
-            } else {
-                map.removeLayer(l);
+            });
+
+            if (map.getZoom() >= 7) marker.addTo(projectsLayer);
+        });
+    } catch (err) {
+        console.error("خطا در بارگذاری پروژه‌ها:", err);
+    }
+}
+
+function showProjectInfo(p) {
+    document.getElementById('infoContent').innerHTML = `
+        <div class="project-info">
+            <h3>${p["نام پروژه"] || "نامشخص"}</h3>
+            <div class="info-row"><span class="info-label">استان:</span><span class="info-value">${p["استان"] || "-"}</span></div>
+            <div class="info-row"><span class="info-label">منطقه:</span><span class="info-value">${p["منطقه"] || "-"}</span></div>
+            <div class="info-row"><span class="info-label">تعداد کلاس:</span><span class="info-value">${p["تعداد کلاس"] || "-"}</span></div>
+            <div class="info-row"><span class="info-label">زیربنا:</span><span class="info-value">${p["زیربنا"] ? p["زیربنا"] + " مترمربع" : "-"}</span></div>
+            <div class="info-row"><span class="info-label">وضعیت:</span><span class="info-value">${p["وضعیت راهبری پروژه"] || "-"}</span></div>
+            ${p["آدرس کیف پول"] 
+                ? `<a href="Scale-CLC.html?project=${p["کد پروژه"]}" style="display:block;margin-top:20px;padding:14px;background:#10b981;color:white;border-radius:50px;text-align:center;text-decoration:none;font-weight:bold;">
+                    حمایت از این پروژه
+                   </a>`
+                : '<p style="color:#f87171;margin-top:20px;">کیف پول هنوز ایجاد نشده</p>'
             }
-        });
+        </div>
+    `;
+}
 
-        const panel = document.getElementById('provinceInfo');
-        const item = panel.querySelector('.info-item:last-child');
-        if (item && item.querySelector('.info-label')?.textContent.includes('شهرستان')) {
-            item.innerHTML = `<span class="info-label">تعداد شهرستان:</span><span class="info-value">${count} شهرستان</span>`;
-        }
-    }
+// بارگذاری همه لایه‌ها
+loadProjects();
 
-    function zoomToIran() {
-        map.flyTo([32.4279, 53.6880], 5, { animate: true, duration: 1.5 });
-        if (selectedLayer) { geo.resetStyle(selectedLayer); selectedLayer = null; }
-        if (selectedCountyLayer) { countiesLayer?.resetStyle(selectedCountyLayer); selectedCountyLayer = null; }
-        if (countiesLayer) map.removeLayer(countiesLayer);
-
-        document.getElementById('provinceInfo').innerHTML = `
-            <div class="no-selection">
-                <div class="icon">نقشه</div>
-                <h3>استان مورد نظر را انتخاب کنید</h3>
-                <p>رنگ بر اساس سرانه جمعیت</p>
-            </div>
-        `;
-    }
-
-    const basemapLayers = {
-        carto: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }),
-        persiangis: L.tileLayer('https://map.persiangis.ir/tile/{z}/{x}/{y}.png', { attribution: '© PersianGIS' }),
-        satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' }),
-        light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }),
-        osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' })
-    };
-    let currentBasemap = basemapLayers.carto;
-    currentBasemap.addTo(map);
-
-    function changeBasemap(val) {
-        map.removeLayer(currentBasemap);
-        currentBasemap = basemapLayers[val];
-        currentBasemap.addTo(map);
-    }
+// بازگشت به ایران
+function zoomToIran() {
+    map.flyTo([32.4279, 53.6880], 6, { duration: 1.5 });
+    if (selectedLayer) geo.resetStyle(selectedLayer);
+    selectedLayer = null;
+    if (countiesLayer) map.removeLayer(countiesLayer);
+    document.getElementById('infoContent').innerHTML = `
+        <div class="no-selection">
+            <h3>یک استان یا پروژه را انتخاب کنید</h3>
+        </div>
+    `;
+}
 </script>
 </body>
 </html>
