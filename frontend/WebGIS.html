@@ -151,55 +151,21 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
 
 <script>
-    const map = L.map('map', { renderer: L.canvas() }).setView([32.4279, 53.6880], 5);
-
+const map = L.map('map', {
+        renderer: L.canvas()  // مهم: این خط باعث می‌شود همه چیز خیلی روان و بدون تأخیر زوم شود
+    }).setView([32.4279, 53.6880], 5);
+    
     let selectedLayer = null;
     let selectedCountyLayer = null;
     let selectedProjectMarker = null;
-    let geo, countiesLayer = null;
+    let geo, countiesLayer = null, projectsLayer = null;
 
-    // گروه‌های خوشه‌بندی پروژه‌ها
-    const provinceCluster = L.markerClusterGroup({ disableClusteringAtZoom: 8 });
-    const countyCluster = L.markerClusterGroup({ disableClusteringAtZoom: 11 });
-    const projectCluster = L.markerClusterGroup({
-        spiderfyOnMaxZoom: true,
-        showCoverageOnHover: false,
-        zoomToBoundsOnClick: true
-    });
-
-    let currentLevel = 'province';
-
+    // تابع نمایش اطلاعات در پنل
     function showInPanel(content) {
         document.getElementById('infoPanel').innerHTML = content;
     }
 
-    // آیکون‌ها (ابتدا تعریف شوند!)
-    const provinceIcon = count => L.divIcon({
-        html: `<div style="background:#e74c3c;color:white;font-weight:bold;font-size:16px;width:56px;height:56px;border-radius:50%;border:5px solid white;box-shadow:0 4px 20px rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;">${count}</div>`,
-        iconSize: [56, 56], iconAnchor: [28, 28]
-    });
-
-    const countyIcon = count => L.divIcon({
-        html: `<div style="background:#c0392b;color:white;font-weight:bold;font-size:14px;width:46px;height:46px;border-radius:50%;border:4px solid white;box-shadow:0 3px 15px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;">${count}</div>`,
-        iconSize: [46, 46], iconAnchor: [23, 23]
-    });
-
-    const singleProjectIcon = L.divIcon({
-        html: `<div style="background:#e74c3c;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 0 10px rgba(0,0,0,0.8);"></div>`,
-        iconSize: [20,20], iconAnchor: [10,10]
-    });
-
-    const selectedProjectIcon = L.divIcon({
-        html: `<div style="background:#f1c40f;width:22px;height:22px;border-radius:50%;border:4px solid white;box-shadow:0 0 15px #f1c40f;animation:pulse 1.8s infinite;"></div>`,
-        iconSize: [30,30], iconAnchor: [15,15]
-    });
-
-    // انیمیشن پالس
-    const style = document.createElement('style');
-    style.innerHTML = `@keyframes pulse {0%{box-shadow:0 0 0 0 rgba(241,196,15,0.8)}70%{box-shadow:0 0 0 15px rgba(241,196,15,0)}100%{box-shadow:0 0 0 0 rgba(241,196,15,0)}}`;
-    document.head.appendChild(style);
-
-    // رنگ استان و شهرستان
+    // رنگ استان‌ها
     function getProvinceColor(capita, min, max) {
         if (capita === 0 || capita == null) return '#34495e';
         const ratio = max === min ? 0.5 : (capita - min) / (max - min);
@@ -214,9 +180,66 @@
         const ratio = max === min ? 0.5 : (capita - min) / (max - min);
         const r = Math.round(139 + ratio * 113);
         const g = Math.round(0 + ratio * 228);
+        const b = Math.round(0 + ratio * 236);
         return `rgb(${r},${g},${b})`;
     }
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// آیکون‌های پروژه
+    const normalIcon = L.divIcon({
+        html: `<div style="background:#e74c3c; width:12px; height:12px; border-radius:50%; border:2px solid white; box-shadow:0 0 8px rgba(0,0,0,0.7);"></div>`,
+        className: 'custom-div-icon',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+    });
+    
+const selectedIcon = L.divIcon({
+        html: `<div style="background:#f1c40f; width:20px; height:20px; border-radius:50%; border:4px solid white; box-shadow:0 0 12px rgba(241,196,15,0.8); animation:pulse 1.5s infinite;"></div>`,
+        className: 'custom-div-icon',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+    });
+const projectIcon = L.divIcon({
+        html: `<div style="background:#e74c3c; width:10px; height:10px; border-radius:50%; border:2px solid white; box-shadow:0 0 6px rgba(0,0,0,0.8);"></div>`,
+        className: 'custom-project-marker',
+        iconSize: [14, 14],
+        iconAnchor: [7, 7]
+    });
 
+    const selectedProjectIcon = L.divIcon({
+        html: `<div style="background:#f1c40f; width:18px; height:18px; border-radius:50%; border:3px solid white; box-shadow:0 0 12px #f1c40f;"></div>`,
+        className: 'custom-project-marker',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+    });
+
+    // ایجاد خوشه مارکرها (این دقیقاً همان چیزی است که در وب‌جی‌آی‌اس‌های حرفه‌ای می‌بینی)
+    const markersCluster = L.markerClusterGroup({
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        maxClusterRadius: 60, // در زوم کم خوشه‌های بزرگ‌تر
+        iconCreateFunction: function(cluster) {
+            const count = cluster.getChildCount();
+            let size = count < 10 ? 40 : count < 100 ? 50 : 60;
+            return L.divIcon({
+                html: `<div style="background:#e74c3c;color:white;font-weight:bold;border-radius:50%;width:${size}px;height:${size}px;line-height:${size}px;text-align:center;box-shadow:0 0 12px rgba(0,0,0,0.6);font-size:14px;">${count}</div>`,
+                className: '',
+                iconSize: [size, size]
+            });
+        }
+    });
+
+// اضافه کردن انیمیشن پالس
+    const style = document.createElement('style');
+    style.innerHTML = `
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(241,196,15,0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(241,196,15,0); }
+            100% { box-shadow: 0 0 0 0 rgba(241,196,15,0); }
+        }
+    `;
+    document.head.appendChild(style);
+    
     // بارگذاری استان‌ها
     fetch('ir-new.json')
         .then(r => r.json())
@@ -232,9 +255,9 @@
             const maxCapita = capitas.length ? Math.max(...capitas) : 1;
 
             geo = L.geoJSON(features, {
-                style: f => ({
+                style: feature => ({
                     color: "#2c3e50", weight: 2,
-                    fillColor: getProvinceColor(f.properties.P_capita || 0, minCapita, maxCapita),
+                    fillColor: getProvinceColor(feature.properties.P_capita || 0, minCapita, maxCapita),
                     fillOpacity: 0.75
                 }),
                 onEachFeature: (feature, layer) => {
@@ -242,50 +265,43 @@
 
                     layer.on('click', e => {
                         L.DomEvent.stopPropagation(e);
-
-                        // ریست همه انتخاب‌ها
                         if (selectedLayer) geo.resetStyle(selectedLayer);
                         if (selectedCountyLayer) countiesLayer?.resetStyle(selectedCountyLayer);
-                        if (selectedProjectMarker) selectedProjectMarker.setIcon(singleProjectIcon);
+                        if (selectedProjectMarker) selectedProjectMarker.setIcon(normalIcon);
 
                         layer.setStyle({ weight: 6, color: "#e74c3c", fillOpacity: 0.9 });
                         selectedLayer = layer;
                         layer.bringToFront();
-                        map.fitBounds(layer.getBounds(), { padding: [40, 40], duration: 1.3 });
+                        map.fitBounds(layer.getBounds(), { padding: [40, 40], animate: true, duration: 1.3 });
 
                         showInPanel(`
                             <div class="province-info">
                                 <h3>استان ${p.Name || 'نامشخص'}</h3>
-                                ${p.pcenter ? `<div class="info-item"><span class="info-label">مرکز:</span><span class="info-value">${p.pcenter}</span></div>` : ''}
-                                ${p.population ? `<div class="info-item"><span class="info-label">جمعیت:</span><span class="info-value">${Number(p.population).toLocaleString('fa-IR')}</span></div>` : ''}
-                                ${p.P_capita ? `<div class="info-item"><span class="info-label">سرانه:</span><span class="info-value">${Number(p.P_capita).toFixed(2)}</span></div>` : ''}
-                                <div class="info-item"><span class="info-label">پروژه‌ها:</span><span class="info-value">کلیک روی نشانگر قرمز</span></div>
+                                ${p.pcenter ? `<div class="info-item"><span class="info-label">مرکز استان:</span><span class="info-value">${p.pcenter}</span></div>` : ''}
+                                ${p.population > 0 ? `<div class="info-item"><span class="info-label">جمعیت (۱۳۹۵):</span><span class="info-value">${Number(p.population).toLocaleString('fa-IR')}</span></div>` : ''}
+                                ${p.P_capita ? `<div class="info-item"><span class="info-label">سرانه استانی:</span><span class="info-value">${Number(p.P_capita).toFixed(2)}</span></div>` : ''}
+                                <div class="info-item"><span class="info-label">شهرستان‌ها:</span><span class="info-value">در حال بارگذاری...</span></div>
                             </div>
                         `);
 
-                        // نمایش شهرستان‌ها (مهم!)
                         showCountiesOfProvince(p.Name);
                     });
+
+                    layer.on('mouseover', () => { if (selectedLayer !== layer) layer.setStyle({ weight: 5 }); });
+                    layer.on('mouseout', () => { if (selectedLayer !== layer) geo.resetStyle(layer); });
                 }
             }).addTo(map);
         });
 
-    // تابع نمایش شهرستان‌ها (بازگردانی کامل!)
+    // نمایش شهرستان‌ها (همان کد قبلی بدون تغییر)
     function showCountiesOfProvince(provinceName) {
         if (!countiesLayer) {
             fetch('counties.json')
                 .then(r => r.json())
                 .then(raw => {
-                    let features;
-                    if (raw.features?.[0]?.geometry?.rings) {
-                        features = raw.features.map(f => ({
-                            type: "Feature",
-                            geometry: { type: "Polygon", coordinates: f.geometry.rings },
-                            properties: f.attributes
-                        }));
-                    } else {
-                        features = raw.features || raw;
-                    }
+                    let features = raw.features?.[0]?.geometry?.rings 
+                        ? raw.features.map(f => ({ type: "Feature", geometry: { type: "Polygon", coordinates: f.geometry.rings }, properties: f.attributes }))
+                        : raw.features || raw;
 
                     const capitas = features.map(f => f.properties.C_capita || 0).filter(c => c > 0);
                     const minCapita = capitas.length ? Math.min(...capitas) : 1;
@@ -295,7 +311,7 @@
                         style: feature => {
                             const c = feature.properties.C_capita || 0;
                             return {
-                                color: c === 0 ? "#555" : "#880e4f",
+                                color: c === 0 ? "#555555" : "#880e4f",
                                 weight: c === 0 ? 2.5 : 1.5,
                                 fillColor: getCountyColor(c, minCapita, maxCapita),
                                 fillOpacity: c === 0 ? 0.9 : 0.75
@@ -303,42 +319,37 @@
                         },
                         onEachFeature: (feature, layer) => {
                             const c = feature.properties;
+
                             layer.on('click', e => {
                                 L.DomEvent.stopPropagation(e);
                                 if (selectedCountyLayer && selectedCountyLayer !== layer) countiesLayer.resetStyle(selectedCountyLayer);
-                                if (selectedProjectMarker) selectedProjectMarker.setIcon(singleProjectIcon);
+                                if (selectedProjectMarker) selectedProjectMarker.setIcon(normalIcon);
 
                                 layer.setStyle({ weight: 6, color: "#c62828", fillOpacity: 0.9 });
                                 selectedCountyLayer = layer;
                                 layer.bringToFront();
-                                map.fitBounds(layer.getBounds(), { padding: [30, 30], duration: 1 });
+                                map.fitBounds(layer.getBounds(), { padding: [30, 30], animate: true, duration: 1 });
 
                                 showInPanel(`
                                     <div class="province-info">
                                         <h3>${c.Name || c.name || 'نامشخص'}</h3>
                                         <div class="info-item"><span class="info-label">استان:</span><span class="info-value">${c.pname || c.Pname || provinceName}</span></div>
-                                        ${c.ccenter_na ? `<div class="info-item"><span class="info-label">مرکز:</span><span class="info-value">${c.ccenter_na}</span></div>` : ''}
+                                        ${c.ccenter_na ? `<div class="info-item"><span class="info-label">مرکز شهرستان:</span><span class="info-value">${c.ccenter_na}</span></div>` : ''}
                                         ${c.area ? `<div class="info-item"><span class="info-label">مساحت:</span><span class="info-value">${Number(c.area).toLocaleString('fa-IR')} هکتار</span></div>` : ''}
-                                        ${c.C_capita !== undefined ? `<div class="info-item"><span class="info-label">سرانه:</span><span class="info-value">${c.C_capita === 0 ? 'صفر' : Number(c.C_capita).toFixed(2)}</span></div>` : ''}
+                                        ${c.C_capita !== undefined ? `<div class="info-item"><span class="info-label">سرانه شهرستانی:</span><span class="info-value">${c.C_capita === 0 ? 'صفر' : Number(c.C_capita).toFixed(2)}</span></div>` : ''}
                                     </div>
                                 `);
                             });
 
-                            // فقط شهرستان‌های استان انتخاب‌شده نمایش داده شوند
-                            const pname = c.pname || c.Pname;
-                            if (pname === provinceName) {
-                                layer.addTo(map);
-                            }
+                            if ((c.pname || c.Pname) === provinceName) layer.addTo(map);
                         }
                     });
 
-                    // دوباره فراخوانی برای نمایش فوری
                     showCountiesOfProvince(provinceName);
                 });
             return;
         }
 
-        // اگر لایه قبلاً ساخته شده، فقط فیلتر کن
         let count = 0;
         countiesLayer.eachLayer(l => {
             const pname = l.feature.properties.pname || l.feature.properties.Pname;
@@ -347,125 +358,93 @@
                 countiesLayer.resetStyle(l);
                 if (l === selectedCountyLayer) l.setStyle({ weight: 6, color: "#c62828" });
                 count++;
-            } else {
-                map.removeLayer(l);
-            }
+            } else map.removeLayer(l);
         });
+
+        const panel = document.querySelector('.info-item:last-child');
+        if (panel && panel.querySelector('.info-label')?.textContent.includes('شهرستان')) {
+            panel.innerHTML = `<span class="info-label">تعداد شهرستان:</span><span class="info-value">${count} شهرستان</span>`;
+        }
     }
 
-    // بارگذاری پروژه‌ها با تجمیع هوشمند (همان قبلی + بدون تداخل)
-    fetch('Projects.json')
+    // بارگذاری پروژه‌های آموزشی از Projects.json
+fetch('Projects.json')
         .then(r => r.json())
         .then(data => {
-            const projects = data.features
-                .map(f => ({ ...f.attributes, lat: f.geometry.y, lng: f.geometry.x }))
-                .filter(p => p.lat && p.lng && p['استان']);
+            const features = data.features;
 
-            const byProvince = {};
-            const byCounty = {};
+            features.forEach(feature => {
+                const a = feature.attributes;
+                const x = a.x;
+                const y = a.y;
 
-            projects.forEach(p => {
-                const provKey = p['استان'];
-                if (!byProvince[provKey]) byProvince[provKey] = { count: 0, lat: 0, lng: 0 };
-                byProvince[provKey].count++;
-                byProvince[provKey].lat += p.lat;
-                byProvince[provKey].lng += p.lng;
+                // فقط اگر مختصات معتبر بود اضافه کن
+                if (x && y && !isNaN(x) && !isNaN(y)) {
+                    const marker = L.marker([y, x], { icon: projectIcon }); // توجه: [lat, lng]
 
-                const countyKey = `${provKey}|||${p['منطقه'] || 'نامشخص'}`;
-                if (!byCounty[countyKey]) byCounty[countyKey] = { count: 0, lat: 0, lng: 0, province: provKey, county: p['منطقه'] };
-                byCounty[countyKey].count++;
-                byCounty[countyKey].lat += p.lat;
-                byCounty[countyKey].lng += p.lng;
+                    marker.properties = a; // ذخیره اطلاعات برای کلیک
+
+                    marker.on('click', function(e) {
+                        // پاک کردن انتخاب قبلی
+                        if (selectedProjectMarker) {
+                            selectedProjectMarker.setIcon(projectIcon);
+                        }
+
+                        // انتخاب جدید
+                        this.setIcon(selectedProjectIcon);
+                        selectedProjectMarker = this;
+
+                        // ریست کردن استان و شهرستان
+                        if (selectedLayer) geo.resetStyle(selectedLayer);
+                        if (selectedCountyLayer) countiesLayer?.resetStyle(selectedCountyLayer);
+
+                        // نمایش اطلاعات در پنل
+                        showInPanel(`
+                            <div class="project-info">
+                                <h3>${a['نام پروژه'] || 'بدون نام'}</h3>
+                                <div class="info-item"><span class="info-label">کد پروژه:</span><span class="info-value">${a['کد پروژه']}</span></div>
+                                <div class="info-item"><span class="info-label">استان:</span><span class="info-value">${a['استان']}</span></div>
+                                <div class="info-item"><span class="info-label">منطقه:</span><span class="info-value">${a['منطقه']}</span></div>
+                                <div class="info-item"><span class="info-label">نوع پروژه:</span><span class="info-value">${a['نوع پروژه (نیاز)']}</span></div>
+                                <div class="info-item"><span class="info-label">تعداد کلاس:</span><span class="info-value">${a['تعداد کلاس'] || '—'}</span></div>
+                                <div class="info-item"><span class="info-label">زیربنا:</span><span class="info-value">${a['زیربنا'] ? Number(a['زیربنا']).toLocaleString('fa-IR') + ' م²' : '—'}</span></div>
+                                <div class="info-item"><span class="info-label">وضعیت:</span><span class="info-value">${a['وضعیت راهبری پروژه'] || '—'}</span></div>
+                                <div class="info-item"><span class="info-label">مسئول:</span><span class="info-value">${a['مسئول پروژه'] || '—'}</span></div>
+                                <div class="info-item"><span class="info-label">تلفن:</span><span class="info-value">${a['شماره تلفن مسئول پروژه'] || '—'}</span></div>
+                                ${a['آدرس پروژه'] ? `<div class="info-item"><span class="info-label">آدرس:</span><span class="info-value">${a['آدرس پروژه']}</span></div>` : ''}
+                            </div>
+                        `);
+
+                        map.setView([y, x], 14, { animate: true });
+                    });
+
+                    markersCluster.addLayer(marker);
+                }
             });
 
-            // نشانگرهای استانی
-            Object.entries(byProvince).forEach(([prov, data]) => {
-                const lat = data.lat / data.count;
-                const lng = data.lng / data.count;
-                const marker = L.marker([lat, lng], { icon: provinceIcon(data.count) });
-                marker.provinceName = prov;
-                marker.on('click', () => {
-                    map.setView([lat, lng], 9);
-                    switchToCountyLevel(prov);
-                });
-                provinceCluster.addLayer(marker);
-            });
-            map.addLayer(provinceCluster);
-
-            function switchToCountyLevel(provinceName) {
-                map.removeLayer(provinceCluster);
-                countyCluster.clearLayers();
-                Object.values(byCounty)
-                    .filter(c => c.province === provinceName)
-                    .forEach(item => {
-                        const lat = item.lat / item.count;
-                        const lng = item.lng / item.count;
-                        const marker = L.marker([lat, lng], { icon: countyIcon(item.count) });
-                        marker.on('click', () => {
-                            map.setView([lat, lng], 12);
-                            switchToProjectLevel(provinceName, item.county);
-                        });
-                        countyCluster.addLayer(marker);
-                    });
-                map.addLayer(countyCluster);
-                currentLevel = 'county';
-            }
-
-            function switchToProjectLevel(provinceName, countyName) {
-                map.removeLayer(countyCluster);
-                projectCluster.clearLayers();
-                projects
-                    .filter(p => p['استان'] === provinceName && (p['منطقه'] || '') === countyName)
-                    .forEach(p => {
-                        const marker = L.marker([p.lat, p.lng], { icon: singleProjectIcon });
-                        marker.properties = p;
-                        marker.on('click', function() {
-                            if (selectedProjectMarker) selectedProjectMarker.setIcon(singleProjectIcon);
-                            this.setIcon(selectedProjectIcon);
-                            selectedProjectMarker = this;
-                            if (selectedLayer) geo.resetStyle(selectedLayer);
-                            if (selectedCountyLayer) countiesLayer?.resetStyle(selectedCountyLayer);
-
-                            showInPanel(`
-                                <div class="project-info">
-                                    <h3>${p['نام پروژه'] || 'بدون نام'}</h3>
-                                    <div class="info-item"><span class="info-label">کد:</span><span class="info-value">${p['کد پروژه']}</span></div>
-                                    <div class="info-item"><span class="info-label">استان:</span><span class="info-value">${p['استان']}</span></div>
-                                    <div class="info-item"><span class="info-label">شهرستان:</span><span class="info-value">${p['منطقه']}</span></div>
-                                    <div class="info-item"><span class="info-label">وضعیت:</span><span class="info-value">${p['وضعیت راهبری پروژه']}</span></div>
-                                </div>
-                            `);
-                        });
-                        projectCluster.addLayer(marker);
-                    });
-                map.addLayer(projectCluster);
-                currentLevel = 'project';
-            }
+            map.addLayer(markersCluster);
+            console.log(`${features.length} پروژه با خوشه‌بندی بارگذاری شد`);
+        })
+        .catch(err => {
+            console.error("خطا در بارگذاری پروژه‌ها:", err);
         });
-
-    // دکمه بازگشت به ایران
-    function zoomToIran() {
+    
+    // بازگشت به ایران
+function zoomToIran() {
         map.flyTo([32.4279, 53.6880], 5, { animate: true, duration: 1.5 });
-
         if (selectedLayer) { geo?.resetStyle(selectedLayer); selectedLayer = null; }
         if (selectedCountyLayer) { countiesLayer?.resetStyle(selectedCountyLayer); selectedCountyLayer = null; }
-        if (selectedProjectMarker) { selectedProjectMarker.setIcon(singleProjectIcon); selectedProjectMarker = null; }
+        if (selectedProjectMarker) { selectedProjectMarker.setIcon(projectIcon); selectedProjectMarker = null; }
         if (countiesLayer) map.removeLayer(countiesLayer);
-
-        map.removeLayer(countyCluster);
-        map.removeLayer(projectCluster);
-        if (!map.hasLayer(provinceCluster)) map.addLayer(provinceCluster);
-        currentLevel = 'province';
 
         showInPanel(`
             <div class="no-selection">
                 <div class="icon">Map</div>
                 <h3>یک مورد را انتخاب کنید</h3>
-                <p>روی استان، شهرستان یا نشانگر پروژه کلیک کنید</p>
+                <p>روی استان، شهرستان یا پروژه کلیک کنید</p>
             </div>
         `);
     }
-
     // لایه‌های پایه
     const basemapLayers = {
         carto: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }),
@@ -486,8 +465,5 @@
 </script>
 </body>
 </html>
-
-
-
 
 
