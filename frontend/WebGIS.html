@@ -75,44 +75,49 @@
         .panel-content::-webkit-scrollbar-thumb { background: #3498db; border-radius: 3px; }
 .panel-content {
     flex: 1;
-    padding: 20px;
+    padding: 20px 20px 140px 20px;  /* پایین رو بیشتر کردیم تا فضای کافی برای دکمه + حاشیه باشه */
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    position: relative; /* برای موقعیت‌دهی دکمه ثابت */
-    padding-bottom: 90px; /* فضای کافی برای دکمه ثابت در پایین */
+    position: relative;  /* حذف display: flex و flex-direction چون لازم نیست و ممکنه تداخل ایجاد کنه */
+    box-sizing: border-box;
 }
-
+		
 .fixed-contribute-button {
     position: absolute;
-    bottom: 20px;
-    left: 20px;
-    right: 20px;
+    bottom: 10px;  /* کمی بالاتر از پایین تا زیبا تر بشه */
+    left: 15px;
+    right: 15px;
     text-align: center;
-    background: rgba(39, 174, 96, 0.95);
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    backdrop-filter: blur(8px);
-    z-index: 10;
+    background: rgba(39, 174, 96, 0.98);
+    padding: 18px 15px;
+    border-radius: 12px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    backdrop-filter: blur(12px);
+    z-index: 20;  /* z-index بالاتر تا مطمئن بشیم روی همه چیز باشه */
+    border: 1px solid rgba(255,255,255,0.15);
 }
-
+		
 .fixed-contribute-button button {
-    padding: 12px 24px;
+    padding: 14px 28px;
     background: #27ae60;
     color: white;
     border: none;
-    border-radius: 8px;
-    font-size: 1.1em;
+    border-radius: 10px;
+    font-size: 1.15em;
+    font-weight: bold;
     cursor: pointer;
     width: 100%;
-    max-width: 300px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    transition: transform 0.2s ease;
+}
+		
+.fixed-contribute-button button:hover {
+    transform: translateY(-2px);
 }
 
 .fixed-contribute-button p {
-    margin-top: 8px;
-    font-size: 0.85em;
-    opacity: 0.8;
+    margin-top: 10px;
+    font-size: 0.9em;
+    opacity: 0.9;
 }
 		
         .custom-basemap-selector, .home-button {
@@ -671,6 +676,7 @@ async function contributeToProject(contractAddress) {
 </script>
 </body>
 </html>
+
 
 
 
