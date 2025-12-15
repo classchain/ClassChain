@@ -116,6 +116,7 @@
         .home-button:hover { background: #3498db; transform: scale(1.1); }
         .home-button:hover svg { fill: white; }
     </style>
+	<script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
 </head>
 <body>
 	<div class="container">
@@ -421,11 +422,14 @@ let financialInfo = '';
             <span class="info-label">در حال بارگذاری لیست کمک‌کنندگان...</span>
         </div>
 
-        <div style="margin-top:20px; text-align:center;">
-            <button onclick="window.open('https://polygonscan.com/address/${a.contractAddress}#tokentxns', '_blank')" style="padding:12px 24px; background:#3498db; color:white; border:none; border-radius:8px; font-size:1.1em; cursor:pointer;">
-                الان در ساخت این مدرسه مشارکت می‌کنم
-            </button>
-        </div>
+		<div style="margin-top:20px; text-align:center;">
+    		<button onclick="contributeToProject('${a.contractAddress}')" style="padding:12px 24px; background:#27ae60; color:white; border:none; border-radius:8px; font-size:1.1em; cursor:pointer;">
+		        الان در ساخت این مدرسه مشارکت می‌کنم
+    		</button>
+    		<p style="margin-top:10px; font-size:0.85em; opacity:0.8;">
+        		(اتصال به MetaMask و ارسال USDT در شبکه Polygon)
+    		</p>
+		</div>
         `;
     } else {
         financialInfo = '<div class="info-item" style="color:#e67e22; margin-top:15px;">خزانه هوشمند هنوز راه‌اندازی نشده</div>';
@@ -558,9 +562,75 @@ function zoomToIran() {
         currentBasemap = basemapLayers[val];
         currentBasemap.addTo(map);
     }
+
+async function contributeToProject(contractAddress) {
+    if (typeof window.ethereum === 'undefined') {
+        alert('لطفاً افزونه MetaMask را نصب کنید یا از مرورگر سازگار با Web3 استفاده کنید.');
+        window.open('https://metamask.io/download/', '_blank');
+        return;
+    }
+
+    try {
+        // درخواست اتصال کیف پول
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+        const web3 = new Web3(window.ethereum);
+        const accounts = await web3.eth.getAccounts();
+        const userAddress = accounts[0];
+
+        // آدرس USDT در شبکه Polygon Mainnet
+        const usdtAddress = '0xc2132D05D31c914a87C6611C10748AEb04B58e8F';
+        const usdtDecimals = 6;
+
+        // مقدار پیش‌فرض (مثلاً ۱۰ USDT) - کاربر می‌تواند بعداً تغییر دهد
+        let amount = prompt('مقدار USDT برای مشارکت را وارد کنید (مثلاً 10):', '10');
+        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+            alert('مقدار معتبر وارد کنید.');
+            return;
+        }
+        amount = parseFloat(amount);
+
+        const value = web3.utils.toBN(amount * Math.pow(10, usdtDecimals));
+
+        // ABI حداقل برای تابع transfer
+        const minimalABI = [
+            {
+                "constant": false,
+                "inputs": [
+                    { "name": "_to", "type": "address" },
+                    { "name": "_value", "type": "uint256" }
+                ],
+                "name": "transfer",
+                "outputs": [{ "name": "", "type": "bool" }],
+                "type": "function"
+            }
+        ];
+
+        const usdtContract = new web3.eth.Contract(minimalABI, usdtAddress);
+
+        // ارسال تراکنش
+        const tx = await usdtContract.methods.transfer(contractAddress, value).send({
+            from: userAddress
+        });
+
+        alert(`تراکنش با موفقیت ارسال شد!\nHash: ${tx.transactionHash}`);
+        
+        // بروزرسانی لیست کمک‌کنندگان بعد از چند ثانیه
+        setTimeout(() => loadDonors(contractAddress), 8000);
+
+    } catch (error) {
+        console.error(error);
+        if (error.code === 4001) {
+            alert('کاربر تراکنش را لغو کرد.');
+        } else {
+            alert('خطا در ارسال تراکنش: ' + (error.message || 'نامشخص'));
+        }
+    }
+}	
 </script>
 </body>
 </html>
+
 
 
 
