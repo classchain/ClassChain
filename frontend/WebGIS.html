@@ -192,6 +192,7 @@ const map = L.map('map', {
     let selectedProjectMarker = null;
     let geo, countiesLayer = null, projectsLayer = null;
     let currentContractAddress = null; // برای ذخیره آدرس قرارداد پروژه انتخاب‌شده
+	let currentContractAddress = '';
 
     // تابع نمایش اطلاعات در پنل
     function showInPanel(content) {
@@ -537,6 +538,8 @@ function toggleDonateButton(show) {
                             toggleDonateButton(false);
                         }
 						toggleDonateButton(currentContractAddress && currentContractAddress !== "" && currentContractAddress !== null);
+						currentContractAddress = a.contractAddress || '';
+						toggleDonateButton(currentContractAddress && currentContractAddress !== "" && currentContractAddress !== null);						
                         showInPanel(`
                             <div class="project-info">
                                 <h3>${a['نام پروژه'] || 'بدون نام'}</h3>
@@ -671,4 +674,5 @@ function toggleDonateButton(show) {
 </button>
 </body>
 </html>
+
 
