@@ -183,7 +183,7 @@ async function createFund(projectId) {
     const newAddress = tx.events.SchoolFundCreated.returnValues.fundAddress;
 
     // لود JSON و آپدیت
-    const response = await fetch('projects.json');
+    const response = await fetch('Projects.json');
     const data = await response.json();
 
     let found = false;
