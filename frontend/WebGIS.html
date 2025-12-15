@@ -522,7 +522,7 @@ async function loadDonors(contractAddress) {
 
             document.querySelector('#donorsList').innerHTML += donorsHtml;
         } else {
-            document.querySelector('#donorsList').innerHTML = '<p style="opacity:0.7;">هنوز کمکی ثبت نشده</p>';
+            document.querySelector('#donorsList').innerHTML = '<p style="opacity:0.7;">شما اولین مشارکت کننده این مدرسه باشید</p>';
         }
     } catch (err) {
         document.querySelector('#donorsList').innerHTML = '<p style="color:#e74c3c;">خطا در بارگذاری کمک‌ها</p>';
@@ -630,6 +630,7 @@ async function contributeToProject(contractAddress) {
 </script>
 </body>
 </html>
+
 
 
 
