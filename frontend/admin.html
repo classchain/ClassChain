@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مدیریت پروژه‌ها - ClassChain</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
+  <style>
+    body { font-family: Tahoma; padding: 20px; background: #f4f4f4; }
+    h1 { text-align: center; color: #2c3e50; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 10px; text-align: center; }
+    th { background: #3498db; color: white; }
+    .has-contract { background: #d5f5e3; }
+    .no-contract { background: #fdfd96; }
+    button { padding: 8px 16px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    button:disabled { background: #95a5a6; cursor: not-allowed; }
+    .status { font-size: 0.9em; color: #7f8c8d; }
+  </style>
+</head>
+<body>
+  <h1>مدیریت خزانه‌های پروژه‌ها</h1>
+  <p>فقط برای مدیر پروژه (شما)</p>
+
+  <div id="connectWallet">
+    <button onclick="connect()">اتصال به MetaMask</button>
+    <p id="account"></p>
+  </div>
+
+  <div id="content" style="display:none;">
+    <table id="projectsTable">
+      <thead>
+        <tr>
+          <th>آیدی</th>
+          <th>نام پروژه</th>
+          <th>استان</th>
+          <th>هدف (USDT)</th>
+          <th>خزانه هوشمند</th>
+          <th>عملیات</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    const factoryAddress = "0x5E5edEfd775000d285451785C5c2D8683E713D4f"; // بعد از deploy این رو جایگزین کن
+const factoryABI = [
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "projectId",
+        "type": "string"
+      }
+    ],
+    "name": "createSingleOwnerFund",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "fundAddress",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "projectId",
+        "type": "string"
+      },
+      {
+        "internalType": "address[]",
+        "name": "owners",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "numConfirmations",
+        "type": "uint256"
+      }
+    ],
+    "name": "createFund",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "projectId",
+        "type": "string"
+      },
+      {
+        "internalType": "address",
+        "name": "fundAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "creator",
+        "type": "address"
+      }
+    ],
+    "name": "SchoolFundCreated",
+    "type": "event"
+  }
+];
+    let web3;
+    let account;
+    let factory;
+
+    async function connect() {
+      if (typeof window.ethereum !== 'undefined') {
+        web3 = new Web3(window.ethereum);
+        try {
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+          const accounts = await web3.eth.getAccounts();
+          account = accounts[0];
+          document.getElementById('account').innerText = `متصل: ${account.substring(0,6)}...${account.substring(38)}`;
+          document.getElementById('connectWallet').style.display = 'none';
+          document.getElementById('content').style.display = 'block';
+
+          factory = new web3.eth.Contract(factoryABI, factoryAddress);
+          loadProjects();
+        } catch (err) {
+          alert("اتصال رد شد یا خطا رخ داد");
+        }
+      } else {
+        alert("MetaMask نصب نیست!");
+      }
+    }
+
+    async function loadProjects() {
+      const response = await fetch('projects.json');
+      const data = await response.json();
+      const tbody = document.querySelector('#projectsTable tbody');
+      tbody.innerHTML = '';
+
+      data.features.forEach(feature => {
+        const attr = feature.attributes;
+        const row = document.createElement('tr');
+        if (attr.contractAddress && attr.contractAddress !== null && attr.contractAddress !== "") {
+          row.className = 'has-contract';
+        } else {
+          row.className = 'no-contract';
+        }
+
+        row.innerHTML = `
+          <td>${attr.ProjectID}</td>
+          <td>${attr["نام پروژه"]}</td>
+          <td>${attr.استان}</td>
+          <td>${attr["targetAmount(USDT)"] || 'نامشخص'}</td>
+          <td>${attr.contractAddress ? `<a href="https://amoy.polygonscan.com/address/${attr.contractAddress}" target="_blank">مشاهده خزانه</a>` : 'هنوز ساخته نشده'}</td>
+          <td>
+            <button onclick="createFund('${attr.ProjectID}')" ${attr.contractAddress ? 'disabled' : ''}>
+              ${attr.contractAddress ? 'ساخته شده' : 'ساخت خزانه'}
+            </button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    async function createFund(projectId) {
+      if (!confirm(`آیا مطمئنید می‌خواهید خزانه برای پروژه ${projectId} بسازید؟`)) return;
+
+      try {
+        const tx = await factory.methods.createSingleOwnerFund(projectId).send({ from: account });
+        const newAddress = tx.events.SchoolFundCreated.returnValues.fundAddress;
+
+        alert(`خزانه با موفقیت ساخته شد!\nآدرس: ${newAddress}\n\nاین آدرس را دستی در projects.json اضافه کنید و commit کنید.`);
+
+        loadProjects(); // رفرش لیست
+      } catch (err) {
+        console.error(err);
+        alert("خطا در ساخت خزانه: " + (err.message || "نامشخص"));
+      }
+    }
+  </script>
+</body>
+</html>
