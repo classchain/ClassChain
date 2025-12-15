@@ -171,22 +171,61 @@ const factoryABI = [
         tbody.appendChild(row);
       });
     }
+async function createFund(projectId) {
+  if (!projectId) {
+    alert("آیدی پروژه نامعتبر است");
+    return;
+  }
+  if (!confirm(`خزانه برای پروژه ${projectId} ساخته شود؟`)) return;
 
-    async function createFund(projectId) {
-      if (!confirm(`آیا مطمئنید می‌خواهید خزانه برای پروژه ${projectId} بسازید؟`)) return;
+  try {
+    const tx = await factory.methods.createSingleOwnerFund(projectId).send({ from: account });
+    const newAddress = tx.events.SchoolFundCreated.returnValues.fundAddress;
 
-      try {
-        const tx = await factory.methods.createSingleOwnerFund(projectId).send({ from: account });
-        const newAddress = tx.events.SchoolFundCreated.returnValues.fundAddress;
+    // لود JSON و آپدیت
+    const response = await fetch('Projects.json');
+    const data = await response.json();
 
-        alert(`خزانه با موفقیت ساخته شد!\nآدرس: ${newAddress}\n\nاین آدرس را دستی در projects.json اضافه کنید و commit کنید.`);
-
-        loadProjects(); // رفرش لیست
-      } catch (err) {
-        console.error(err);
-        alert("خطا در ساخت خزانه: " + (err.message || "نامشخص"));
+    data.features.forEach(feature => {
+      if (feature.attributes.ProjectID === projectId) {
+        feature.attributes.contractAddress = newAddress;
       }
-    }
+    });
+
+    // دانلود فایل آپدیت‌شده
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'updated_Projects.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    alert(`خزانه ساخته شد!\nآدرس: ${newAddress}\n\nفایل updated_Projects.json دانلود شد. آن را جایگزین فایل اصلی در GitHub کن و commit بزن.`);
+
+    loadProjects(); // رفرش لیست
+  } catch (err) {
+    console.error(err);
+    alert("خطا در ساخت خزانه: " + (err.message || "نامشخص"));
+  }
+}
+    //async function createFund(projectId) {
+    //  if (!confirm(`آیا مطمئنید می‌خواهید خزانه برای پروژه ${projectId} بسازید؟`)) return;
+
+    //  try {
+    //    const tx = await factory.methods.createSingleOwnerFund(projectId).send({ from: account });
+    //    const newAddress = tx.events.SchoolFundCreated.returnValues.fundAddress;
+
+    //    alert(`خزانه با موفقیت ساخته شد!\nآدرس: ${newAddress}\n\nاین آدرس را دستی در projects.json اضافه کنید و commit کنید.`);
+
+    //    loadProjects(); // رفرش لیست
+    //  } catch (err) {
+    //    console.error(err);
+    //    alert("خطا در ساخت خزانه: " + (err.message || "نامشخص"));
+    //  }
+    //}
   </script>
 </body>
 </html>
