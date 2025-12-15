@@ -52,6 +52,13 @@
         .info-label { font-weight: bold; color: #bdc3c7; }
         .info-value { color: #ecf0f1; text-align: left; }
 
+        /* اضافه شده برای حل مشکل بیرون‌زدگی آدرس قرارداد */
+        .contract-address {
+            word-break: break-all;
+            font-size: 0.85em;
+            line-height: 1.4;
+        }
+
         .no-selection {
             text-align: center;
             padding: 40px 20px;
@@ -111,8 +118,7 @@
     </style>
 </head>
 <body>
-
-<div class="container">
+	<div class="container">
     <div class="info-panel">
         <div class="panel-header">
             <h1>WebGIS ایران</h1>
@@ -561,3 +567,4 @@ function zoomToIran() {
 </script>
 </body>
 </html>
+
