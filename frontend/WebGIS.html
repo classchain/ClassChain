@@ -458,8 +458,16 @@ fetch('Projects.json')
                         this.setIcon(selectedProjectIcon);
                         selectedProjectMarker = this;
 
-                        if (selectedLayer) geo.resetStyle(selectedLayer);
-                        if (selectedCountyLayer) countiesLayer?.resetStyle(selectedCountyLayer);
+						if (selectedLayer) {
+						    selectedLayer.setStyle({ fillOpacity: 0 });
+						}
+
+						if (selectedCountyLayer) {
+						    selectedCountyLayer.setStyle({ fillOpacity: 0 });
+						}
+
+                        //if (selectedLayer) geo.resetStyle(selectedLayer);
+                        //if (selectedCountyLayer) countiesLayer?.resetStyle(selectedCountyLayer);
 
 let financialInfo = '';
 
@@ -703,6 +711,7 @@ async function contributeToProject(contractAddress) {
 </script>
 </body>
 </html>
+
 
 
 
