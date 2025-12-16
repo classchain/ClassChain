@@ -377,7 +377,8 @@ const projectIcon = L.divIcon({
                                 if (selectedCountyLayer && selectedCountyLayer !== layer) countiesLayer.resetStyle(selectedCountyLayer);
                                 if (selectedProjectMarker) selectedProjectMarker.setIcon(normalIcon);
 
-                                layer.setStyle({ weight: 6, color: "#c62828", fillOpacity: 0.9 });
+                                //layer.setStyle({ weight: 6, color: "#c62828", fillOpacity: 0.9 });
+                                layer.setStyle({ weight: 6, color: "#c62828", fill:false });
                                 selectedCountyLayer = layer;
                                 layer.bringToFront();
                                 map.fitBounds(layer.getBounds(), { padding: [30, 30], animate: true, duration: 1 });
@@ -676,6 +677,7 @@ async function contributeToProject(contractAddress) {
 </script>
 </body>
 </html>
+
 
 
 
