@@ -527,13 +527,6 @@ showInPanel(`
         ${a['آدرس پروژه'] ? `<div class="info-item"><span class="info-label">آدرس:</span><span class="info-value">${a['آدرس پروژه']}</span></div>` : ''}
         ${financialInfo}
     </div>
-
-    //<div class="fixed-contribute-button" id="fixedContributeBtn" style="display: none;">
-    //    <button onclick="contributeToProject('${a.contractAddress}')">
-    //        الان در ساخت این مدرسه مشارکت می‌کنم
-    //    </button>
-    //    <p>(اتصال به MetaMask و ارسال USDT در شبکه Polygon)</p>
-    //</div>
 `);
 if (a.contractAddress && a.contractAddress !== null && a.contractAddress !== "") {
     currentContractAddress = a.contractAddress;
@@ -729,6 +722,7 @@ async function contributeToProject(contractAddress) {
 </script>
 </body>
 </html>
+
 
 
 
