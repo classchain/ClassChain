@@ -76,14 +76,12 @@
         .panel-content::-webkit-scrollbar { width: 6px; }
         .panel-content::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 3px; }
         .panel-content::-webkit-scrollbar-thumb { background: #3498db; border-radius: 3px; }
-.panel-content {
-    flex: 1 1 Auto;
-    padding: 20px /* 20px 140px 20px;  /* پایین رو بیشتر کردیم تا فضای کافی برای دکمه + حاشیه باشه */
-    overflow-y: auto;
-	padding: 20px;
-    /* position: relative;  /* حذف display: flex و flex-direction چون لازم نیست و ممکنه تداخل ایجاد کنه */
-    /* box-sizing: border-box; */
-}
+		.panel-content {
+    		flex: 1 1 Auto;
+    		padding: 20px /* 20px 140px 20px;  /* پایین رو بیشتر کردیم تا فضای کافی برای دکمه + حاشیه باشه */
+    		overflow-y: auto;
+			padding: 20px;
+		}
 		.fixed-contribute-button {
     		position: sticky;          /* نسبت به info-panel */
     		bottom: 15px;
@@ -100,29 +98,29 @@
     		display: none;               /* ← اضافه شد */
 		}
 		
-.fixed-contribute-button button {
-    padding: 14px 28px;
-    background: #27ae60;
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 1.15em;
-    font-weight: bold;
-    cursor: pointer;
-    width: 100%;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-    transition: transform 0.2s ease;
-}
+		.fixed-contribute-button button {
+    		padding: 14px 28px;
+    		background: #27ae60;
+    		color: white;
+    		border: none;
+    		border-radius: 10px;
+    		font-size: 1.15em;
+    		font-weight: bold;
+    		cursor: pointer;
+    		width: 100%;
+    		box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    		transition: transform 0.2s ease;
+		}
 		
-.fixed-contribute-button button:hover {
-    transform: translateY(-2px);
-}
+		.fixed-contribute-button button:hover {
+    		transform: translateY(-2px);
+		}
 
-.fixed-contribute-button p {
-    margin-top: 10px;
-    font-size: 0.9em;
-    opacity: 0.9;
-}
+		.fixed-contribute-button p {
+    		margin-top: 10px;
+    		font-size: 0.9em;
+    		opacity: 0.9;
+		}
 		
         .custom-basemap-selector, .home-button {
             position: absolute;
@@ -170,43 +168,43 @@
 </head>
 <body>
 	<div class="container">
-    <div class="info-panel">
-        <div class="panel-header">
-            <h1>WebGIS ایران</h1>
-            <p>رنگ بر اساس سرانه جمعیت + پروژه‌های آموزشی</p>
-        </div>
-        <div class="panel-content" id="infoPanel">
-			<div class="fixed-contribute-button" id="fixedContributeBtn">
-    			<button onclick="contributeToProject(currentContractAddress)">
-			        الان در ساخت این مدرسه مشارکت می‌کنم
-    			</button>
-    			<p>(اتصال به MetaMask و ارسال USDT در شبکه Polygon)</p>
-			</div>
-            <div class="no-selection">
-            	<div class="icon">Map</div>
-            	<h3>یک مورد را انتخاب کنید</h3>
-            	<p>روی استان، شهرستان یا پروژه کلیک کنید</p>
-           	</div>
-        </div>
-    </div>
-    <div id="map"></div>
-</div>
+    	<div class="info-panel">
+        	<div class="panel-header">
+            	<h1>WebGIS ایران</h1>
+            	<p>رنگ بر اساس سرانه جمعیت + پروژه‌های آموزشی</p>
+        	</div>
+        	<div class="panel-content" id="infoPanel">
+				<div class="fixed-contribute-button" id="fixedContributeBtn">
+    				<button onclick="contributeToProject(currentContractAddress)">
+			    	    الان در ساخت این مدرسه مشارکت می‌کنم
+    				</button>
+    				<p>(اتصال به MetaMask و ارسال USDT در شبکه Polygon)</p>
+				</div>
+            	<div class="no-selection">
+            		<div class="icon">Map</div>
+            		<h3>یک مورد را انتخاب کنید</h3>
+            		<p>روی استان، شهرستان یا پروژه کلیک کنید</p>
+           		</div>
+        	</div>
+    	</div>
+    	<div id="map"></div>
+	</div>
 
-<div class="custom-basemap-selector">
-    <select id="basemapSelect" onchange="changeBasemap(this.value)">
-        <option value="carto">رنگارنگ و سریع (پیش‌فرض)</option>
-        <option value="persiangis">نقشه فارسی (PersianGIS)</option>
-        <option value="satellite">ماهواره‌ای (Esri)</option>
-        <option value="light">خاکستری روشن</option>
-        <option value="osm">استاندارد (OSM)</option>
-    </select>
-</div>
+	<div class="custom-basemap-selector">
+    	<select id="basemapSelect" onchange="changeBasemap(this.value)">
+        	<option value="carto">رنگارنگ و سریع (پیش‌فرض)</option>
+        	<option value="persiangis">نقشه فارسی (PersianGIS)</option>
+        	<option value="satellite">ماهواره‌ای (Esri)</option>
+        	<option value="light">خاکستری روشن</option>
+        	<option value="osm">استاندارد (OSM)</option>
+    	</select>
+	</div>
 
-<div class="home-button" onclick="zoomToIran()" title="بازگشت به ایران">
-    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-    </svg>
-</div>
+	<div class="home-button" onclick="zoomToIran()" title="بازگشت به ایران">
+    	<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+        	<path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+    	</svg>
+	</div>
 	
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
@@ -525,12 +523,6 @@ if (a.contractAddress && a.contractAddress !== null && a.contractAddress !== "")
     currentContractAddress = null;
     document.getElementById('fixedContributeBtn').style.display = 'none';
 }
-
-    //if (a.contractAddress && a.contractAddress !== null && a.contractAddress !== "") {
-    //    loadDonors(a.contractAddress);
-	//	document.getElementById('fixedContributeBtn').style.display = 'block';
-    //}
-
     map.setView([y, x], 14, { animate: true });
 });
 
@@ -711,6 +703,7 @@ async function contributeToProject(contractAddress) {
 </script>
 </body>
 </html>
+
 
 
 
