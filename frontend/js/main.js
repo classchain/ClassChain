@@ -1,13 +1,13 @@
 import { loadProvinces } from './map-layers.js';
 import { loadProjects } from './map-layers.js';
-import { setupBasemaps, setupHomeButton, showInPanel, resetPanel } from './ui-controls.js';
-import { setContributeHandler } from './web3-donation.js';
+import { setupBasemaps, setupHomeButton, resetPanel } from './ui-controls.js';
+import { setupDonationButton } from './web3-donation.js';
 
 export let map;
-export let currentContractAddress = null;
 export let markersCluster;
+export let currentContractAddress = null;
 
-export function initMap() {
+function initMap() {
     map = L.map('map', { renderer: L.canvas() }).setView([32.4279, 53.6880], 5);
 
     markersCluster = L.markerClusterGroup({
@@ -24,16 +24,14 @@ export function initMap() {
     });
     map.addLayer(markersCluster);
 
-    // راه‌اندازی لایه‌های پایه و دکمه‌ها
     setupBasemaps(map);
-    setupHomeButton(map, resetPanel);
-
-    // بارگذاری داده‌ها
-    loadProvinces(map, showInPanel);
-    loadProjects(map, showInPanel, setContributeHandler);
-
-    // پنل پیش‌فرض
+    setupHomeButton(map);
     resetPanel();
+
+    loadProvinces();
+    loadProjects();
+
+    console.log("نقشه کلاس‌چین آماده شد!");
 }
 
 initMap();
