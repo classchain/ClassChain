@@ -213,6 +213,21 @@
 
 <script>
 let currentContractAddress = null;
+let currentToken = null; // برای ذخیره نوع توکن انتخابی
+
+
+        // لیست توکن‌های پشتیبانی‌شده
+        const tokens = {
+            'usdt_polygon_main': { name: 'USDT (Polygon Mainnet)', address: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F', decimals: 6, chainId: 137, explorer: 'polygonscan.com' },
+            'usdt_ethereum': { name: 'USDT (Ethereum)', address: '0xdAC17F958D2ee523a2206206994597C13d831ec7', decimals: 6, chainId: 1, explorer: 'etherscan.io' },
+            'usdt_bsc': { name: 'USDT (BSC)', address: '0x55d398326f99059fF775485246999027B3197955', decimals: 18, explorer: 'bscscan.com' },
+            'usdt_arbitrum': { name: 'USDT (Arbitrum)', address: '0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9', decimals: 6, explorer: 'arbiscan.io' },
+            'usdt_optimism': { name: 'USDT (Optimism)', address: '0x94b008aA00579C1307B0Ef2c499aD98A8cE58E58', decimals: 6, explorer: 'optimistic.etherscan.io' },
+            'usdt_tron': { name: 'USDT (TRON TRC20)', address: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t', decimals: 6, isTron: true },
+            'usdt_polygon_amoy': { name: 'USDT (Polygon Amoy Testnet)', address: '0x41e94eb019c0762f9bfcf9fb78e59bec0a32e187', decimals: 6, chainId: 80002, explorer: 'amoy.polygonscan.com', testnet: true },
+            'clc_test': { name: 'CLC (Test Token)', address: '0x39Af73d2736f6EC94778a38c0C7Ef800e58B13a7', decimals: 18, chainId: 137, explorer: 'polygonscan.com' } // بر اساس کامنت قدیمی کد
+        };
+
 const map = L.map('map', {
         renderer: L.canvas()
     }).setView([32.4279, 53.6880], 5);
@@ -302,7 +317,7 @@ const projectIcon = L.divIcon({
     document.head.appendChild(style);
     
     // بارگذاری استان‌ها
-    fetch('data/ir-new.json')
+    fetch('ir-new.json')
         .then(r => r.json())
         .then(data => {
             const features = data.features.map(f => ({
@@ -357,7 +372,7 @@ const projectIcon = L.divIcon({
     // نمایش شهرستان‌ها (همان کد قبلی بدون تغییر)
     function showCountiesOfProvince(provinceName) {
         if (!countiesLayer) {
-            fetch('data/counties.json')
+            fetch('counties.json')
                 .then(r => r.json())
                 .then(raw => {
                     let features = raw.features?.[0]?.geometry?.rings 
@@ -433,7 +448,7 @@ const projectIcon = L.divIcon({
     }
 
     // بارگذاری پروژه‌های آموزشی از Projects.json
-fetch('data/Projects.json')
+fetch('Projects.json')
         .then(r => r.json())
         .then(data => {
             const features = data.features;
@@ -467,31 +482,45 @@ fetch('data/Projects.json')
                         //if (selectedLayer) geo.resetStyle(selectedLayer);
                         //if (selectedCountyLayer) countiesLayer?.resetStyle(selectedCountyLayer);
 
-let financialInfo = '';
+            let financialInfo = '';
 
-if (a.contractAddress && a.contractAddress !== null && a.contractAddress !== "") {
-    financialInfo = `
-    <div class="info-item" style="background:rgba(46,204,113,0.2); padding:12px; border-radius:8px; margin-top:15px;">
-        <span class="info-label">خزانه هوشمند پروژه:</span><br>
-        <span class="info-value contract-address">
-            <a href="https://polygonscan.com/address/${a.contractAddress}" target="_blank" style="color:#3498db; text-decoration:underline;">
-                ${a.contractAddress}
-            </a>
-        </span>
-    </div>
+            if (a.contractAddress && a.contractAddress !== null && a.contractAddress !== "") {
+                financialInfo = `
+                <div class="info-item" style="background:rgba(46,204,113,0.2); padding:12px; border-radius:8px; margin-top:15px;">
+                    <span class="info-label">خزانه هوشمند پروژه:</span><br>
+                    <span class="info-value contract-address">
+                        <a href="https://polygonscan.com/address/${a.contractAddress}" target="_blank" style="color:#3498db; text-decoration:underline;">
+                            ${a.contractAddress}
+                        </a>
+                    </span>
+                </div>
 
-    <div class="info-item" style="margin-top:15px;">
-        <span class="info-label">برآورد هزینه ساخت:</span>
-        <span class="info-value">${a['targetAmount(USDT)'] ? Number(a['targetAmount(USDT)']).toLocaleString('fa-IR') + ' USDT' : 'نامشخص'}</span>
-    </div>
+                <div class="info-item" style="margin-top:15px;">
+                    <span class="info-label">برآورد هزینه ساخت:</span>
+                    <span class="info-value">${a['targetAmount(USDT)'] ? Number(a['targetAmount(USDT)']).toLocaleString('fa-IR') + ' USDT' : 'نامشخص'}</span>
+                </div>
 
-    <div id="donorsList" style="margin-top:15px;">
-        <span class="info-label">در حال بارگذاری لیست کمک‌کنندگان...</span>
-    </div>
-    `;
-} else {
-    financialInfo = '<div class="info-item" style="color:#e67e22; margin-top:15px;">خزانه هوشمند هنوز راه‌اندازی نشده</div>';
-}
+                <div style="margin-top:15px;">
+                    <label style="color:#ecf0f1;">توکن مشارکت:</label>
+                    <select id="tokenSelect" style="width:100%; padding:10px; margin-top:8px; border-radius:8px;">
+                        <option value="usdt_polygon_main">USDT - Polygon Mainnet</option>
+                        <option value="usdt_ethereum">USDT - Ethereum</option>
+                        <option value="usdt_bsc">USDT - BSC</option>
+                        <option value="usdt_arbitrum">USDT - Arbitrum</option>
+                        <option value="usdt_optimism">USDT - Optimism</option>
+                        <option value="usdt_tron">USDT - TRON (TRC20)</option>
+                        <option value="usdt_polygon_amoy">USDT - Polygon Amoy Testnet</option>
+                        <option value="clc_test">CLC (Test Token)</option>
+                    </select>
+                </div>
+
+                <div id="donorsList" style="margin-top:15px;">
+                    <span class="info-label">در حال بارگذاری لیست کمک‌کنندگان...</span>
+                </div>
+                `;
+            } else {
+                financialInfo = '<div class="info-item" style="color:#e67e22; margin-top:15px;">خزانه هوشمند هنوز راه‌اندازی نشده</div>';
+            }
 						
 showInPanel(`
     <div class="project-info">
@@ -515,16 +544,23 @@ showInPanel(`
         <p>(اتصال به MetaMask و ارسال USDT در شبکه Polygon)</p>
     </div>
 `);
-if (a.contractAddress && a.contractAddress !== null && a.contractAddress !== "") {
-    currentContractAddress = a.contractAddress;
-    loadDonors(a.contractAddress);
-    document.getElementById('fixedContributeBtn').style.display = 'block';
-} else {
-    currentContractAddress = null;
-    document.getElementById('fixedContributeBtn').style.display = 'none';
-}
-    map.setView([y, x], 14, { animate: true });
-});
+            if (a.contractAddress && a.contractAddress !== null && a.contractAddress !== "") {
+                currentContractAddress = a.contractAddress;
+                document.getElementById('fixedContributeBtn').style.display = 'block';
+                // پیش‌فرض توکن
+                document.getElementById('tokenSelect').onchange = function() {
+                    currentToken = this.value;
+                    updateContributeNote();
+                    loadDonors(currentContractAddress, currentToken); // بروزرسانی لیست بر اساس توکن
+                };
+                currentToken = 'usdt_polygon_main'; // پیش‌فرض
+                updateContributeNote();
+                loadDonors(currentContractAddress, currentToken);
+            } else {
+                currentContractAddress = null;
+                currentToken = null;
+                document.getElementById('fixedContributeBtn').style.display = 'none';
+            }
 
                     markersCluster.addLayer(marker);
                 }
@@ -536,11 +572,25 @@ if (a.contractAddress && a.contractAddress !== null && a.contractAddress !== "")
         .catch(err => {
             console.error("خطا در بارگذاری پروژه‌ها:", err);
         });
-	
-async function loadDonors(contractAddress) {
-    const apiKey = "DYB75BHRNWEGAGAEH73AWJUPQ8EDRKN7RB"; // از https://polygonscan.com/myapikey رایگان بگیر
-	const clcTokenAddress = "0x39Af73d2736f6EC94778a38c0C7Ef800e58B13a7"; // توکن CLC تست
-	const url = `https://api-amoy.polygonscan.com/api?module=account&action=tokentx&contractaddress=0x41e94eb019c0762f9bfcf9fb78e59bec0a32e187&address=${contractAddress}&sort=desc&apikey=${apiKey}`;
+		function updateContributeNote() {
+            if (currentToken && tokens[currentToken]) {
+                document.getElementById('contributeNote').innerText = `(${tokens[currentToken].name})`;
+            }
+        }
+
+        // بروزرسانی loadDonors برای پشتیبانی از شبکه‌های مختلف (فقط EVM + تست‌نت)
+        async function loadDonors(contractAddress, tokenKey) {
+            const token = tokens[tokenKey];
+            if (!token || token.isTron || token.testnet) {
+                document.querySelector('#donorsList').innerHTML = '<p style="opacity:0.7;">نمایش کمک‌ها برای این توکن/شبکه هنوز پیاده‌سازی نشده</p>';
+                return;
+            }
+
+            const baseUrl = token.chainId === 80002 ? 'https://api-amoy.polygonscan.com/api' : `https://api.${token.explorer}/api`;
+            const apiKey = "DYB75BHRNWEGAGAEH73AWJUPQ8EDRKN7RB";
+			const clcTokenAddress = "0x39Af73d2736f6EC94778a38c0C7Ef800e58B13a7"; // توکن CLC تست
+
+            const url = `${baseUrl}?module=account&action=tokentx&contractaddress=${token.address}&address=${contractAddress}&sort=desc&apikey=${apiKey}`;
     try {
         const response = await fetch(url);
         const data = await response.json();
@@ -591,10 +641,97 @@ async function loadDonors(contractAddress) {
         } else {
             document.querySelector('#donorsList').innerHTML = '<p style="opacity:0.7;">شما اولین مشارکت کننده این مدرسه باشید</p>';
         }
-    } catch (err) {
+    } 
+	// ... بقیه کد loadDonors همان قبلی، فقط totalRaised و لیست ...
+
+
+	catch (err) {
         document.querySelector('#donorsList').innerHTML = '<p style="color:#e74c3c;">خطا در بارگذاری کمک‌ها</p>';
     }
 }
+
+        async function contributeToProject(contractAddress, tokenKey) {
+            const token = tokens[tokenKey];
+            if (!token) {
+                alert('توکن معتبر انتخاب نشده');
+                return;
+            }
+
+            if (typeof window.ethereum === 'undefined' && !token.isTron) {
+                alert('لطفاً MetaMask یا کیف‌پول سازگار نصب کنید');
+                return;
+            }
+
+            try {
+                let amount = prompt(`مقدار ${token.name} برای مشارکت را وارد کنید (مثلاً 10):`, '10');
+                if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+                    alert('مقدار معتبر وارد کنید');
+                    return;
+                }
+                amount = parseFloat(amount);
+
+                if (token.isTron) {
+                    // برای TRON - نیاز به TronWeb (می‌توانید اسکریپت TronWeb را اضافه کنید)
+                    alert('پشتیبانی از TRON در حال توسعه است. لطفاً از کیف‌پول TronLink استفاده کنید.');
+                    return;
+                }
+
+                // برای شبکه‌های EVM
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+                // سوئیچ شبکه اگر لازم باشد
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: '0x' + token.chainId.toString(16) }],
+                    });
+                } catch (switchError) {
+                    if (switchError.code === 4902) {
+                        alert('این شبکه در MetaMask اضافه نشده است');
+                        return;
+                    }
+                }
+
+                const web3 = new Web3(window.ethereum);
+                const accounts = await web3.eth.getAccounts();
+                const userAddress = accounts[0];
+
+                const value = web3.utils.toBN(amount * Math.pow(10, token.decimals));
+
+                const minimalABI = [
+                    {
+                        "constant": false,
+                        "inputs": [
+                            { "name": "_to", "type": "address" },
+                            { "name": "_value", "type": "uint256" }
+                        ],
+                        "name": "transfer",
+                        "outputs": [{ "name": "", "type": "bool" }],
+                        "type": "function"
+                    }
+                ];
+
+                const tokenContract = new web3.eth.Contract(minimalABI, token.address);
+
+                const tx = await tokenContract.methods.transfer(contractAddress, value).send({
+                    from: userAddress
+                });
+
+                alert(`تراکنش با موفقیت ارسال شد!\nHash: ${tx.transactionHash}\nشبکه: ${token.name}`);
+
+                setTimeout(() => loadDonors(contractAddress, tokenKey), 10000);
+
+            } catch (error) {
+                console.error(error);
+                if (error.code === 4001) {
+                    alert('کاربر تراکنش را لغو کرد.');
+                } else {
+                    alert('خطا: ' + (error.message || 'نامشخص'));
+                }
+            }
+        }
+		
+		
 
     // بازگشت به ایران
 function zoomToIran() {
@@ -703,7 +840,6 @@ async function contributeToProject(contractAddress) {
 </script>
 </body>
 </html>
-
 
 
 
