@@ -1,5 +1,4 @@
-import { loadProvinces } from './map-layers.js';
-import { loadProjects } from './map-layers.js';
+import { loadProvinces, loadProjects } from './map-layers.js';
 import { setupBasemaps, setupHomeButton, resetPanel } from './ui-controls.js';
 import { setupDonationButton } from './web3-donation.js';
 
@@ -10,6 +9,7 @@ export let currentContractAddress = null;
 function initMap() {
     map = L.map('map', { renderer: L.canvas() }).setView([32.4279, 53.6880], 5);
 
+    // خوشه‌بندی مارکرها
     markersCluster = L.markerClusterGroup({
         maxClusterRadius: 60,
         iconCreateFunction: function(cluster) {
@@ -24,14 +24,16 @@ function initMap() {
     });
     map.addLayer(markersCluster);
 
+    // راه‌اندازی کنترل‌ها
     setupBasemaps(map);
     setupHomeButton(map);
     resetPanel();
 
+    // بارگذاری لایه‌ها
     loadProvinces();
     loadProjects();
 
-    console.log("نقشه کلاس‌چین آماده شد!");
+    console.log("🚀 نقشه کلاس‌چین با موفقیت راه‌اندازی شد!");
 }
 
 initMap();
