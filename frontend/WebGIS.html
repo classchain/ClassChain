@@ -315,7 +315,7 @@ const projectIcon = L.divIcon({
     document.head.appendChild(style);
     
     // بارگذاری استان‌ها
-    fetch('data/ir-new.json')
+    fetch('ir-new.json')
         .then(r => r.json())
         .then(data => {
             const features = data.features.map(f => ({
@@ -370,7 +370,7 @@ const projectIcon = L.divIcon({
     // نمایش شهرستان‌ها (همان کد قبلی بدون تغییر)
     function showCountiesOfProvince(provinceName) {
         if (!countiesLayer) {
-            fetch('data/counties.json')
+            fetch('counties.json')
                 .then(r => r.json())
                 .then(raw => {
                     let features = raw.features?.[0]?.geometry?.rings 
@@ -446,7 +446,7 @@ const projectIcon = L.divIcon({
     }
 
     // بارگذاری پروژه‌های آموزشی از Projects.json
-fetch('data/Projects.json')
+fetch('Projects.json')
         .then(r => r.json())
         .then(data => {
             const features = data.features;
@@ -742,7 +742,6 @@ async function contributeToProject(contractAddress, tokenKey) {
 </script>
 </body>
 </html>
-
 
 
 
