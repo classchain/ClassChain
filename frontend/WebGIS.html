@@ -124,7 +124,7 @@
 		}
 		.fixed-contribute-button {
     		position: sticky;          /* نسبت به info-panel */
-    		bottom: 1px;
+    		bottom: 15px;
     		left: 15px;
     		right: 15px;
     		text-align: center;
@@ -226,10 +226,10 @@
         	</div>
         	<div class="panel-content" id="infoPanel">
 				<div class="fixed-contribute-button" id="fixedContributeBtn">
-    				<button onclick="contributeToProject(currentContractAddress)">
+    				<button onclick="redirectToDonate(currentProjectId)">
 			    	    مشارکت در ساخت
     				</button>
-    				<p>(اتصال به MetaMask و ارسال USDT در شبکه Polygon)</p>
+    				<p>(انتخاب شبکه و پرداخت با کیف پول)</p>
 				</div>
             	<div class="no-selection">
             		<div class="icon">Map</div>
@@ -580,12 +580,12 @@ fetch('data/Projects.json')
                             </div>
                         </div>
 
-                        <div class="fixed-contribute-button" id="fixedContributeBtn" style="display: none;">
-                            <button onclick="contributeToProject('${a.contractAddress || ''}')">
-                                مشارکت در ساخت
-                            </button>
-                            <p>(اتصال به MetaMask و ارسال USDT در شبکه Polygon)</p>
-                        </div>
+						<div class="fixed-contribute-button" id="fixedContributeBtn" style="display: none;">
+							<button onclick="redirectToDonate('${a.ProjectID}')">
+								مشارکت در ساخت
+							</button>
+							<p>(انتخاب شبکه و پرداخت با کیف پول)</p>
+						</div>
                     `);
 
                     if (a.contractAddress && a.contractAddress !== null && a.contractAddress !== "") {
@@ -707,74 +707,79 @@ function zoomToIran() {
         currentBasemap.addTo(map);
     }
 
-async function contributeToProject(contractAddress) {
-    if (!contractAddress) return;
-	
-    if (typeof window.ethereum === 'undefined') {
-        alert('لطفاً افزونه MetaMask را نصب کنید یا از مرورگر سازگار با Web3 استفاده کنید.');
-        window.open('https://metamask.io/download/', '_blank');
-        return;
-    }
-
-    try {
-        // درخواست اتصال کیف پول
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-
-        const web3 = new Web3(window.ethereum);
-        const accounts = await web3.eth.getAccounts();
-        const userAddress = accounts[0];
-
-        // آدرس USDT در شبکه Polygon Mainnet
-        const usdtAddress = '0xc2132D05D31c914a87C6611C10748AEb04B58e8F';
-        const usdtDecimals = 6;
+//async function contributeToProject(contractAddress) {
+//    if (!contractAddress) return;
+//	
+//    if (typeof window.ethereum === 'undefined') {
+//        alert('لطفاً افزونه MetaMask را نصب کنید یا از مرورگر سازگار با Web3 استفاده کنید.');
+//        window.open('https://metamask.io/download/', '_blank');
+//        return;
+//    }
+//
+//    try {
+//        // درخواست اتصال کیف پول
+//        await window.ethereum.request({ method: 'eth_requestAccounts' });
+//
+//        const web3 = new Web3(window.ethereum);
+//        const accounts = await web3.eth.getAccounts();
+//        const userAddress = accounts[0];
+//
+//        // آدرس USDT در شبکه Polygon Mainnet
+//        const usdtAddress = '0xc2132D05D31c914a87C6611C10748AEb04B58e8F';
+//        const usdtDecimals = 6;
 
         // مقدار پیش‌فرض (مثلاً ۱۰ USDT) - کاربر می‌تواند بعداً تغییر دهد
-        let amount = prompt('مقدار USDT برای مشارکت را وارد کنید (مثلاً 10):', '10');
-        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
-            alert('مقدار معتبر وارد کنید.');
-            return;
-        }
-        amount = parseFloat(amount);
-
-        const value = web3.utils.toBN(amount * Math.pow(10, usdtDecimals));
-
+//        let amount = prompt('مقدار USDT برای مشارکت را وارد کنید (مثلاً 10):', '10');
+//        if (!amount || isNaN(amount) || parseFloat(amount) <= 0) {
+//            alert('مقدار معتبر وارد کنید.');
+//            return;
+//        }
+//        amount = parseFloat(amount);
+//
+//        const value = web3.utils.toBN(amount * Math.pow(10, usdtDecimals));
+//
         // ABI حداقل برای تابع transfer
-        const minimalABI = [
-            {
-                "constant": false,
-                "inputs": [
-                    { "name": "_to", "type": "address" },
-                    { "name": "_value", "type": "uint256" }
-                ],
-                "name": "transfer",
-                "outputs": [{ "name": "", "type": "bool" }],
-                "type": "function"
-            }
-        ];
-
-        const usdtContract = new web3.eth.Contract(minimalABI, usdtAddress);
-
+//        const minimalABI = [
+//            {
+//                "constant": false,
+//                "inputs": [
+//                    { "name": "_to", "type": "address" },
+//                    { "name": "_value", "type": "uint256" }
+//                ],
+//                "name": "transfer",
+//                "outputs": [{ "name": "", "type": "bool" }],
+//                "type": "function"
+//            }
+//        ];
+//
+//        const usdtContract = new web3.eth.Contract(minimalABI, usdtAddress);
+//
         // ارسال تراکنش
-        const tx = await usdtContract.methods.transfer(contractAddress, value).send({
-            from: userAddress
-        });
-
-        alert(`تراکنش با موفقیت ارسال شد!\nHash: ${tx.transactionHash}`);
-        
+//        const tx = await usdtContract.methods.transfer(contractAddress, value).send({
+//            from: userAddress
+//        });
+//
+//        alert(`تراکنش با موفقیت ارسال شد!\nHash: ${tx.transactionHash}`);
+//        
         // بروزرسانی لیست کمک‌کنندگان بعد از چند ثانیه
-        setTimeout(() => loadDonors(contractAddress), 8000);
-
-    } catch (error) {
-        console.error(error);
-        if (error.code === 4001) {
-            alert('کاربر تراکنش را لغو کرد.');
-        } else {
-            alert('خطا در ارسال تراکنش: ' + (error.message || 'نامشخص'));
-        }
+//        setTimeout(() => loadDonors(contractAddress), 8000);
+//
+//    } catch (error) {
+//        console.error(error);
+//        if (error.code === 4001) {
+//            alert('کاربر تراکنش را لغو کرد.');
+//        } else {
+//            alert('خطا در ارسال تراکنش: ' + (error.message || 'نامشخص'));
+//        }
+//    }
+//}	
+function redirectToDonate(projectId) {
+    if (projectId) {
+        window.location.href = 'donate.html?project=' + projectId;
+    } else {
+        alert('پروژه انتخاب نشده است');
     }
 }	
 </script>
 </body>
-
 </html>
-
