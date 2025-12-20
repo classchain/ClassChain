@@ -126,7 +126,7 @@
 }
 		
 .fixed-contribute-button {
-    position: absolute;
+    position: sticky;
     bottom: 10px;  /* کمی بالاتر از پایین تا زیبا تر بشه */
     left: 15px;
     right: 15px;
@@ -344,7 +344,7 @@ const projectIcon = L.divIcon({
     document.head.appendChild(style);
     
     // بارگذاری استان‌ها
-    fetch('ir-new.json')
+    fetch('data/ir-new.json')
         .then(r => r.json())
         .then(data => {
             const features = data.features.map(f => ({
@@ -399,7 +399,7 @@ const projectIcon = L.divIcon({
     // نمایش شهرستان‌ها (همان کد قبلی بدون تغییر)
     function showCountiesOfProvince(provinceName) {
         if (!countiesLayer) {
-            fetch('counties.json')
+            fetch('data/counties.json')
                 .then(r => r.json())
                 .then(raw => {
                     let features = raw.features?.[0]?.geometry?.rings 
@@ -751,6 +751,7 @@ async function contributeToProject(contractAddress) {
 </script>
 </body>
 </html>
+
 
 
 
