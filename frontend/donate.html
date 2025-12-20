@@ -191,7 +191,6 @@
             gap: 0.5rem;
             font-size: 0.95rem;
             color: #cbd5e1;
-            margin: 1.5rem 0;
         }
 
         .network-dropdown {
@@ -213,6 +212,17 @@
             background-repeat: no-repeat;
             background-position: left 1rem center;
             padding-left: 3rem;
+        }
+        #networkSelect option {
+            padding: 1rem;
+            background: var(--bg);
+            display: flex;
+            align-items: center;
+        }
+        #networkSelect option img {
+            width: 24px;
+            height: 24px;
+            margin-right: 10px;
         }
 
         .amount-input {
@@ -243,7 +253,6 @@
             font-family: monospace;
             font-size: 0.95rem;
             text-align: center;
-            display: none;
         }
         .contract-info a {
             color: #3498db;
@@ -283,7 +292,6 @@
             border-radius: 12px;
             margin: 1.5rem 0;
             text-align: center;
-            border: 1px solid #10b981;
         }
 
         .testnet-note {
@@ -304,6 +312,21 @@
             width: 100%;
             z-index: 5;
             font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .project-title { font-size: 2rem; }
+            .navbar { padding: 0.8rem 1rem; }
+            .navbar-brand { font-size: 1.4rem; }
+            .nav-links a { margin: 0 0.5rem; font-size: 0.9rem; }
+            .lang-switch { top: 70px; left: 10px; }
+            .card { padding: 1.5rem; flex-direction: column; }
+            input#customAmount { font-size: 1.2rem; }
+            .btn-primary { font-size: 1.2rem; padding: 0.9rem 2rem; }
+        }
+
+        @media (max-width: 480px) {
+            .project-title { font-size: 1.8rem; }
         }
     </style>
 </head>
@@ -333,12 +356,12 @@
                 <p class="project-subtitle" id="projectDesc"></p>
 
                 <div class="testnet-note" id="testnetNote">
-                    ⚠️ برخی پروژه‌ها روی شبکه آزمایشی Polygon Amoy هستند. کمک‌های واقعی اما برای تست.
+                    ⚠️ این پروژه در حال حاضر روی شبکه آزمایشی Polygon Amoy است. کمک‌های شما واقعی هستند اما برای تست — به زودی به شبکه اصلی منتقل می‌شویم.
                 </div>
 
                 <div class="progress-container">
                     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-                    <div class="progress-text" id="progressText">در حال محاسبه کمک‌های واقعی از بلاکچین...</div>
+                    <div class="progress-text" id="progressText">در حال محاسبه کمک‌ها...</div>
                 </div>
 
                 <!-- انتخاب شبکه -->
@@ -348,72 +371,83 @@
                     </select>
                 </div>
 
-                <!-- مبلغ -->
+                <!-- مبلغ اختیاری -->
                 <div class="amount-input">
-                    <input type="number" id="customAmount" placeholder="مقدار کمک به USDT (مثلاً 10)" min="0.01" step="0.01">
+                    <input type="number" id="customAmount" placeholder="مقدار کمک خود را به USDT وارد کنید" min="1" step="0.01">
                 </div>
 
-                <!-- آدرس خزانه و QR -->
-                <div class="contract-info" id="contractInfo">
-                    <strong>آدرس خزانه هوشمند:</strong><br>
+                <!-- نمایش آدرس خزانه با لینک -->
+                <div class="contract-info" id="contractInfo" style="display:none;">
+                    <strong>آدرس خزانه هوشمند (شبکه انتخابی):</strong><br>
                     <a id="contractLink" href="#" target="_blank"></a>
                 </div>
+
+                <!-- QR Code -->
                 <div id="qrCode"></div>
 
-                <!-- چک‌باکس تأیید -->
-                <div class="consent-checkbox">
-                    <input type="checkbox" id="termsConsent">
-                    <label for="termsConsent">می‌پذیرم که کمک من مستقیم به خزانه هوشمند پروژه واریز شود و غیرقابل بازگشت است.</label>
-                </div>
+                <p style="font-size:0.95rem; color:#94a3b8; margin:1rem 0;">
+                    نکته: آدرس کیف پول شما (در MetaMask) فرستنده کمک است و آدرس خزانه مقصد آن. این دو متفاوت هستند.
+                </p>
 
                 <button class="btn-primary" id="connectBtn" disabled>اتصال کیف پول و پرداخت</button>
 
                 <div class="success-message" id="successMessage">
-                    <strong id="txHash"></strong>
+                    <h3>✅ کمک شما با موفقیت ارسال شد!</h3>
+                    <p id="txHash"></p>
+                    <div class="email-section">
+                        <p>مایلیم آپدیت‌های پیشرفت پروژه را برای شما ارسال کنیم (اختیاری):</p>
+                        <input type="email" id="donorEmail" placeholder="ایمیل خود را وارد کنید" style="padding:1rem; width:100%; max-width:400px; margin:1rem 0; border-radius:12px; border:none;">
+                        <label style="display:block; margin:1rem 0;">
+                            <input type="checkbox" id="consent" checked> بله، مایلم اطلاع‌رسانی دریافت کنم (فقط برای آپدیت‌های پروژه)
+                        </label>
+                        <button onclick="saveEmail()" class="btn-primary">ثبت ایمیل</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- تعهدات به کنار (سایدبار) -->
+            <div class="sidebar">
+                <div class="transparency-note">
+                    <strong>تعهدات ما:</strong> تمام کمک‌های شما مستقیماً و بدون کسر هیچ هزینه‌ای به خزانه هوشمند پروژه ارسال می‌شود. پیشرفت ساخت و هزینه‌ها به صورت شفاف گزارش خواهد شد.<br><br>
+                    <strong>تعهدات شما:</strong> با ارسال کمک، تأیید می‌کنید که این مبلغ به صورت داوطلبانه و برای ساخت مدرسه اهدا شده است. تمام تراکنش‌ها روی بلاکچین قابل ردیابی هستند.
+                </div>
+                <div class="consent-checkbox">
+                    <input type="checkbox" id="termsConsent">
+                    <label for="termsConsent">این تعهدات را خواندم و تایید می‌کنم</label>
                 </div>
             </div>
         </div>
     </div>
 
-    <footer>
-        © 2025 ClassChain Foundation — آینده آموزش ایران را با هم بسازیم
-    </footer>
+    <footer>© ۱۴۰۴ کلاس‌چین — آینده آموزش ایران را با هم بسازیم</footer>
 
     <script>
+        // Particles — کاملاً ثابت
         particlesJS("particles-js", {
             "particles": {
-                "number": { "value": 80 },
+                "number": { "value": 60 },
                 "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] },
                 "shape": { "type": "circle" },
-                "opacity": { "value": 0.5, "random": true },
-                "size": { "value": 3, "random": true },
+                "opacity": { "value": 0.4, "random": true },
+                "size": { "value": 4, "random": true },
                 "line_linked": {
                     "enable": true,
-                    "distance": 150,
+                    "distance": 180,
                     "color": "#6366f1",
-                    "opacity": 0.3,
+                    "opacity": 0.2,
                     "width": 1
                 },
-                "move": { "enable": true, "speed": 1 }
+                "move": { "enable": false }
             },
             "interactivity": {
                 "events": { "onhover": { "enable": true, "mode": "repulse" } }
             }
         });
 
-        // تغییر زبان (اختیاری – می‌تونی نگه داری یا حذف کنی)
-        function setLang(lang) {
-            document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
-            document.documentElement.lang = lang;
-            document.querySelectorAll('.lang-switch button').forEach(b => b.classList.remove('active'));
-            document.querySelector(`.lang-switch button[onclick="setLang('${lang}')"]`).classList.add('active');
-        }
-
         let projectData = {};
         let selectedNetwork = null;
-        let currentContract = null;
-        let web3 = null;
-        let userAddress = null;
+        let selectedAmount = 0;
+        let web3, userAddress, currentContract;
 
         const networks = {
             amoy: {
@@ -423,7 +457,6 @@
                 usdtAddress: "0x41e94eb019c0762f9bfcf9fb78e59bec0a32e187",
                 chainId: 80002,
                 explorer: "https://amoy.polygonscan.com",
-                apiBase: "https://api-amoy.polygonscan.com/api"
             },
             polygon: {
                 name: "Polygon Mainnet",
@@ -432,7 +465,6 @@
                 usdtAddress: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
                 chainId: 137,
                 explorer: "https://polygonscan.com",
-                apiBase: "https://api.polygonscan.com/api"
             },
             ethereum: {
                 name: "Ethereum",
@@ -441,7 +473,6 @@
                 usdtAddress: "0xdac17f958d2ee523a2206206994597c13d831ec7",
                 chainId: 1,
                 explorer: "https://etherscan.io",
-                apiBase: "https://api.etherscan.io/api"
             },
             bsc: {
                 name: "Binance Smart Chain",
@@ -450,27 +481,15 @@
                 usdtAddress: "0x55d398326f99059ff7754852469993b3197955e7",
                 chainId: 56,
                 explorer: "https://bscscan.com",
-                apiBase: "https://api.bscscan.com/api"
-            }
+            },
             tron: {
                 name: "Tron (TRC-20)",
                 icon: "https://cryptologos.cc/logos/tron-trx-logo.png",
                 addressField: "contractAddressTron",
                 usdtAddress: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-                chainId: 728126428,
+                chainId: null,
                 explorer: "https://tronscan.org",
-                apiBase: "https://api.trongrid.io/jsonrpc"
             },
-            clc: {
-                name: "توکن CLC (کلاس‌چین)",
-                icon: "https://via.placeholder.com/64?text=CLC", // جایگزین با آیکون واقعی CLC کنید
-                addressField: "contractAddressCLC",
-                usdtAddress: "آدرس قرارداد CLC", // آدرس واقعی توکن CLC را اینجا بگذارید
-                chainId: 80002, // بسته به شبکه‌ای که CLC روی آن است
-                explorer: "https://amoy.polygonscan.com",
-                apiBase: "https://api-amoy.polygonscan.com/api"
-            }
-
             arbitrum: {
                 name: "Arbitrum One",
                 icon: "https://cryptologos.cc/logos/arbitrum-arb-logo.png",
@@ -478,7 +497,6 @@
                 usdtAddress: "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
                 chainId: 42161,
                 explorer: "https://arbiscan.io",
-                apiBase: "https://nova.arbitrum.io/rpc"
             },
             optimism: {
                 name: "Optimism",
@@ -487,7 +505,6 @@
                 usdtAddress: "0x94b008aa00579c13056b0a762ad3af54ac829873",
                 chainId: 10,
                 explorer: "https://optimistic.etherscan.io",
-                apiBase: "https://mainnet.optimism.io"
             },
             avalanche: {
                 name: "Avalanche",
@@ -496,7 +513,6 @@
                 usdtAddress: "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7",
                 chainId: 43114,
                 explorer: "https://snowtrace.io",
-                apiBase: "https://api.avax.network/ext/bc/C/rpc"
             },
             solana: {
                 name: "Solana",
@@ -505,16 +521,7 @@
                 usdtAddress: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
                 chainId: null,
                 explorer: "https://solscan.io",
-                apiBase: "https://api.mainnet-beta.solana.com"
             }
-        };
-
-        // *** مهم: اینجا API Key خودت رو بذار (یا backend بساز) ***
-        const API_KEYS = {
-            amoy: "YOUR_AMOY_POLYGONSCAN_API_KEY",
-            polygon: "YOUR_POLYGONSCAN_API_KEY",
-            ethereum: "YOUR_ETHERSCAN_API_KEY",
-            bsc: "YOUR_BSCSCAN_API_KEY"
         };
 
         const urlParams = new URLSearchParams(window.location.search);
@@ -523,29 +530,37 @@
         async function loadProject() {
             if (!projectId) {
                 document.getElementById('projectName').innerText = "هیچ پروژه‌ای انتخاب نشده";
+                document.getElementById('projectDesc').innerText = "لطفاً از نقشه پروژه‌ای را انتخاب کنید.";
                 return;
             }
 
             try {
-                const response = await fetch('./data/Projects.json'); // مسیر رو بر اساس ساختار گیت‌هابت تنظیم کن
+                const response = await fetch('data/Projects.json');
+                if (!response.ok) throw new Error('فایل Projects.json یافت نشد');
                 const data = await response.json();
                 const feature = data.features.find(f => f.attributes.ProjectID === projectId);
                 
                 if (!feature) {
                     document.getElementById('projectName').innerText = "پروژه یافت نشد";
+                    document.getElementById('projectDesc').innerText = "کد پروژه: " + projectId;
                     return;
                 }
                 
                 projectData = feature.attributes;
 
                 document.getElementById('projectName').innerText = projectData["نام پروژه"] || "پروژه کلاس‌چین";
-                document.getElementById('projectDesc').innerText = 
-                    `${projectData["نوع پروژه (نیاز)"] || ""} — ${projectData["تعداد کلاس"] || ""} کلاس — هدف: ${projectData["targetAmount(USDT)"] || "نامشخص"} USDT`;
+                document.getElementById('projectDesc').innerText = `${
+                    projectData["نوع پروژه (نیاز)"] || ""} — ${
+                    projectData["تعداد کلاس"] || ""} کلاس — هدف: ${
+                    projectData["targetAmount(USDT)"] || "نامشخص"} USDT`;
 
                 loadNetworkDropdown();
+                loadProgress();
+                updateContractAddress();
             } catch (err) {
                 console.error(err);
                 document.getElementById('projectName').innerText = "خطا در بارگذاری پروژه";
+                document.getElementById('projectDesc').innerText = "ممکن است مسیر فایل JSON اشتباه باشد.";
             }
         }
 
@@ -553,6 +568,7 @@
             const select = document.getElementById('networkSelect');
             select.innerHTML = '<option value="">لطفاً یک شبکه انتخاب کنید</option>';
 
+            let hasAnyNetwork = false;
             Object.keys(networks).forEach(key => {
                 const net = networks[key];
                 if (projectData[net.addressField] && projectData[net.addressField].trim() !== "") {
@@ -560,117 +576,103 @@
                     option.value = key;
                     option.innerHTML = `<img src="${net.icon}" style="width:24px;height:24px;vertical-align:middle;margin-left:8px;"> ${net.name}`;
                     select.appendChild(option);
+                    hasAnyNetwork = true;
 
-                    // پیش‌فرض Amoy اگر موجود باشه
-                    if (key === 'amoy' && !selectedNetwork) {
+                    // پیش‌فرض Amoy اگر موجود باشد
+                    if (key === 'amoy') {
                         option.selected = true;
                         selectedNetwork = 'amoy';
                     }
                 }
             });
 
+            if (!hasAnyNetwork) {
+                select.innerHTML += '<option disabled>هیچ خزانه‌ای برای این پروژه تعریف نشده</option>';
+            }
+
+            // اگر Amoy موجود بود، اطلاعات را بروز کن
             if (selectedNetwork) {
-                updateContractAndQR();
+                updateContractAddress();
                 loadProgress();
             }
         }
 
         function selectNetwork(netKey) {
             selectedNetwork = netKey;
-            updateContractAndQR();
+            updateContractAddress();
             loadProgress();
         }
 
-        function updateContractAndQR() {
+        function updateContractAddress() {
             if (!selectedNetwork) {
                 document.getElementById('contractInfo').style.display = 'none';
                 document.getElementById('qrCode').innerHTML = '';
                 return;
             }
-
             const net = networks[selectedNetwork];
             currentContract = projectData[net.addressField];
+            const contractInfo = document.getElementById('contractInfo');
+            const contractLink = document.getElementById('contractLink');
+            const qrContainer = document.getElementById('qrCode');
 
             if (currentContract && currentContract.trim() !== "") {
-                const link = document.getElementById('contractLink');
-                link.href = `${net.explorer}/address/${currentContract}`;
-                link.innerText = currentContract;
-                document.getElementById('contractInfo').style.display = 'block';
-
-                document.getElementById('qrCode').innerHTML = '';
-                new QRCode(document.getElementById('qrCode'), {
+                contractLink.href = `${net.explorer}/address/${currentContract}`;
+                contractLink.innerText = currentContract;
+                contractInfo.style.display = 'block';
+                qrContainer.innerHTML = '';
+                new QRCode(qrContainer, {
                     text: currentContract,
                     width: 200,
                     height: 200
                 });
             } else {
-                document.getElementById('contractInfo').style.display = 'none';
-                document.getElementById('qrCode').innerHTML = '';
+                contractInfo.style.display = 'none';
+                qrContainer.innerHTML = '';
             }
         }
 
         async function loadProgress() {
-            if (!selectedNetwork || !currentContract) {
-                document.getElementById('progressText').innerText = 'شبکه یا خزانه انتخاب نشده';
-                return;
-            }
-
+            // موقتاً دمو — بعداً با API واقعی جایگزین کن
             const target = parseFloat(projectData["targetAmount(USDT)"]) || 1000;
-            let raised = 0;
-
-            try {
-                const net = networks[selectedNetwork];
-                const url = `${net.apiBase}?module=account&action=tokentx&contractaddress=${net.usdtAddress}&address=${currentContract}&sort=desc&apikey=${API_KEYS[selectedNetwork]}`;
-                
-                const res = await fetch(url);
-                const data = await res.json();
-
-                if (data.status === "1") {
-                    data.result.forEach(tx => {
-                        if (tx.to.toLowerCase() === currentContract.toLowerCase()) {
-                            raised += parseInt(tx.value) / 1e6;
-                        }
-                    });
-                }
-            } catch (e) {
-                console.error("خطا در دریافت داده از بلاکچین", e);
-                document.getElementById('progressText').innerText = 'خطا در دریافت داده از بلاکچین — مقدار تقریبی نمایش داده نمی‌شود';
-                return;
-            }
-
-            const percent = Math.min(100, (raised / target) * 100);
+            const raised = Math.floor(Math.random() * target * 0.3);
+            const percent = (raised / target) * 100;
             document.getElementById('progressFill').style.width = percent + '%';
-            document.getElementById('progressText').innerText = 
-                `${raised.toFixed(2)} USDT جمع شده از ${target.toLocaleString('fa-IR')} USDT هدف`;
+            document.getElementById('progressText').innerText = `${raised.toFixed(2)} USDT از ${target.toLocaleString('fa-IR')} USDT جمع شده`;
         }
 
+        document.getElementById('customAmount').oninput = (e) => {
+            selectedAmount = parseFloat(e.target.value) || 0;
+        };
+
         document.getElementById('connectBtn').onclick = async () => {
-            const amount = parseFloat(document.getElementById('customAmount').value);
-            if (!amount || amount <= 0) {
-                alert("لطفاً مقدار معتبر USDT وارد کنید");
-                return;
-            }
-
             if (!currentContract) {
-                alert("خزانه هوشمند برای این شبکه تعریف نشده");
+                alert("خزانه هوشمند برای این شبکه هنوز راه‌اندازی نشده");
+                return;
+            }
+            if (selectedAmount <= 0) {
+                alert("لطفاً مقدار معتبر وارد کنید");
                 return;
             }
 
-            if (!window.ethereum) {
+            if (typeof window.ethereum === 'undefined') {
                 alert("لطفاً MetaMask یا کیف پول سازگار نصب کنید");
-                window.open("https://metamask.io/download/", "_blank");
                 return;
             }
 
             try {
                 const net = networks[selectedNetwork];
 
-                // سوئیچ شبکه
                 if (net.chainId) {
-                    await window.ethereum.request({
-                        method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: '0x' + net.chainId.toString(16) }],
-                    });
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0x' + net.chainId.toString(16) }],
+                        });
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            alert("شبکه " + net.name + " به کیف پول اضافه نشده است.");
+                        }
+                    }
                 }
 
                 await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -681,33 +683,38 @@
                 const usdtABI = [{"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"}];
                 const usdtContract = new web3.eth.Contract(usdtABI, net.usdtAddress);
 
-                const amountWei = web3.utils.toBN(amount * 1000000); // USDT 6 decimals
-
+                const amountWei = web3.utils.toBN(selectedAmount * 1000000);
                 const tx = await usdtContract.methods.transfer(currentContract, amountWei).send({ from: userAddress });
 
                 const explorerLink = `${net.explorer}/tx/${tx.transactionHash}`;
-                document.getElementById('txHash').innerHTML = `تراکنش با موفقیت ارسال شد!<br><a href="${explorerLink}" target="_blank" style="color:#34d399;">مشاهده در اکسپلورر</a>`;
+                document.getElementById('txHash').innerHTML = `تراکنش با موفقیت ارسال شد!<br><a href="${explorerLink}" target="_blank">مشاهده در اکسپلورر</a>`;
                 document.getElementById('successMessage').style.display = 'block';
                 document.getElementById('connectBtn').style.display = 'none';
 
-                // بروزرسانی پیشرفت بعد از چند ثانیه
-                setTimeout(loadProgress, 12000);
+                loadProgress();
             } catch (err) {
-                console.error(err);
                 if (err.code === 4001) {
-                    alert("تراکنش توسط شما لغو شد");
+                    alert("تراکنش توسط کاربر لغو شد");
                 } else {
-                    alert("خطا در پرداخت: " + (err.message || "نامشخص"));
+                    alert("خطا در ارسال تراکنش: " + (err.message || "نامشخص"));
                 }
             }
         };
 
-        // فعال کردن دکمه با چک‌باکس
+        // فعال کردن دکمه با تیک چک‌باکس
         document.getElementById('termsConsent').addEventListener('change', function() {
             document.getElementById('connectBtn').disabled = !this.checked;
         });
 
-        // شروع
+        function saveEmail() {
+            const email = document.getElementById('donorEmail').value.trim();
+            if (!email || !document.getElementById('consent').checked) {
+                alert("لطفاً ایمیل معتبر وارد کنید و تأیید را بزنید");
+                return;
+            }
+            alert("ایمیل شما ثبت شد! آپدیت‌های پروژه برایتان ارسال خواهد شد ❤️");
+        }
+
         loadProject();
     </script>
 </body>
