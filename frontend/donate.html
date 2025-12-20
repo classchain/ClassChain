@@ -448,6 +448,9 @@
         let selectedNetwork = null;
         let selectedAmount = 0;
         let web3, userAddress, currentContract;
+        function isTronReady() {
+            return window.tronWeb && window.tronWeb.ready;
+        }
 
         const networks = {
             amoy: {
@@ -643,63 +646,114 @@
         document.getElementById('customAmount').oninput = (e) => {
             selectedAmount = parseFloat(e.target.value) || 0;
         };
+document.getElementById('connectBtn').onclick = async () => {
 
-        document.getElementById('connectBtn').onclick = async () => {
-            if (!currentContract) {
-                alert("خزانه هوشمند برای این شبکه هنوز راه‌اندازی نشده");
-                return;
-            }
-            if (selectedAmount <= 0) {
-                alert("لطفاً مقدار معتبر وارد کنید");
-                return;
-            }
+    if (!currentContract) {
+        alert("خزانه هوشمند برای این شبکه هنوز راه‌اندازی نشده");
+        return;
+    }
 
-            if (typeof window.ethereum === 'undefined') {
-                alert("لطفاً MetaMask یا کیف پول سازگار نصب کنید");
-                return;
-            }
+    if (selectedAmount <= 0) {
+        alert("لطفاً مقدار معتبر وارد کنید");
+        return;
+    }
 
-            try {
-                const net = networks[selectedNetwork];
+    const net = networks[selectedNetwork];
 
-                if (net.chainId) {
-                    try {
-                        await window.ethereum.request({
-                            method: 'wallet_switchEthereumChain',
-                            params: [{ chainId: '0x' + net.chainId.toString(16) }],
-                        });
-                    } catch (switchError) {
-                        if (switchError.code === 4902) {
-                            alert("شبکه " + net.name + " به کیف پول اضافه نشده است.");
-                        }
-                    }
-                }
+    /* =========================
+       شاخه TRON — پرداخت یک‌کلیکی
+       ========================= */
+    if (selectedNetwork === 'tron') {
 
-                await window.ethereum.request({ method: 'eth_requestAccounts' });
-                web3 = new Web3(window.ethereum);
-                const accounts = await web3.eth.getAccounts();
-                userAddress = accounts[0];
+        if (!isTronReady()) {
+            alert("لطفاً TronLink را نصب و فعال کنید");
+            return;
+        }
 
-                const usdtABI = [{"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"}];
-                const usdtContract = new web3.eth.Contract(usdtABI, net.usdtAddress);
+        try {
+            const tronWeb = window.tronWeb;
+            const userAddress = tronWeb.defaultAddress.base58;
 
-                const amountWei = web3.utils.toBN(selectedAmount * 1000000);
-                const tx = await usdtContract.methods.transfer(currentContract, amountWei).send({ from: userAddress });
+            const usdtContract = await tronWeb.contract().at(net.usdtAddress);
+            const amount = Math.floor(selectedAmount * 1_000_000);
 
-                const explorerLink = `${net.explorer}/tx/${tx.transactionHash}`;
-                document.getElementById('txHash').innerHTML = `تراکنش با موفقیت ارسال شد!<br><a href="${explorerLink}" target="_blank">مشاهده در اکسپلورر</a>`;
-                document.getElementById('successMessage').style.display = 'block';
-                document.getElementById('connectBtn').style.display = 'none';
+            const tx = await usdtContract
+                .transfer(currentContract, amount)
+                .send();
 
-                loadProgress();
-            } catch (err) {
-                if (err.code === 4001) {
-                    alert("تراکنش توسط کاربر لغو شد");
-                } else {
-                    alert("خطا در ارسال تراکنش: " + (err.message || "نامشخص"));
-                }
-            }
-        };
+            document.getElementById('txHash').innerHTML =
+                `تراکنش با موفقیت ارسال شد!<br>
+                <a href="${net.explorer}/transaction/${tx}" target="_blank">
+                مشاهده در Tronscan
+                </a>`;
+
+            document.getElementById('successMessage').style.display = 'block';
+            document.getElementById('connectBtn').style.display = 'none';
+
+            loadProgress();
+
+        } catch (err) {
+            alert("خطا در ارسال تراکنش ترون: " + (err.message || "نامشخص"));
+        }
+
+        return;
+    }
+
+    /* =========================
+       شاخه EVM — بدون تغییر
+       ========================= */
+
+    if (typeof window.ethereum === 'undefined') {
+        alert("لطفاً MetaMask یا کیف پول سازگار نصب کنید");
+        return;
+    }
+
+    try {
+        if (net.chainId) {
+            await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: '0x' + net.chainId.toString(16) }],
+            });
+        }
+
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        web3 = new Web3(window.ethereum);
+        const accounts = await web3.eth.getAccounts();
+        userAddress = accounts[0];
+
+        const usdtABI = [{
+            "inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],
+            "name":"transfer",
+            "outputs":[{"name":"","type":"bool"}],
+            "type":"function"
+        }];
+
+        const usdtContract = new web3.eth.Contract(usdtABI, net.usdtAddress);
+        const amountWei = web3.utils.toBN(selectedAmount * 1_000_000);
+
+        const tx = await usdtContract.methods
+            .transfer(currentContract, amountWei)
+            .send({ from: userAddress });
+
+        document.getElementById('txHash').innerHTML =
+            `تراکنش با موفقیت ارسال شد!<br>
+            <a href="${net.explorer}/tx/${tx.transactionHash}" target="_blank">
+            مشاهده در اکسپلورر
+            </a>`;
+
+        document.getElementById('successMessage').style.display = 'block';
+        document.getElementById('connectBtn').style.display = 'none';
+
+        loadProgress();
+
+    } catch (err) {
+        if (err.code === 4001) {
+            alert("تراکنش توسط کاربر لغو شد");
+        } else {
+            alert("خطا در ارسال تراکنش: " + (err.message || "نامشخص"));
+        }
+    }
+};
 
         // فعال کردن دکمه با تیک چک‌باکس
         document.getElementById('termsConsent').addEventListener('change', function() {
