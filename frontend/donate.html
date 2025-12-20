@@ -527,7 +527,7 @@
             }
 
             try {
-                const response = await fetch('data/Projects.json'); // مسیر رو بر اساس ساختار گیت‌هابت تنظیم کن
+                const response = await fetch('./data/Projects.json'); // مسیر رو بر اساس ساختار گیت‌هابت تنظیم کن
                 const data = await response.json();
                 const feature = data.features.find(f => f.attributes.ProjectID === projectId);
                 
