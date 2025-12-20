@@ -373,7 +373,7 @@
 
                 <!-- مبلغ اختیاری -->
                 <div class="amount-input">
-                    <input type="number" id="customAmount" placeholder="مقدار کمک خود را به USDT وارد کنید" min="1" step="0.01">
+                    <input type="number" id="customAmount" placeholder="مقدار کمک خود را وارد کنید" min="1" step="0.01">
                 </div>
 
                 <!-- نمایش آدرس خزانه با لینک -->
@@ -386,7 +386,7 @@
                 <div id="qrCode"></div>
 
                 <p style="font-size:0.95rem; color:#94a3b8; margin:1rem 0;">
-                    نکته: آدرس کیف پول شما (در MetaMask) فرستنده کمک است و آدرس خزانه مقصد آن. این دو متفاوت هستند.
+                    نکته: آدرس کیف پول شما (در MetaMask یا TronLink) فرستنده کمک است و آدرس خزانه مقصد آن. این دو متفاوت هستند.
                 </p>
 
                 <button class="btn-primary" id="connectBtn" disabled>اتصال کیف پول و پرداخت</button>
@@ -454,73 +454,111 @@
                 name: "Polygon Amoy (تست‌نت)",
                 icon: "https://cryptologos.cc/logos/polygon-matic-logo.png",
                 addressField: "contractAddress",
+                tokenType: "USDT-Amoy",
                 usdtAddress: "0x41e94eb019c0762f9bfcf9fb78e59bec0a32e187",
                 chainId: 80002,
                 explorer: "https://amoy.polygonscan.com",
+                isEVM: true
             },
             polygon: {
                 name: "Polygon Mainnet",
                 icon: "https://cryptologos.cc/logos/polygon-matic-logo.png",
                 addressField: "contractAddressMainnet",
+                tokenType: "USDT",
                 usdtAddress: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
                 chainId: 137,
                 explorer: "https://polygonscan.com",
-            },
-            ethereum: {
-                name: "Ethereum",
-                icon: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
-                addressField: "contractAddressEthereum",
-                usdtAddress: "0xdac17f958d2ee523a2206206994597c13d831ec7",
-                chainId: 1,
-                explorer: "https://etherscan.io",
-            },
-            bsc: {
-                name: "Binance Smart Chain",
-                icon: "https://cryptologos.cc/logos/binance-coin-bnb-logo.png",
-                addressField: "contractAddressBSC",
-                usdtAddress: "0x55d398326f99059ff7754852469993b3197955e7",
-                chainId: 56,
-                explorer: "https://bscscan.com",
+                isEVM: true
             },
             tron: {
                 name: "Tron (TRC-20)",
                 icon: "https://cryptologos.cc/logos/tron-trx-logo.png",
                 addressField: "contractAddressTron",
+                tokenType: "USDT-TRC20",
                 usdtAddress: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
                 chainId: null,
                 explorer: "https://tronscan.org",
+                isEVM: false
+            },
+            clc: {
+                name: "توکن CLC (کلاس‌چین)",
+                icon: "https://via.placeholder.com/64?text=CLC", // جایگزین با آیکون واقعی CLC کنید
+                addressField: "contractAddressCLC",
+                tokenType: "CLC",
+                usdtAddress: "آدرس قرارداد CLC", // آدرس واقعی توکن CLC را اینجا بگذارید
+                chainId: null, // بسته به شبکه‌ای که CLC روی آن است
+                explorer: "https://polygonscan.com", // یا explorer مناسب
+                isEVM: true // اگر روی EVM باشد
+            }
+            ethereum: {
+                name: "Ethereum",
+                icon: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
+                addressField: "contractAddressEthereum",
+                tokenType: "USDT",
+                usdtAddress: "0xdac17f958d2ee523a2206206994597c13d831ec7",
+                chainId: 1,
+                explorer: "https://etherscan.io",
+                isEVM: true
+            },
+            bsc: {
+                name: "Binance Smart Chain",
+                icon: "https://cryptologos.cc/logos/binance-coin-bnb-logo.png",
+                addressField: "contractAddressBSC",
+                tokenType: "USDT",
+                usdtAddress: "0x55d398326f99059ff7754852469993b3197955e7",
+                chainId: 56,
+                explorer: "https://bscscan.com",
+                isEVM: true
+            },
+            tron: {
+                name: "Tron (TRC-20)",
+                icon: "https://cryptologos.cc/logos/tron-trx-logo.png",
+                addressField: "contractAddressTron",
+                tokenType: "USDT",
+                usdtAddress: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+                chainId: null,
+                explorer: "https://tronscan.org",
+                isEVM: false  // Tron is not EVM → فقط QR و انتقال دستی
             },
             arbitrum: {
                 name: "Arbitrum One",
                 icon: "https://cryptologos.cc/logos/arbitrum-arb-logo.png",
                 addressField: "contractAddressArbitrum",
+                tokenType: "USDT",
                 usdtAddress: "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
                 chainId: 42161,
                 explorer: "https://arbiscan.io",
+                isEVM: true
             },
             optimism: {
                 name: "Optimism",
                 icon: "https://cryptologos.cc/logos/optimism-ethereum-op-logo.png",
                 addressField: "contractAddressOptimism",
+                tokenType: "USDT",
                 usdtAddress: "0x94b008aa00579c13056b0a762ad3af54ac829873",
                 chainId: 10,
                 explorer: "https://optimistic.etherscan.io",
+                isEVM: true
             },
             avalanche: {
                 name: "Avalanche",
                 icon: "https://cryptologos.cc/logos/avalanche-avax-logo.png",
                 addressField: "contractAddressAvalanche",
+                tokenType: "USDT",
                 usdtAddress: "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7",
                 chainId: 43114,
                 explorer: "https://snowtrace.io",
+                isEVM: true
             },
             solana: {
                 name: "Solana",
                 icon: "https://cryptologos.cc/logos/solana-sol-logo.png",
                 addressField: "contractAddressSolana",
+                tokenType: "USDT",
                 usdtAddress: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
                 chainId: null,
                 explorer: "https://solscan.io",
+                isEVM: false
             }
         };
 
@@ -535,7 +573,7 @@
             }
 
             try {
-                const response = await fetch('data/Projects.json');
+                const response = await fetch('https://arashmardani.github.io/ClassChain/data/Projects.json');
                 if (!response.ok) throw new Error('فایل Projects.json یافت نشد');
                 const data = await response.json();
                 const feature = data.features.find(f => f.attributes.ProjectID === projectId);
@@ -556,7 +594,6 @@
 
                 loadNetworkDropdown();
                 loadProgress();
-                updateContractAddress();
             } catch (err) {
                 console.error(err);
                 document.getElementById('projectName').innerText = "خطا در بارگذاری پروژه";
@@ -566,7 +603,7 @@
 
         function loadNetworkDropdown() {
             const select = document.getElementById('networkSelect');
-            select.innerHTML = '<option value="">لطفاً یک شبکه انتخاب کنید</option>';
+            select.innerHTML = '<option value="">لطفاً یک شبکه/توکن انتخاب کنید</option>';
 
             let hasAnyNetwork = false;
             Object.keys(networks).forEach(key => {
@@ -574,11 +611,10 @@
                 if (projectData[net.addressField] && projectData[net.addressField].trim() !== "") {
                     const option = document.createElement('option');
                     option.value = key;
-                    option.innerHTML = `<img src="${net.icon}" style="width:24px;height:24px;vertical-align:middle;margin-left:8px;"> ${net.name}`;
+                    option.innerHTML = `<img src="${net.icon}" style="width:24px;height:24px;vertical-align:middle;margin-left:8px;"> ${net.name} (${net.tokenType})`;
                     select.appendChild(option);
                     hasAnyNetwork = true;
 
-                    // پیش‌فرض Amoy اگر موجود باشد
                     if (key === 'amoy') {
                         option.selected = true;
                         selectedNetwork = 'amoy';
@@ -588,10 +624,7 @@
 
             if (!hasAnyNetwork) {
                 select.innerHTML += '<option disabled>هیچ خزانه‌ای برای این پروژه تعریف نشده</option>';
-            }
-
-            // اگر Amoy موجود بود، اطلاعات را بروز کن
-            if (selectedNetwork) {
+            } else {
                 updateContractAddress();
                 loadProgress();
             }
@@ -601,14 +634,21 @@
             selectedNetwork = netKey;
             updateContractAddress();
             loadProgress();
+
+            // تغییر دکمه پرداخت برای شبکه‌های غیر EVM
+            const connectBtn = document.getElementById('connectBtn');
+            const net = networks[netKey];
+            if (net.isEVM) {
+                connectBtn.textContent = "اتصال کیف پول و پرداخت";
+                connectBtn.onclick = connectWalletAndPay;
+            } else {
+                connectBtn.textContent = "انتقال دستی از کیف پول شما";
+                connectBtn.onclick = () => alert("لطفاً از کیف پول خود (مثل TronLink) به آدرس خزانه زیر USDT انتقال دهید.\nآدرس: " + currentContract);
+            }
         }
 
         function updateContractAddress() {
-            if (!selectedNetwork) {
-                document.getElementById('contractInfo').style.display = 'none';
-                document.getElementById('qrCode').innerHTML = '';
-                return;
-            }
+            if (!selectedNetwork) return;
             const net = networks[selectedNetwork];
             currentContract = projectData[net.addressField];
             const contractInfo = document.getElementById('contractInfo');
@@ -632,7 +672,7 @@
         }
 
         async function loadProgress() {
-            // موقتاً دمو — بعداً با API واقعی جایگزین کن
+            // موقتاً دمو
             const target = parseFloat(projectData["targetAmount(USDT)"]) || 1000;
             const raised = Math.floor(Math.random() * target * 0.3);
             const percent = (raised / target) * 100;
@@ -643,8 +683,71 @@
         document.getElementById('customAmount').oninput = (e) => {
             selectedAmount = parseFloat(e.target.value) || 0;
         };
-
+		
         document.getElementById('connectBtn').onclick = async () => {
+            if (!currentContract) {
+                alert("خزانه هوشمند برای این شبکه هنوز راه‌اندازی نشده");
+                return;
+            }
+            if (selectedAmount <= 0) {
+                alert("لطفاً مقدار معتبر وارد کنید");
+                return;
+            }
+
+            const net = networks[selectedNetwork];
+
+            if (!net.isEVM) {
+                alert(`برای ${net.name} از کیف پول مناسب (مثل TronLink) استفاده کنید و به آدرس زیر ارسال کنید:\n${currentContract}`);
+                return;
+            }
+
+            if (typeof window.ethereum === 'undefined') {
+                alert("لطفاً MetaMask یا کیف پول سازگار نصب کنید");
+                return;
+            }
+
+            try {
+                if (net.chainId) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0x' + net.chainId.toString(16) }],
+                        });
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            alert("شبکه " + net.name + " به کیف پول اضافه نشده است.");
+                        }
+                    }
+                }
+
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                web3 = new Web3(window.ethereum);
+                const accounts = await web3.eth.getAccounts();
+                userAddress = accounts[0];
+
+                const tokenABI = [{"inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"type":"function"}];
+                const tokenContract = new web3.eth.Contract(tokenABI, net.usdtAddress);
+
+                const decimals = net.tokenType === "CLC" ? 18 : 6; // فرض: CLC 18 اعشار دارد
+                const amountWei = web3.utils.toBN(selectedAmount * Math.pow(10, decimals));
+                const tx = await tokenContract.methods.transfer(currentContract, amountWei).send({ from: userAddress });
+
+                const explorerLink = `${net.explorer}/tx/${tx.transactionHash}`;
+                document.getElementById('txHash').innerHTML = `تراکنش با موفقیت ارسال شد!<br><a href="${explorerLink}" target="_blank">مشاهده در اکسپلورر</a>`;
+                document.getElementById('successMessage').style.display = 'block';
+                document.getElementById('connectBtn').style.display = 'none';
+
+                loadProgress();
+            } catch (err) {
+                if (err.code === 4001) {
+                    alert("تراکنش توسط کاربر لغو شد");
+                } else {
+                    alert("خطا در ارسال تراکنش: " + (err.message || "نامشخص"));
+                }
+            }
+        };
+		
+        async function connectWalletAndPay() {
             if (!currentContract) {
                 alert("خزانه هوشمند برای این شبکه هنوز راه‌اندازی نشده");
                 return;
@@ -699,9 +802,8 @@
                     alert("خطا در ارسال تراکنش: " + (err.message || "نامشخص"));
                 }
             }
-        };
+        }
 
-        // فعال کردن دکمه با تیک چک‌باکس
         document.getElementById('termsConsent').addEventListener('change', function() {
             document.getElementById('connectBtn').disabled = !this.checked;
         });
