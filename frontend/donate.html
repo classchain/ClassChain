@@ -634,15 +634,67 @@
             }
         }
 
-        async function loadProgress() {
-            // موقتاً دمو — بعداً با API واقعی جایگزین کن
-            const target = parseFloat(projectData["targetAmount(USDT)"]) || 1000;
-            const raised = Math.floor(Math.random() * target * 0.3);
-            const percent = (raised / target) * 100;
-            document.getElementById('progressFill').style.width = percent + '%';
-            document.getElementById('progressText').innerText = `${raised.toFixed(2)} USDT از ${target.toLocaleString('fa-IR')} USDT جمع شده`;
+        //async function loadProgress() {
+        //    // موقتاً دمو — بعداً با API واقعی جایگزین کن
+        //    const target = parseFloat(projectData["targetAmount(USDT)"]) || 1000;
+        //    const raised = Math.floor(Math.random() * target * 0.3);
+        //    const percent = (raised / target) * 100;
+        //    document.getElementById('progressFill').style.width = percent + '%';
+        //    document.getElementById('progressText').innerText = `${raised.toFixed(2)} USDT از ${target.toLocaleString('fa-IR')} USDT جمع شده`;
+        //}
+async function loadProgress() {
+    const target = parseFloat(projectData["targetAmount(USDT)"]) || 1000;
+    let totalRaised = 0;
+
+    // لیست همه فیلدهای آدرس در networks (باید networks تعریف شده باشد)
+    // فرض می‌کنیم networks مثل قبل تعریف شده، اما اگر نیست، این را اضافه کنید:
+
+    for (const key in networks) {
+        const net = networks[key];
+        const contractAddr = projectData[net.addressField];
+        if (!contractAddr || contractAddr.trim() === "" || contractAddr.toLowerCase() === "null") continue;
+
+        let raisedInThisNetwork = 0;
+
+        if (key === 'tron') {
+            // Tronscan API برای transfers به آدرس
+            try {
+                const url = `https://apilist.tronscan.org/api/transfer?token=TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t&toAddress=${contractAddr}&limit=1000`;
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (data.data) {
+                    data.data.forEach(tx => {
+                        raisedInThisNetwork += parseInt(tx.amount_str || tx.value || 0) / 1000000; // USDT 6 decimals
+                    });
+                }
+            } catch (e) { console.error("Tron error:", e); }
+        } else if (key === 'solana') {
+            // Solana پیچیده است (نیاز به RPC و parse instructions)، فعلاً 0 بگذارید یا بعداً پیاده کنید
+            raisedInThisNetwork = 0;
+        } else {
+            // EVM chains (Polygon, ETH, BSC, etc.)
+            try {
+                const url = `${net.apiBase}?module=account&action=tokentx&contractaddress=${net.usdtAddress}&address=${contractAddr}&startblock=0&endblock=99999999&page=1&offset=10000&sort=asc&apikey=${net.apiKey || ''}`;
+                const resp = await fetch(url);
+                const data = await resp.json();
+                if (data.status === "1" && data.result) {
+                    data.result.forEach(tx => {
+                        if (tx.to.toLowerCase() === contractAddr.toLowerCase()) {
+                            raisedInThisNetwork += parseInt(tx.value) / 1000000; // USDT 6 decimals
+                        }
+                    });
+                }
+            } catch (e) { console.error(`${key} error:`, e); }
         }
 
+        totalRaised += raisedInThisNetwork;
+    }
+
+    const percent = Math.min(100, (totalRaised / target) * 100);
+
+    document.getElementById('progressFill').style.width = percent + '%';
+    document.getElementById('progressText').innerText = `${totalRaised.toFixed(2)} USDT از ${target.toLocaleString('fa-IR')} USDT جمع شده (${percent.toFixed(1)}%)`;
+}
         document.getElementById('customAmount').oninput = (e) => {
             selectedAmount = parseFloat(e.target.value) || 0;
         };
