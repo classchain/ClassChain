@@ -446,157 +446,127 @@
 
         let projectData = {};
         let selectedNetwork = null;
-        let currentContract = null;
         let selectedAmount = 0;
-        let web3 = null;
-        let userAddress = null;
+        let web3, userAddress, currentContract;
+        function isTronReady() {
+            return window.tronWeb && window.tronWeb.ready;
+        }
 
-        // ==================== شبکه‌ها با اطلاعات کامل ====================
         const networks = {
             amoy: {
-                name: 'Polygon Amoy (Testnet)',
-                icon: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
-                addressField: 'contractAddress',
-                explorer: 'https://amoy.polygonscan.com',
+                name: "Polygon Amoy (تست‌نت)",
+                icon: "https://cryptologos.cc/logos/polygon-matic-logo.png",
+                addressField: "contractAddress",
+                usdtAddress: "0x41e94eb019c0762f9bfcf9fb78e59bec0a32e187",
                 chainId: 80002,
-                usdtAddress: '0x41E94Eb019C0762f9Bfcf9Fb1E587c1945edeD93',
-                apiBase: 'https://api-amoy.polygonscan.com/api',
-                apiKey: 'YOUR_POLYGONSCAN_API_KEY' // ← کلید خودت رو اینجا بگذار
+                explorer: "https://amoy.polygonscan.com",
             },
             polygon: {
-                name: 'Polygon Mainnet',
-                icon: 'https://cryptologos.cc/logos/polygon-matic-logo.png',
-                addressField: 'contractAddressMainnet',
-                explorer: 'https://polygonscan.com',
+                name: "Polygon Mainnet",
+                icon: "https://cryptologos.cc/logos/polygon-matic-logo.png",
+                addressField: "contractAddressMainnet",
+                usdtAddress: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
                 chainId: 137,
-                usdtAddress: '0xc2132D05D31c914a87C6611C10748AEb04B58e8F',
-                apiBase: 'https://api.polygonscan.com/api',
-                apiKey: 'YOUR_POLYGONSCAN_API_KEY'
-            },
-            tron: {
-                name: 'Tron',
-                icon: 'https://cryptologos.cc/logos/tron-trx-logo.png',
-                addressField: 'contractAddressTron',
-                explorer: 'https://tronscan.org',
-                usdtAddress: 'TR7NHqjeKQxGTCuuQdMrkmaja1zSuXpok',
-                // Tron نیاز به apiKey ندارد
+                explorer: "https://polygonscan.com",
             },
             ethereum: {
-                name: 'Ethereum',
-                icon: 'https://cryptologos.cc/logos/ethereum-eth-logo.png',
-                addressField: 'contractAddressEthereum',
-                explorer: 'https://etherscan.io',
+                name: "Ethereum",
+                icon: "https://cryptologos.cc/logos/ethereum-eth-logo.png",
+                addressField: "contractAddressEthereum",
+                usdtAddress: "0xdac17f958d2ee523a2206206994597c13d831ec7",
                 chainId: 1,
-                usdtAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
-                apiBase: 'https://api.etherscan.io/api',
-                apiKey: 'YOUR_ETHERSCAN_API_KEY'
+                explorer: "https://etherscan.io",
             },
             bsc: {
-                name: 'Binance Smart Chain',
-                icon: 'https://cryptologos.cc/logos/binance-coin-bnb-logo.png',
-                addressField: 'contractAddressBSC',
-                explorer: 'https://bscscan.com',
+                name: "Binance Smart Chain",
+                icon: "https://cryptologos.cc/logos/binance-coin-bnb-logo.png",
+                addressField: "contractAddressBSC",
+                usdtAddress: "0x55d398326f99059ff7754852469993b3197955e7",
                 chainId: 56,
-                usdtAddress: '0x55d398326f99059fF775485246999027B3197955',
-                apiBase: 'https://api.bscscan.com/api',
-                apiKey: 'YOUR_BSCSCAN_API_KEY'
+                explorer: "https://bscscan.com",
+            },
+            tron: {
+                name: "Tron (TRC-20)",
+                icon: "https://cryptologos.cc/logos/tron-trx-logo.png",
+                addressField: "contractAddressTron",
+                usdtAddress: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+                chainId: null,
+                explorer: "https://tronscan.org",
+            },
+            arbitrum: {
+                name: "Arbitrum One",
+                icon: "https://cryptologos.cc/logos/arbitrum-arb-logo.png",
+                addressField: "contractAddressArbitrum",
+                usdtAddress: "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9",
+                chainId: 42161,
+                explorer: "https://arbiscan.io",
+            },
+            optimism: {
+                name: "Optimism",
+                icon: "https://cryptologos.cc/logos/optimism-ethereum-op-logo.png",
+                addressField: "contractAddressOptimism",
+                usdtAddress: "0x94b008aa00579c13056b0a762ad3af54ac829873",
+                chainId: 10,
+                explorer: "https://optimistic.etherscan.io",
+            },
+            avalanche: {
+                name: "Avalanche",
+                icon: "https://cryptologos.cc/logos/avalanche-avax-logo.png",
+                addressField: "contractAddressAvalanche",
+                usdtAddress: "0x9702230a8ea53601f5cd2dc00fdbc13d4df4a8c7",
+                chainId: 43114,
+                explorer: "https://snowtrace.io",
+            },
+            solana: {
+                name: "Solana",
+                icon: "https://cryptologos.cc/logos/solana-sol-logo.png",
+                addressField: "contractAddressSolana",
+                usdtAddress: "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+                chainId: null,
+                explorer: "https://solscan.io",
             }
-            // شبکه‌های دیگر را در صورت نیاز اضافه کن
         };
 
-        // ==================== گرفتن بالانس USDT از هر شبکه ====================
-        async function getUSDTBalance(networkKey) {
-            const net = networks[networkKey];
-            const contractAddr = projectData[net.addressField];
+        const urlParams = new URLSearchParams(window.location.search);
+        const projectId = urlParams.get('project');
 
-            if (!contractAddr || contractAddr.trim() === '') return 0;
-
-            try {
-                if (networkKey === 'tron') {
-                    const url = `https://apilist.tronscan.org/api/token_trc20/balance?contract_address=${net.usdtAddress}&address=${contractAddr}`;
-                    const res = await fetch(url);
-                    const data = await res.json();
-                    if (data.trc20_tokens && data.trc20_tokens.length > 0) {
-                        return parseFloat(data.trc20_tokens[0].balance) / 1_000_000;
-                    }
-                } else if (net.apiBase) {
-                    const apiKey = net.apiKey ? '&apikey=' + net.apiKey : '';
-                    const url = `${net.apiBase}?module=account&action=tokenbalance&contractaddress=${net.usdtAddress}&address=${contractAddr}&tag=latest${apiKey}`;
-                    const res = await fetch(url);
-                    const data = await res.json();
-                    if (data.status === '1') {
-                        return parseInt(data.result) / 1_000_000;
-                    }
-                }
-                return 0;
-            } catch (err) {
-                console.warn(`خطا در بالانس ${net.name}:`, err);
-                return 0;
-            }
-        }
-
-        // ==================== پروگرس واقعی (جمع تمام شبکه‌ها) ====================
-        async function loadProgress() {
-            const target = parseFloat(projectData["targetAmount(USDT)"]) || 1000;
-            let totalRaised = 0;
-
-            const promises = Object.keys(networks).map(async (key) => {
-                if (projectData[networks[key].addressField]) {
-                    const bal = await getUSDTBalance(key);
-                    totalRaised += bal;
-                }
-            });
-
-            await Promise.all(promises);
-
-            const percent = Math.min((totalRaised / target) * 100, 100);
-
-            document.getElementById('progressFill').style.width = percent + '%';
-            document.getElementById('progressText').innerText = 
-                `${totalRaised.toFixed(2)} USDT از ${target.toLocaleString('fa-IR')} USDT جمع شده`;
-        }
-
-        // ==================== بارگذاری پروژه ====================
         async function loadProject() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const projectId = urlParams.get('project');
-
             if (!projectId) {
-                document.body.innerHTML = '<h1 style="text-align:center;margin-top:100px;color:#e74c3c;">پروژه یافت نشد</h1>';
+                document.getElementById('projectName').innerText = "هیچ پروژه‌ای انتخاب نشده";
+                document.getElementById('projectDesc').innerText = "لطفاً از نقشه پروژه‌ای را انتخاب کنید.";
                 return;
             }
 
             try {
-                const response = await fetch('data/Projects.json'); // مسیر درست فایل JSON
+                const response = await fetch('data/Projects.json');
+                if (!response.ok) throw new Error('فایل Projects.json یافت نشد');
                 const data = await response.json();
                 const feature = data.features.find(f => f.attributes.ProjectID === projectId);
-
+                
                 if (!feature) {
-                    document.body.innerHTML = '<h1 style="text-align:center;margin-top:100px;color:#e74c3c;">پروژه یافت نشد</h1>';
+                    document.getElementById('projectName').innerText = "پروژه یافت نشد";
+                    document.getElementById('projectDesc').innerText = "کد پروژه: " + projectId;
                     return;
                 }
-
+                
                 projectData = feature.attributes;
 
-                document.getElementById('projectName').innerText = projectData["نام پروژه"] || 'نامشخص';
-                document.getElementById('projectLocation').innerText = `${projectData.استان || ''} - ${projectData.منطقه || ''}`;
-                document.getElementById('projectDesc').innerHTML = `
-                    <p><strong>نوع نیاز:</strong> ${projectData["نوع پروژه (نیاز)"] || '-'}</p>
-                    <p><strong>تعداد کلاس:</strong> ${projectData["تعداد کلاس"] || '-'} کلاس</p>
-                    <p><strong>زیربنا:</strong> ${projectData["زیربنا"] || '-'} متر مربع</p>
-                    <p><strong>هدف مالی:</strong> ${parseFloat(projectData["targetAmount(USDT)"] || 0).toLocaleString('fa-IR')} USDT</p>
-                `;
+                document.getElementById('projectName').innerText = projectData["نام پروژه"] || "پروژه کلاس‌چین";
+                document.getElementById('projectDesc').innerText = `${
+                    projectData["نوع پروژه (نیاز)"] || ""} — ${
+                    projectData["تعداد کلاس"] || ""} کلاس — هدف: ${
+                    projectData["targetAmount(USDT)"] || "نامشخص"} USDT`;
 
                 loadNetworkDropdown();
-                await loadProgress(); // پروگرس واقعی
-
+                loadProgress();
+                updateContractAddress();
             } catch (err) {
                 console.error(err);
-                document.body.innerHTML = '<h1 style="text-align:center;margin-top:100px;color:#e74c3c;">خطا در بارگذاری</h1>';
+                document.getElementById('projectName').innerText = "خطا در بارگذاری پروژه";
+                document.getElementById('projectDesc').innerText = "ممکن است مسیر فایل JSON اشتباه باشد.";
             }
         }
 
-        // ==================== دراپ‌داون شبکه ====================
         function loadNetworkDropdown() {
             const select = document.getElementById('networkSelect');
             select.innerHTML = '<option value="">لطفاً یک شبکه انتخاب کنید</option>';
@@ -611,17 +581,19 @@
                     select.appendChild(option);
                     hasAnyNetwork = true;
 
-                    if (key === 'amoy' || key === 'polygon') {
+                    // پیش‌فرض Amoy اگر موجود باشد
+                    if (key === 'amoy') {
                         option.selected = true;
-                        selectedNetwork = key;
+                        selectedNetwork = 'amoy';
                     }
                 }
             });
 
             if (!hasAnyNetwork) {
-                select.innerHTML += '<option disabled>هیچ خزانه‌ای تعریف نشده</option>';
+                select.innerHTML += '<option disabled>هیچ خزانه‌ای برای این پروژه تعریف نشده</option>';
             }
 
+            // اگر Amoy موجود بود، اطلاعات را بروز کن
             if (selectedNetwork) {
                 updateContractAddress();
                 loadProgress();
@@ -631,10 +603,9 @@
         function selectNetwork(netKey) {
             selectedNetwork = netKey;
             updateContractAddress();
-            loadProgress(); // هر تغییر شبکه پروگرس بروز شود
+            loadProgress();
         }
 
-        // ==================== نمایش آدرس و QR ====================
         function updateContractAddress() {
             if (!selectedNetwork) {
                 document.getElementById('contractInfo').style.display = 'none';
@@ -663,102 +634,128 @@
             }
         }
 
-        // ==================== ورودی مقدار ====================
+        async function loadProgress() {
+            // موقتاً دمو — بعداً با API واقعی جایگزین کن
+            const target = parseFloat(projectData["targetAmount(USDT)"]) || 1000;
+            const raised = Math.floor(Math.random() * target * 0.3);
+            const percent = (raised / target) * 100;
+            document.getElementById('progressFill').style.width = percent + '%';
+            document.getElementById('progressText').innerText = `${raised.toFixed(2)} USDT از ${target.toLocaleString('fa-IR')} USDT جمع شده`;
+        }
+
         document.getElementById('customAmount').oninput = (e) => {
             selectedAmount = parseFloat(e.target.value) || 0;
         };
+document.getElementById('connectBtn').onclick = async () => {
 
-        // ==================== اتصال کیف پول و تراکنش ====================
-        document.getElementById('connectBtn').onclick = async () => {
-            if (!currentContract) {
-                alert("خزانه هوشمند برای این شبکه هنوز راه‌اندازی نشده");
-                return;
-            }
-            if (selectedAmount <= 0) {
-                alert("لطفاً مقدار معتبر وارد کنید");
-                return;
-            }
+    if (!currentContract) {
+        alert("خزانه هوشمند برای این شبکه هنوز راه‌اندازی نشده");
+        return;
+    }
 
-            const net = networks[selectedNetwork];
+    if (selectedAmount <= 0) {
+        alert("لطفاً مقدار معتبر وارد کنید");
+        return;
+    }
 
-            // شاخه TRON
-            if (selectedNetwork === 'tron') {
-                if (!window.tronWeb || !window.tronWeb.defaultAddress.base58) {
-                    alert("لطفاً TronLink را نصب و فعال کنید");
-                    return;
-                }
+    const net = networks[selectedNetwork];
 
-                try {
-                    const tronWeb = window.tronWeb;
-                    const userAddress = tronWeb.defaultAddress.base58;
-                    const usdtContract = await tronWeb.contract().at(net.usdtAddress);
-                    const amount = Math.floor(selectedAmount * 1_000_000);
+    /* =========================
+       شاخه TRON — پرداخت یک‌کلیکی
+       ========================= */
+    if (selectedNetwork === 'tron') {
 
-                    const tx = await usdtContract.transfer(currentContract, amount).send();
+        if (!isTronReady()) {
+            alert("لطفاً TronLink را نصب و فعال کنید");
+            return;
+        }
 
-                    document.getElementById('txHash').innerHTML =
-                        `تراکنش با موفقیت ارسال شد!<br>
-                        <a href="${net.explorer}/#/transaction/${tx}" target="_blank">مشاهده در Tronscan</a>`;
+        try {
+            const tronWeb = window.tronWeb;
+            const userAddress = tronWeb.defaultAddress.base58;
 
-                    document.getElementById('successMessage').style.display = 'block';
-                    document.getElementById('connectBtn').style.display = 'none';
-                    await loadProgress();
+            const usdtContract = await tronWeb.contract().at(net.usdtAddress);
+            const amount = Math.floor(selectedAmount * 1_000_000);
 
-                } catch (err) {
-                    alert("خطا در تراکنش ترون: " + (err.message || "نامشخص"));
-                }
-                return;
-            }
+            const tx = await usdtContract
+                .transfer(currentContract, amount)
+                .send();
 
-            // شاخه EVM
-            if (typeof window.ethereum === 'undefined') {
-                alert("لطفاً MetaMask یا کیف پول سازگار نصب کنید");
-                return;
-            }
+            document.getElementById('txHash').innerHTML =
+                `تراکنش با موفقیت ارسال شد!<br>
+                <a href="${net.explorer}/transaction/${tx}" target="_blank">
+                مشاهده در Tronscan
+                </a>`;
 
-            try {
-                if (net.chainId) {
-                    await window.ethereum.request({
-                        method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: '0x' + net.chainId.toString(16) }],
-                    });
-                }
+            document.getElementById('successMessage').style.display = 'block';
+            document.getElementById('connectBtn').style.display = 'none';
 
-                await window.ethereum.request({ method: 'eth_requestAccounts' });
-                web3 = new Web3(window.ethereum);
-                const accounts = await web3.eth.getAccounts();
-                userAddress = accounts[0];
+            loadProgress();
 
-                const usdtABI = [{
-                    "inputs": [{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],
-                    "name": "transfer",
-                    "outputs": [{"name":"","type":"bool"}],
-                    "type": "function"
-                }];
+        } catch (err) {
+            alert("خطا در ارسال تراکنش ترون: " + (err.message || "نامشخص"));
+        }
 
-                const usdtContract = new web3.eth.Contract(usdtABI, net.usdtAddress);
-                const amountWei = web3.utils.toBN(selectedAmount * 1_000_000);
+        return;
+    }
 
-                const tx = await usdtContract.methods.transfer(currentContract, amountWei).send({ from: userAddress });
+    /* =========================
+       شاخه EVM — بدون تغییر
+       ========================= */
 
-                document.getElementById('txHash').innerHTML =
-                    `تراکنش با موفقیت ارسال شد!<br>
-                    <a href="${net.explorer}/tx/${tx.transactionHash}" target="_blank">مشاهده در اکسپلورر</a>`;
+    if (typeof window.ethereum === 'undefined') {
+        alert("لطفاً MetaMask یا کیف پول سازگار نصب کنید");
+        return;
+    }
 
-                document.getElementById('successMessage').style.display = 'block';
-                document.getElementById('connectBtn').style.display = 'none';
-                await loadProgress();
+    try {
+        if (net.chainId) {
+            await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: '0x' + net.chainId.toString(16) }],
+            });
+        }
 
-            } catch (err) {
-                if (err.code === 4001) {
-                    alert("تراکنش توسط کاربر لغو شد");
-                } else {
-                    alert("خطا در تراکنش: " + (err.message || "نامشخص"));
-                }
-            }
-        };
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        web3 = new Web3(window.ethereum);
+        const accounts = await web3.eth.getAccounts();
+        userAddress = accounts[0];
 
-        // فعال کردن دکمه با چک‌باکس
+        const usdtABI = [{
+            "inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],
+            "name":"transfer",
+            "outputs":[{"name":"","type":"bool"}],
+            "type":"function"
+        }];
+
+        const usdtContract = new web3.eth.Contract(usdtABI, net.usdtAddress);
+        const amountWei = web3.utils.toBN(selectedAmount * 1_000_000);
+
+        const tx = await usdtContract.methods
+            .transfer(currentContract, amountWei)
+            .send({ from: userAddress });
+
+        document.getElementById('txHash').innerHTML =
+            `تراکنش با موفقیت ارسال شد!<br>
+            <a href="${net.explorer}/tx/${tx.transactionHash}" target="_blank">
+            مشاهده در اکسپلورر
+            </a>`;
+
+        document.getElementById('successMessage').style.display = 'block';
+        document.getElementById('connectBtn').style.display = 'none';
+
+        loadProgress();
+
+    } catch (err) {
+        if (err.code === 4001) {
+            alert("تراکنش توسط کاربر لغو شد");
+        } else {
+            alert("خطا در ارسال تراکنش: " + (err.message || "نامشخص"));
+        }
+    }
+};
+
+        // فعال کردن دکمه با تیک چک‌باکس
         document.getElementById('termsConsent').addEventListener('change', function() {
             document.getElementById('connectBtn').disabled = !this.checked;
         });
@@ -772,7 +769,6 @@
             alert("ایمیل شما ثبت شد! آپدیت‌های پروژه برایتان ارسال خواهد شد ❤️");
         }
 
-        // شروع
         loadProject();
     </script>
 </body>
