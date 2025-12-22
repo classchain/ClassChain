@@ -146,9 +146,16 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 
 /* کنترل‌های نقشه */
 .custom-basemap-selector, .home-button {
-    position: absolute; z-index: 1000; background: rgba(255,255,255,0.95); backdrop-filter: blur(12px);
-    border-radius: 30px; box-shadow: 0 6px 20px rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.4);
-    font-family: inherit; user-select: none; transition: all 0.3s ease;
+    position: absolute; 
+    z-index: 1000; 
+    background: rgba(255,255,255,0.95); 
+    backdrop-filter: blur(12px);
+    border-radius: 30px; 
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25); 
+    border: 1px solid rgba(255,255,255,0.4);
+    font-family: inherit; 
+    user-select: none; 
+    transition: all 0.3s ease;
 }
 .custom-basemap-selector {
     bottom: 20px; left: 50%; transform: translateX(-50%); padding: 10px 20px;
@@ -165,5 +172,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .home-button:hover svg { fill: white; }
 
 @media (max-width: 1023px) {
-    .home-button { top: 20px; }
+    /*.home-button { top: 20px; } */
 }
+
