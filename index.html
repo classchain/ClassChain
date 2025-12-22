@@ -3,195 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- عنوان سایت — دوزبانه -->
     <title data-fa="کلاس‌چین | آینده کودکان ایران را با شفافیت بسازیم" data-en="ClassChain | Building Iran's Future with Transparency">
         کلاس‌چین
     </title>
 
-    <!-- فونت‌های فارسی و انگلیسی -->
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
 
-    <!-- کتابخانه ذرات بلاکچین -->
     <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
-
-    <style>
-        :root {
-            --bg: #0a0e17;
-            --text: #f1f5f9;
-            --primary: #8b5cf6;
-            --success: #10b981;
-        }
-        * { margin:0; padding:0; box-sizing:border-box; }
-
-        /* بدنه سایت — بدون اسکرول */
-        body, html {
-            height: 100%;
-            margin: 0;
-            font-family: 'Vazirmatn', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            overflow: hidden;
-            position: relative;
-        }
-        .en { font-family: 'Inter', sans-serif; }
-
-        /* لایه ذرات متحرک بلاکچین — ظریف و زیبا */
-        #particles-js {
-            position: fixed;
-            width: 100%; height: 100%;
-            top: 0; left: 0; z-index: 1;
-        }
-
-        /* شبکه هگزاگون شفاف — حس فناوری */
-        .hexagon-grid {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-image: 
-                radial-gradient(circle at 25% 25%, rgba(67,97,238,0.08) 0%, transparent 50%),
-                radial-gradient(circle at 75% 75%, rgba(114,9,183,0.08) 0%, transparent 50%);
-            background-size: 60px 60px;
-            opacity: 0.15;
-            z-index: 2;
-            pointer-events: none;
-        }
-
-        /* منوبار بالا — ثابت و شفاف */
-        .navbar {
-            position: fixed;
-            top: 0; left: 0; right: 0;
-            background: rgba(10,14,23,0.92);
-            backdrop-filter: blur(12px);
-            padding: 1.2rem 2rem;
-            z-index: 1000;
-            border-bottom: 1px solid rgba(139,92,246,0.3);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .navbar-brand {
-            font-size: 1.9rem;
-            font-weight: 900;
-            background: linear-gradient(120deg, #4cc9f0, #8b5cf6);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
-        .nav-links a {
-            color: #cbd5e1;
-            margin: 0 1.8rem;
-            font-weight: 600;
-            text-decoration: none;
-            transition: color 0.3s;
-            font-size: 1.1rem;
-        }
-        .nav-links a:hover { color: #8b5cf6; }
-
-        /* سوئیچ زبان — خارج از منوبار، در گوشه بالا چپ */
-        .lang-switch {
-            position: fixed;
-            top: 100px;
-            left: 20px;
-            z-index: 1001;
-            background: rgba(17,24,39,0.9);
-            padding: 0.5rem 1rem;
-            border-radius: 50px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(139,92,246,0.4);
-        }
-        .lang-switch button {
-            background: none; border: none; color: #94a3b8; font-weight: 600; padding: 0.4rem 0.9rem; cursor: pointer; font-size: 0.95rem;
-        }
-        .lang-switch button.active { color: #8b5cf6; background: rgba(139,92,246,0.3); border-radius: 30px; }
-
-        /* محتوای اصلی — وسط صفحه */
-        .hero {
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            position: relative;
-            z-index: 5;
-            padding: 2rem;
-        }
-
-        /* تیتر اصلی — اندازه مناسب و زیبا (کاهش از 6.5rem به 5.2rem) */
-        .hero-title {
-            font-size: 4.5rem;
-            font-weight: 900;
-            line-height: 1.2;
-            margin-bottom: 2rem;
-            background: linear-gradient(120deg, #4cc9f0, #8b5cf6, #c084fc, #34d399);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            text-shadow: 0 0 30px rgba(140,92,246,0.4);
-        }
-
-        /* زیرتیتر — پیام اصلی پروژه */
-        .hero-subtitle {
-            font-size: 1.9rem;
-            color: #cbd5e1;
-            max-width: 900px;
-            margin: 3rem auto;
-            font-weight: 300;
-            line-height: 1.9;
-        }
-
-        /* دکمه‌های اصلی */
-        .btn {
-            padding: 1.4rem 3.8rem;
-            font-size: 1.5rem;
-            font-weight: 700;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.4s;
-            margin: 1.2rem;
-            display: inline-block;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
-            text-decoration: none;
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #10b981, #34d399);
-            color: white;
-            border: none;
-        }
-        .btn-primary:hover { transform: translateY(-8px); }
-        .btn-outline {
-            background: transparent;
-            color: #e2e8f0;
-            border: 2px solid #6366f1;
-        }
-        .btn-outline:hover { background: #6366f1; }
-
-        /* فوتر کوچک و زیبا */
-        footer {
-            position: fixed;
-            bottom: 25px;
-            left: 0; right: 0;
-            text-align: center;
-            color: #64748b;
-            font-size: 1rem;
-            z-index: 5;
-        }
-    </style>
 </head>
 <body>
 
-    <!-- لایه ذرات بلاکچین — ظریف و زیبا -->
     <div id="particles-js"></div>
     <div class="hexagon-grid"></div>
 
-    <!-- سوئیچ زبان — کاملاً جدا از منوبار -->
+    <!-- سوئیچ زبان -->
     <div class="lang-switch">
         <button class="active" onclick="setLang('fa')">فارسی</button>
         <button onclick="setLang('en')">English</button>
     </div>
 
-    <!-- منوبار بالا — ۴ آیتم -->
+    <!-- منوبار -->
     <nav class="navbar">
         <div class="navbar-brand" data-fa="کلاس‌چین" data-en="ClassChain">کلاس‌چین</div>
+        
+        <button class="menu-toggle" aria-label="منو">☰</button>
+        
         <div class="nav-links">
             <a href="#" data-fa="اهداف پروژه" data-en="Project Goals">اهداف پروژه</a>
             <a href="#" data-fa="White Paper" data-en="White Paper">White Paper</a>
@@ -200,18 +37,18 @@
         </div>
     </nav>
 
-    <!-- محتوای اصلی — یک صفحه بدون اسکرول -->
+    <!-- محتوای اصلی -->
     <div class="hero">
         <h1 class="hero-title" data-fa="هر کودکی شایسته‌ی کلاس امن است" data-en="Every Child Deserves a Safe Classroom">
             هر کودکی شایسته‌ی کلاس امن است
         </h1>
 
         <p class="hero-subtitle" data-fa="کلاس‌چین اولین پلتفرم شفاف مدرسه‌سازی با بلاکچین در جهان است.<br>هر کمک شما مستقیم و قابل ردیابی به کودکان نیازمند می‌رسد."
-                                    data-en="ClassChain is the world's first fully transparent school-building platform on blockchain.<br>Every donation is direct, trackable, and reaches children in need.">
+                          data-en="ClassChain is the world's first fully transparent school-building platform on blockchain.<br>Every donation is direct, trackable, and reaches children in need.">
             کلاس‌چین اولین پلتفرم شفاف مدرسه‌سازی با بلاکچین در جهان است.<br>هر کمک شما مستقیم و قابل ردیابی به کودکان نیازمند می‌رسد.
         </p>
 
-        <div>
+        <div class="buttons">
             <a href="frontend/WebGIS.html" class="btn btn-primary" data-fa="مشاهده نقشه پروژه‌ها" data-en="View Project Map">
                 مشاهده نقشه پروژه‌ها
             </a>
@@ -221,51 +58,11 @@
         </div>
     </div>
 
-    <!-- فوتر — پایین صفحه -->
-    <footer data-fa="© کلاس چِین توسط مهندس آرش مردانی با Grok در سال 1404 بنیاد نهاده شد — آینده آموزش ایران را با هم بسازیم"
-            data-en="© China Class by Arash Mardani with Grok at 2025 Foundation — Building Tomorrow's Iran, Together">
-        © 2025 ClassChain Foundation — آینده آموزش ایران را با هم بسازیم
+    <footer data-fa="© کلاس چِین توسط مهندس آرش مردانی با Grok در سال ۱۴۰۴ بنیاد نهاده شد — آینده آموزش ایران را با هم بسازیم"
+            data-en="© ClassChain Foundation — Building Tomorrow's Iran, Together">
+        © ۱۴۰۴ کلاس‌چین — آینده آموزش ایران را با هم بسازیم
     </footer>
 
-    <!-- فعال‌سازی ذرات بلاکچین — دقیقاً مثل نسخه‌ای که دوست داشتی -->
-    <script>
-        particlesJS("particles-js", {
-            "particles": {
-                "number": { "value": 100 },
-                "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] },
-                "shape": { "type": "circle" },
-                "opacity": { "value": 0.6, "random": true },
-                "size": { "value": 3, "random": true },
-                "line_linked": {
-                    "enable": true,
-                    "distance": 140,
-                    "color": "#6366f1",
-                    "opacity": 0.3,
-                    "width": 1
-                },
-                "move": { "enable": true, "speed": 1.5 }
-            },
-            "interactivity": {
-                "events": { "onhover": { "enable": true, "mode": "repulse" } }
-            }
-        });
-
-        // تابع تغییر زبان — کامل و بدون باگ
-        function setLang(lang) {
-            document.querySelectorAll('[data-fa]').forEach(el => {
-                el.textContent = lang === 'fa' ? el.dataset.fa : el.dataset.en;
-            });
-            document.documentElement.dir = lang === 'fa' ? 'rtl' : 'ltr';
-            document.documentElement.lang = lang;
-            document.body.classList.toggle('en', lang === 'en');
-            document.querySelectorAll('.lang-switch button').forEach(b => b.classList.remove('active'));
-            document.querySelector(`.lang-switch button[onclick="setLang('${lang}')"]`).classList.add('active');
-        }
-    </script>
+    <script src="js/script.js"></script>
 </body>
 </html>
-
-
-
-
-
