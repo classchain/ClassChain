@@ -458,6 +458,7 @@ async function loadDonors(contractAddress) {
 // در نهایت:
 function zoomToIran() {
 	map.flyTo([32.4279, 53.6880], 5, { animate: true, duration: 1.5 });
+
 	if (selectedLayer) { geo?.resetStyle(selectedLayer); selectedLayer = null; }
 	if (selectedCountyLayer) { countiesLayer?.resetStyle(selectedCountyLayer); selectedCountyLayer = null; }
 	if (selectedProjectMarker) { selectedProjectMarker.setIcon(projectIcon); selectedProjectMarker = null; }
@@ -501,3 +502,4 @@ function redirectToDonate(projectId) {
         alert('پروژه انتخاب نشده است');
     }
 }	
+
