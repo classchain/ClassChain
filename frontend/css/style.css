@@ -146,8 +146,17 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 
 /* کنترل‌های نقشه */
 .custom-basemap-selector, .home-button {
-    position: absolute; z-index: 1000; background: rgba(255,255,255,0.95); backdrop-filter: blur(12px);
-    border-radius: 30px; box-shadow: 0 6px 20px rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.4);
+position: absolute;
+    bottom: 80px;                 /* ← بالا آمد تا با پنل موبایل تداخل نداشته باشد */
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    z-index: 1000;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.4);
     font-family: inherit; user-select: none; transition: all 0.3s ease;
 }
 .custom-basemap-selector {
@@ -161,9 +170,18 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     top: 86px; left: 10px; width: 40px; height: 40px; border-radius: 8px;
     display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
-.home-button:hover { background: #3498db; transform: scale(1.1); }
-.home-button:hover svg { fill: white; }
+.home-button:hover {
+    background: #3498db;
+    transform: scale(1.1);
+}
+.home-button:hover svg {
+    fill: white;
+}
 
 @media (max-width: 1023px) {
     .home-button { top: 20px; }
+	.custom-basemap-selector {
+        bottom: 90px;             /* در موبایل کمی بالاتر برای فاصله بیشتر از پنل */
+    }
+
 }
