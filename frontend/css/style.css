@@ -170,8 +170,24 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     transition: all 0.3s ease;
 }
 .custom-basemap-selector {
-    bottom: 20px; left: 50%; transform: translateX(-50%); padding: 10px 20px;
+    position: absolute;
+    bottom: auto;                 /* حذف bottom */
+    top: 20px;                    /* ← قرار گرفتن در بالای صفحه */
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 10px 20px;
+    z-index: 1000;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    border-radius: 30px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.4);
+    width: 90%;                   /* ← در موبایل عرض بیشتر برای خوانایی بهتر */
+    max-width: 400px;
 }
+/* .custom-basemap-selector { */
+/*    bottom: 20px; left: 50%; transform: translateX(-50%); padding: 10px 20px; */
+/* } */
 #basemapSelect {
     padding: 12px 24px; font-size: 15px; border: none; background: transparent; color: #2c3e50;
     cursor: pointer; outline: none; min-width: 240px; font-weight: 500;
@@ -186,5 +202,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 @media (max-width: 1023px) {
     /*.home-button { top: 20px; } */
 }
+
 
 
