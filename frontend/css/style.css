@@ -20,54 +20,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-/* حالت موبایل: Bottom Sheet */
-@media (max-width: 1023px) {
-    .home-button { top: 20px; }
-    .info-panel {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        width: 100%;
-        height: 90%;
-        max-height: 90%;
-        border-radius: 20px 20px 0 0;
-        transform: translateY(100%);
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
-    }
-    .info-panel.open {
-        transform: translateY(0);
-    }
-    .panel-header {
-        position: relative;
-        border-radius: 20px 20px 0 0;
-        padding: 15px 20px;
-        cursor: grab;
-    }
-    .panel-header::before {
-        content: '';
-        position: absolute;
-        top: 10px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 40px;
-        height: 5px;
-        background: rgba(255,255,255,0.4);
-        border-radius: 3px;
-    }
-    .custom-basemap-selector {
-        top: 70px;                /* ← کمی پایین‌تر از دکمه خانه، تا با آن تداخل نداشته باشد */
-        width: 92%;
-        padding: 12px 16px;
-    }
-    
-    #basemapSelect {
-        width: 100%;
-        font-size: 16px;          /* بزرگتر برای لمس راحت‌تر در موبایل */
-        padding: 14px 20px;
-    }
-}
-
 /* هدر پنل */
 .panel-header {
     background: rgba(0,0,0,0.3);
@@ -92,10 +44,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     opacity: 0.7;
 }
 .close-btn:hover { opacity: 1; }
-
-@media (min-width: 1024px) {
-    .close-btn { display: none; }
-}
 
 /* محتوای پنل */
 .panel-content {
@@ -170,20 +118,21 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     transition: all 0.3s ease;
 }
 .custom-basemap-selector {
-    position: absolute;
-    bottom: auto;                 /* حذف bottom */
-    top: 20px;                    /* ← قرار گرفتن در بالای صفحه */
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 10px 20px;
+position: absolute;
+    bottom: auto;
+    top: 20px;
+    left: auto;                   /* حذف left:50% */
+    right: 10px;                  /* ← قرار گرفتن در گوشه بالا-راست */
+    transform: none;              /* حذف translateX */
+    padding: 8px 12px;
     z-index: 1000;
     background: rgba(255,255,255,0.95);
     backdrop-filter: blur(12px);
     border-radius: 30px;
     box-shadow: 0 6px 20px rgba(0,0,0,0.25);
     border: 1px solid rgba(255,255,255,0.4);
-    width: 90%;                   /* ← در موبایل عرض بیشتر برای خوانایی بهتر */
-    max-width: 400px;
+    width: auto;                  /* عرض خودکار بر اساس محتوا */
+    min-width: 220px;
 }
 /* .custom-basemap-selector { */
 /*    bottom: 20px; left: 50%; transform: translateX(-50%); padding: 10px 20px; */
@@ -199,9 +148,68 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .home-button:hover { background: #3498db; transform: scale(1.1); }
 .home-button:hover svg { fill: white; }
 
+
+/* حالت موبایل: Bottom Sheet */
 @media (max-width: 1023px) {
-    /*.home-button { top: 20px; } */
+    .home-button { top: 20px; }
+    .info-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        height: 90%;
+        max-height: 90%;
+        border-radius: 20px 20px 0 0;
+        transform: translateY(100%);
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+    }
+    .info-panel.open {
+        transform: translateY(0);
+    }
+    .panel-header {
+        position: relative;
+        border-radius: 20px 20px 0 0;
+        padding: 15px 20px;
+        cursor: grab;
+    }
+    .panel-header::before {
+        content: '';
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 5px;
+        background: rgba(255,255,255,0.4);
+        border-radius: 3px;
+    }
+    .custom-basemap-selector {
+		top: 70px;                /* زیر دکمه خانه (که در top:20px است) */
+        right: 10px;
+        padding: 10px 14px;
+        min-width: 240px;
+    }
+    
+    #basemapSelect {
+		width: 100%;
+        font-size: 15px;
+        padding: 12px 16px;
+        text-align: center;
+    }
 }
 
 
-
+@media (min-width: 1024px) {
+	.custom-basemap-selector {
+        bottom: 20px;             /* در دسکتاپ دوباره پایین صفحه */
+        top: auto;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: auto;
+        min-width: auto;
+        padding: 10px 20px;
+    }
+    .close-btn { display: none; }
+}
