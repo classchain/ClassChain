@@ -33,56 +33,22 @@ map.getContainer().addEventListener('click', () => {
 
 closePanelBtn.addEventListener('click', closePanel);
 
-const panelHandle = document.getElementById('panelHandle');
+// Drag to close در موبایل
 let touchStartY = 0;
-let isDragging = false;
-
-panelHandle.addEventListener('touchstart', e => {
-    touchStartY = e.touches[0].clientY;
-    isDragging = true;
-}, { passive: true });
-
-panelHandle.addEventListener('touchmove', e => {
-    if (!isDragging || window.innerWidth >= 1024) return;
-    const deltaY = touchStartY - e.touches[0].clientY; // منفی برای کشیدن به بالا
+infoPanelWrapper.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+infoPanelWrapper.addEventListener('touchmove', e => {
+    if (window.innerWidth >= 1024) return;
+    const deltaY = e.touches[0].clientY - touchStartY;
     if (deltaY > 0) {
-        infoPanelWrapper.style.transition = 'none';
-        infoPanelWrapper.style.transform = `translateY(calc(100% - ${deltaY}px - 50px))`;
+        infoPanelWrapper.style.transform = `translateY(${deltaY}px)`;
     }
 }, { passive: false });
-
-panelHandle.addEventListener('touchend', () => {
-    if (!isDragging || window.innerWidth >= 1024) return;
-    isDragging = false;
-    
-    const currentTransform = infoPanelWrapper.style.transform;
-    const pulledEnough = parseInt(currentTransform.match(/(\d+)/)?.[0] || 0) > 100;
-    
-    infoPanelWrapper.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)';
-    
-    if (pulledEnough) {
-        openPanel(); // باز شدن کامل
-    } else {
-        infoPanelWrapper.style.transform = ''; // برگشت به حالت بسته
-    }
+infoPanelWrapper.addEventListener('touchend', () => {
+    if (window.innerWidth >= 1024) return;
+    const deltaY = event.changedTouches[0].clientY - touchStartY;
+    if (deltaY > 100) closePanel();
+    infoPanelWrapper.style.transform = '';
 });
-
-// Drag to close در موبایل
-//let touchStartY = 0;
-//infoPanelWrapper.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
-//infoPanelWrapper.addEventListener('touchmove', e => {
-//    if (window.innerWidth >= 1024) return;
-//    const deltaY = e.touches[0].clientY - touchStartY;
-//    if (deltaY > 0) {
-//        infoPanelWrapper.style.transform = `translateY(${deltaY}px)`;
-//    }
-//}, { passive: false });
-//infoPanelWrapper.addEventListener('touchend', () => {
-//    if (window.innerWidth >= 1024) return;
-//    const deltaY = event.changedTouches[0].clientY - touchStartY;
-//    if (deltaY > 100) closePanel();
-//    infoPanelWrapper.style.transform = '';
-//});
 
 // تابع نمایش محتوا در پنل
 function showInPanel(content) {
