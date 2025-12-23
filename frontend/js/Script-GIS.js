@@ -121,7 +121,7 @@ infoPanelWrapper.addEventListener('touchend', () => {
 // تابع نمایش محتوا در پنل
 function showInPanel(content) {
     document.getElementById('infoPanel').innerHTML = content;
-    //openPanel(); // در موبایل پنل باز می‌شود
+    openPanel(); // در موبایل پنل باز می‌شود
 }
 
 // باقی کدهای شما بدون تغییر (رنگ‌ها، آیکون‌ها، خوشه‌بندی، کلیک‌ها و ...)
