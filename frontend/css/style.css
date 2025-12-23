@@ -125,13 +125,14 @@ display: none;
 }
 
 .mobile-lang {
-	display: none;
+    display: none;
     position: absolute;
-    top: 90px;                 /* نزدیک به دکمه × */
-    left: 50%;
-    transform: translateX(-50%);
-	width: fit-content;        /* عرض خودکار بر اساس محتوا */
-	direction: ltr;                      /* ← این خط جدید و کلیدی است: جهت سوئیچ را LTR می‌کند تا وسط دقیق باشد */
+    top: 90px;                         /* فاصله از بالا (زیر دکمه ×) */
+    left: 50%;                         /* وسط صفحه */
+    transform: translateX(-50%);       /* دقیقاً وسط می‌شود حتی در RTL */
+    width: fit-content;                /* عرض خودکار */
+    direction: ltr;                    /* ← مهم! جهت داخلی سوئیچ را چپ‌به‌راست می‌کند تا دکمه‌ها درست بچسبند */
+    text-align: center;
 }
 
 .mobile-lang button {
@@ -333,6 +334,7 @@ footer {
     .hero-subtitle { font-size: 1.3rem; }
     .btn { padding: 1rem 2.5rem; font-size: 1.2rem; }
 }
+
 
 
 
