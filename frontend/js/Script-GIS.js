@@ -34,21 +34,21 @@ map.getContainer().addEventListener('click', () => {
 closePanelBtn.addEventListener('click', closePanel);
 
 // Drag to close در موبایل
-let touchStartY = 0;
-infoPanelWrapper.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
-infoPanelWrapper.addEventListener('touchmove', e => {
-    if (window.innerWidth >= 1024) return;
-    const deltaY = e.touches[0].clientY - touchStartY;
-    if (deltaY > 0) {
-        infoPanelWrapper.style.transform = `translateY(${deltaY}px)`;
-    }
-}, { passive: false });
-infoPanelWrapper.addEventListener('touchend', () => {
-    if (window.innerWidth >= 1024) return;
-    const deltaY = event.changedTouches[0].clientY - touchStartY;
-    if (deltaY > 100) closePanel();
-    infoPanelWrapper.style.transform = '';
-});
+//let touchStartY = 0;
+//infoPanelWrapper.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
+//infoPanelWrapper.addEventListener('touchmove', e => {
+//    if (window.innerWidth >= 1024) return;
+//    const deltaY = e.touches[0].clientY - touchStartY;
+//    if (deltaY > 0) {
+//        infoPanelWrapper.style.transform = `translateY(${deltaY}px)`;
+//    }
+//}, { passive: false });
+//infoPanelWrapper.addEventListener('touchend', () => {
+//    if (window.innerWidth >= 1024) return;
+//    const deltaY = event.changedTouches[0].clientY - touchStartY;
+//    if (deltaY > 100) closePanel();
+//    infoPanelWrapper.style.transform = '';
+//});
 
 // تابع نمایش محتوا در پنل
 function showInPanel(content) {
