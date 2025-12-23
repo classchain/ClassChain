@@ -128,10 +128,11 @@ body, html {
     display: none;
     position: absolute;
     top: 90px;                         /* فاصله از بالا (زیر دکمه ×) */
-    /*left: 50%;                         /* وسط صفحه */
-    transform: translateX(-50%);       /* دقیقاً وسط می‌شود حتی در RTL */
-    width: fit-content;                /* عرض خودکار */
-    direction: ltr;                    /* ← مهم! جهت داخلی سوئیچ را چپ‌به‌راست می‌کند تا دکمه‌ها درست بچسبند */
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);       /* وسط کردن دقیق */
+    width: max-content;                /* عرض خودکار */
+    margin: 0 auto;                    /* اطمینان اضافی از وسط بودن */
     text-align: center;
 }
 
@@ -334,6 +335,7 @@ footer {
     .hero-subtitle { font-size: 1.3rem; }
     .btn { padding: 1rem 2.5rem; font-size: 1.2rem; }
 }
+
 
 
 
