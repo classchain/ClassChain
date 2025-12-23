@@ -126,12 +126,10 @@ display: none;
 
 .mobile-lang {
 	display: none;
-    margin-bottom: 2rem;
-    padding: 0.8rem 1.5rem;
-    background: rgba(17,24,39,0.9);
-    border-radius: 50px;
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(139,92,246,0.4);
+    position: absolute;
+    top: 90px;                 /* نزدیک به دکمه × */
+    left: 50%;
+    transform: translateX(-50%);
 }
 
 .mobile-lang button {
@@ -267,18 +265,18 @@ footer {
 
     .nav-links {
 		position: fixed;
-        top: 0;                    /* ← از 76px به 0 تغییر کرد — کاملاً از بالا شروع می‌شود */
+        top: 0;
         left: 0;
         right: 0;
-        height: 100vh;             /* ← کل صفحه را می‌پوشاند */
+        height: 100vh;
         background: rgba(10,14,23,0.98);
         flex-direction: column;
         justify-content: flex-start;
         align-items: center;
-        padding-top: 100px;        /* ← فضای کافی برای سوئیچ زبان و دکمه × */
-        gap: 1.8rem;
+        padding-top: 140px;        /* فضای کافی برای سوئیچ زبان بالای همه چیز */
+        gap: 2rem;
         transform: translateY(-100%);
-        transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+        transition: transform 0.4s ease;
         backdrop-filter: blur(20px);
         z-index: 999;
     }
@@ -308,8 +306,7 @@ footer {
 
     .mobile-lang {
 		display: block;
-        position: absolute;
-        top: 90px;                 /* ← دقیقاً زیر دکمه × */   
+
 	}
 	
     .lang-switch {
@@ -334,6 +331,7 @@ footer {
     .hero-subtitle { font-size: 1.3rem; }
     .btn { padding: 1rem 2.5rem; font-size: 1.2rem; }
 }
+
 
 
 
