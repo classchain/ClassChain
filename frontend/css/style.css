@@ -129,9 +129,8 @@ body, html {
     top: 90px;                 /* فاصله از بالا (زیر دکمه ×) */
     left: 50%;
     transform: translateX(-50%); /* ← این خط باعث می‌شود دقیقاً وسط صفحه باشد */
-    width: fit-content;        /* عرض خودکار بر اساس محتوا */
-	text-align: center;
-	pointer-events: auto;
+    /*width: fit-content;        /* عرض خودکار بر اساس محتوا */
+	width: 100%;
 }
 /*.mobile-lang { */
 /*    display: none; */
@@ -345,6 +344,7 @@ footer {
     .hero-subtitle { font-size: 1.3rem; }
     .btn { padding: 1rem 2.5rem; font-size: 1.2rem; }
 }
+
 
 
 
