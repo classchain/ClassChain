@@ -123,15 +123,22 @@ body, html {
     backdrop-filter: blur(10px);
     border: 1px solid rgba(139,92,246,0.4);
 }
-
 .mobile-lang {
     display: none;
     position: absolute;
-    top: 90px;
-    width: 100%;
-    text-align: center;
-    pointer-events: auto;
+    top: 90px;                 /* فاصله از بالا (زیر دکمه ×) */
+    left: 50%;
+    transform: translateX(-50%); /* ← این خط باعث می‌شود دقیقاً وسط صفحه باشد */
+    width: fit-content;        /* عرض خودکار بر اساس محتوا */
 }
+/*.mobile-lang { */
+/*    display: none; */
+/*    position: absolute; */
+/*    top: 90px; */
+/*    width: 100%; */
+/*    text-align: center; */
+/*    pointer-events: auto; */
+/*} */
 
 /*.mobile-lang > * { */
 /*    display: inline-block; */
@@ -336,6 +343,7 @@ footer {
     .hero-subtitle { font-size: 1.3rem; }
     .btn { padding: 1rem 2.5rem; font-size: 1.2rem; }
 }
+
 
 
 
