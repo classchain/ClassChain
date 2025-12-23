@@ -130,6 +130,7 @@ display: none;
     top: 90px;                 /* نزدیک به دکمه × */
     left: 50%;
     transform: translateX(-50%);
+	width: fit-content;        /* عرض خودکار بر اساس محتوا */
 }
 
 .mobile-lang button {
@@ -331,6 +332,7 @@ footer {
     .hero-subtitle { font-size: 1.3rem; }
     .btn { padding: 1rem 2.5rem; font-size: 1.2rem; }
 }
+
 
 
 
