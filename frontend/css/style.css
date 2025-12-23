@@ -112,6 +112,23 @@ display: none;
     color: #8b5cf6; background: rgba(139,92,246,0.3); border-radius: 30px;
 }
 
+.desktop-lang {
+    position: fixed;
+    top: 100px;
+    left: 20px;
+    z-index: 1001;
+    background: rgba(17,24,39,0.9);
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(139,92,246,0.4);
+}
+
+.mobile-lang {
+    display: none; /* پیش‌فرض مخفی */
+    margin-bottom: 1.5rem;
+}
+
 /* محتوای اصلی */
 .hero {
     height: 100vh;
@@ -226,13 +243,13 @@ footer {
 
     .nav-links {
 		position: fixed;
-        top: 70px;                 /* زیر navbar */
+        top: 76px;                 /* زیر navbar */
         left: 0;
         right: 0;
         background: rgba(10,14,23,0.98);
         flex-direction: column;
         align-items: center;
-        padding: 2.5rem 0;
+        padding-top: 1.5rem;
         gap: 2rem;
         transform: translateY(-100%);
         transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -249,10 +266,23 @@ footer {
 
     .menu-toggle { display: block; }
 	
+	.desktop-lang {
+        display: none; /* در موبایل مخفی شود */
+    }
+
+    .mobile-lang {
+        display: block; /* در منوی موبایل نمایش داده شود */
+    }
+	
     .lang-switch {
         top: 80px;
         left: auto;
         right: 20px;
+    }
+	
+	.lang-switch button {
+        font-size: 1.1rem;
+        padding: 0.6rem 1.2rem;
     }
 
     .hero-title { font-size: 3.2rem; }
@@ -266,5 +296,6 @@ footer {
     .hero-subtitle { font-size: 1.3rem; }
     .btn { padding: 1rem 2.5rem; font-size: 1.2rem; }
 }
+
 
 
