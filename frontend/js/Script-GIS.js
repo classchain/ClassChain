@@ -10,6 +10,44 @@ let geo, countiesLayer = null, projectsLayer = null;
 const infoPanelWrapper = document.getElementById('infoPanelWrapper');
 const closePanelBtn = document.getElementById('closePanel');
 const fixedContributeBtn = document.getElementById('fixedContributeBtn');
+const panelHeader = document.querySelector('.panel-header');
+
+// تابع باز کردن کامل
+function openPanelFully() {
+    if (window.innerWidth >= 1024) return;
+    infoPanelWrapper.classList.add('open');
+    infoPanelWrapper.style.transform = 'translateY(0)';
+    document.body.style.overflow = 'hidden';
+}
+
+// تابع برگشت به حالت peek
+function closeToPeek() {
+    if (window.innerWidth >= 1024) return;
+    infoPanelWrapper.classList.remove('open');
+    infoPanelWrapper.style.transform = 'translateY(80%)';
+    document.body.style.overflow = '';
+}
+
+// ۱. تاچ روی هدر → باز کردن کامل
+panelHeader.addEventListener('click', (e) => {
+    e.stopPropagation(); // جلوگیری از بسته شدن همزمان
+    if (!infoPanelWrapper.classList.contains('open')) {
+        openPanelFully();
+    }
+});
+
+// ۲. دکمه × → به peek
+closePanelBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeToPeek();
+});
+
+// ۳. کلیک روی نقشه → به peek
+map.getContainer().addEventListener('click', () => {
+    if (window.innerWidth < 1024 && infoPanelWrapper.classList.contains('open')) {
+        closeToPeek();
+    }
+});
 
 // توابع مدیریت پنل
 function openPanel() {
@@ -86,35 +124,68 @@ infoPanelWrapper.addEventListener('touchstart', e => {
 
 infoPanelWrapper.addEventListener('touchmove', e => {
     if (!isDragging || window.innerWidth >= 1024) return;
-    const currentY = e.touches[0].clientY;
-    const deltaY = touchStartY - currentY; // مثبت = کشیدن به بالا
-
+    const deltaY = touchStartY - e.touches[0].clientY; // مثبت = کشیدن به بالا
     if (deltaY > 0) {
-        const progress = Math.min(deltaY / window.innerHeight, 1); // 0 تا 1
-        const translateY = (1 - progress) * 100; // از 100% به 0%
+        const progress = Math.min(deltaY / window.innerHeight, 1);
+        const translateY = (0.8 - progress * 0.8) * 100; // از 80% به 0%
         infoPanelWrapper.style.transform = `translateY(${translateY}%)`;
     }
 }, { passive: false });
+
+//infoPanelWrapper.addEventListener('touchmove', e => {
+//    if (!isDragging || window.innerWidth >= 1024) return;
+//    const currentY = e.touches[0].clientY;
+//    const deltaY = touchStartY - currentY; // مثبت = کشیدن به بالا
+
+//    if (deltaY > 0) {
+//        const progress = Math.min(deltaY / window.innerHeight, 1); // 0 تا 1
+//        const translateY = (1 - progress) * 100; // از 100% به 0%
+//        infoPanelWrapper.style.transform = `translateY(${translateY}%)`;
+//    }
+//}, { passive: false });
+
+//infoPanelWrapper.addEventListener('touchend', () => {
+//    if (!isDragging || window.innerWidth >= 1024) return;
+//    isDragging = false;
+
+    // تشخیص اینکه کاربر چقدر کشیده
+//    const style = window.getComputedStyle(infoPanelWrapper);
+//    const matrix = style.transform;
+//    const translateY = matrix === 'none' ? 100 : parseFloat(matrix.split(',')[5]) || 100;
+
+//    infoPanelWrapper.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)';
+
+//    if (translateY < 70) { // اگر بیشتر از 30% کشیده شده → باز بماند
+//        infoPanelWrapper.classList.add('open');
+//        infoPanelWrapper.style.transform = 'translateY(0)';
+//    } else {
+//        infoPanelWrapper.classList.remove('open');
+//        infoPanelWrapper.style.transform = 'translateY(100%)';
+//    }
+//});
 
 infoPanelWrapper.addEventListener('touchend', () => {
     if (!isDragging || window.innerWidth >= 1024) return;
     isDragging = false;
 
-    // تشخیص اینکه کاربر چقدر کشیده
     const style = window.getComputedStyle(infoPanelWrapper);
     const matrix = style.transform;
-    const translateY = matrix === 'none' ? 100 : parseFloat(matrix.split(',')[5]) || 100;
-
+    let translateY = 80;
+    if (matrix !== 'none') {
+        const values = matrix.split(',');
+        if (values.length > 5) {
+            translateY = parseFloat(values[5]) / (window.innerHeight * 0.01); // تقریبی
+        }
+    }
     infoPanelWrapper.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)';
 
-    if (translateY < 70) { // اگر بیشتر از 30% کشیده شده → باز بماند
-        infoPanelWrapper.classList.add('open');
-        infoPanelWrapper.style.transform = 'translateY(0)';
+    if (translateY < 40) { // بیشتر از نصف کشیده → کامل باز
+        openPanelFully();
     } else {
-        infoPanelWrapper.classList.remove('open');
-        infoPanelWrapper.style.transform = 'translateY(100%)';
+        closeToPeek();
     }
 });
+
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
 
