@@ -202,14 +202,15 @@ position: absolute;
         top: 50%;
         transform: translateY(-50%);
     }
-    .leaflet-control-zoom {
-        z-index: 600 !important;
-    }
+    
     #basemapSelect {
 		width: 100%;
         font-size: 12px;
         padding: 10px 14px;
         text-align: center;
+    }
+	.leaflet-control-zoom {
+        z-index: 600 !important;
     }
 }
 
