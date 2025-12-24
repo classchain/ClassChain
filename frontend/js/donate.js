@@ -93,7 +93,7 @@ async function loadProject() {
     }
 
     // لود Projects.json (در پروژه واقعی مسیر درست را تنظیم کنید)
-    const response = await fetch('../data/Projects.json');
+    const response = await fetch('data/Projects.json');
     const data = await response.json();
 
     let foundProject = null;
@@ -302,3 +302,4 @@ function isTronReady() {
 
 // اجرای اولیه
 loadProject();
+
