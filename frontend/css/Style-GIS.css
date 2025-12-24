@@ -16,7 +16,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     display: flex;
     flex-direction: column;
     box-shadow: -2px 0 10px rgba(0,0,0,0.3);
-    z-index: 500;
+    z-index: 1000;
     transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
@@ -107,7 +107,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 /* کنترل‌های نقشه */
 .custom-basemap-selector, .home-button {
     position: absolute; 
-    z-index: 1000; 
+    z-index: 900; 
     background: rgba(255,255,255,0.95); 
     backdrop-filter: blur(12px);
     border-radius: 30px; 
@@ -125,7 +125,7 @@ position: absolute;
     right: 10px;                  /* ← قرار گرفتن در گوشه بالا-راست */
     transform: none;              /* حذف translateX */
     padding: 8px 12px;
-    z-index: 1000;
+    z-index: 900;
     background: rgba(255,255,255,0.95);
     backdrop-filter: blur(12px);
     border-radius: 30px;
