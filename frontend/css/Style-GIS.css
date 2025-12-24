@@ -209,6 +209,9 @@ position: absolute;
         padding: 10px 14px;
         text-align: center;
     }
+	.leaflet-control-zoom {
+        z-index: 600 !important;
+    }
 }
 
 
