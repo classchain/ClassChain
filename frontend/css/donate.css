@@ -9,6 +9,8 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 
 body, html {
+    height: 100%;
+    overflow: hidden;               /* مهم: صفحه اسکرول نشود */
     min-height: 100vh;
     margin: 0;
     font-family: 'Vazirmatn', sans-serif;
@@ -88,11 +90,13 @@ body, html {
 .lang-switch button.active { color: #8b5cf6; background: rgba(139,92,246,0.3); border-radius: 30px; }
 
 .main-container {
-    min-height: 100vh;
-    padding: 100px 1rem 80px;
+    height: 100vh;                  /* تغییر: ارتفاع کامل صفحه */
+    padding: 100px 1rem 40px;       /* کمی کاهش padding پایین برای جلوگیری از اسکرول */
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;        /* اضافه شده: وسط‌چین عمودی */
+    overflow: hidden;               /* جلوگیری از اسکرول */
     z-index: 5;
 }
 
@@ -138,7 +142,17 @@ body, html {
 .amount-buttons button { padding: 0.8rem 1.2rem; background: rgba(139,92,246,0.2); border: 1px solid #8b5cf6; border-radius: 12px; color: white; cursor: pointer; }
 .amount-buttons button:hover { background: rgba(139,92,246,0.4); }
 
-#customAmount { width: 100%; padding: 1rem; border-radius: 12px; border: 1px solid rgba(139,92,246,0.4); background: rgba(17,24,39,0.8); color: white; font-size: 1.1rem; }
+#customAmount {
+    width: 100%;
+    padding: 1.2rem;
+    border-radius: 16px;
+    border: 1px solid rgba(139,92,246,0.4);
+    background: rgba(17,24,39,0.8);
+    color: white;
+    font-size: 1.3rem;
+    text-align: center;
+    margin-top: 1rem;
+}
 
 #networkSelect { width: 100%; padding: 1rem; border-radius: 12px; background: rgba(17,24,39,0.8); color: white; border: 1px solid rgba(139,92,246,0.4); }
 
@@ -167,3 +181,4 @@ body, html {
 .email-subscribe { margin-top: 2rem; }
 .email-subscribe input { width: 100%; padding: 0.8rem; margin: 0.5rem 0; border-radius: 8px; border: none; background: rgba(255,255,255,0.1); color: white; }
 .email-subscribe button { width: 100%; padding: 0.8rem; background: #8b5cf6; border: none; border-radius: 8px; color: white; cursor: pointer; }
+
