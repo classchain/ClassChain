@@ -89,41 +89,12 @@ async function loadProject() {
 
     if (!projectId) {
         document.getElementById('projectTitle').innerText = "پروژه یافت نشد";
-		document.getElementById('projectDesc').innerText = "لطفاً از نقشه پروژه‌ای را انتخاب کنید.";
         return;
     }
-            try {
-                const response = await fetch('data/Projects.json');
-                if (!response.ok) throw new Error('فایل Projects.json یافت نشد');
-                const data = await response.json();
-                const feature = data.features.find(f => f.attributes.ProjectID === projectId);
-                
-                if (!feature) {
-                    document.getElementById('projectName').innerText = "پروژه یافت نشد";
-                    document.getElementById('projectDesc').innerText = "کد پروژه: " + projectId;
-                    return;
-                }
-                
-                projectData = feature.attributes;
-
-                document.getElementById('projectName').innerText = projectData["نام پروژه"] || "پروژه کلاس‌چین";
-                document.getElementById('projectDesc').innerText = `${
-                    projectData["نوع پروژه (نیاز)"] || ""} — ${
-                    projectData["تعداد کلاس"] || ""} کلاس — هدف: ${
-                    projectData["targetAmount(USDT)"] || "نامشخص"} USDT`;
-
-                loadNetworkDropdown();
-                loadProgress();
-                updateContractAddress();
-            } catch (err) {
-                console.error(err);
-                document.getElementById('projectName').innerText = "خطا در بارگذاری پروژه";
-                document.getElementById('projectDesc').innerText = "ممکن است مسیر فایل JSON اشتباه باشد.";
-            }
 
     // لود Projects.json (در پروژه واقعی مسیر درست را تنظیم کنید)
-//    const response = await fetch('data/Projects.json');
-//    const data = await response.json();
+    const response = await fetch('data/Projects.json');
+    const data = await response.json();
 
     let foundProject = null;
     data.features.forEach(feature => {
@@ -161,97 +132,21 @@ document.getElementById('customAmount').oninput = (e) => {
     selectedAmount = parseFloat(e.target.value) || 0;
 };
 
-        function selectNetwork(netKey) {
-            selectedNetwork = netKey;
-            updateContractAddress();
-            loadProgress();
-        }
+function selectNetwork(network) {
+    selectedNetwork = network;
+    const net = networks[network];
+    currentContract = (network === 'tron') ? projects.contractAddressTron : projects.contractAddress;
+    document.getElementById('qrSection').style.display = network === 'tron' ? 'block' : 'none';
+}
 
-//function selectNetwork(network) {
-//    selectedNetwork = network;
-//    const net = networks[network];
-//    currentContract = (network === 'tron') ? projects.contractAddressTron : projects.contractAddress;
-//    document.getElementById('qrSection').style.display = network === 'tron' ? 'block' : 'none';
-//}
-        function loadNetworkDropdown() {
-            const select = document.getElementById('networkSelect');
-            select.innerHTML = '<option value="">لطفاً یک شبکه انتخاب کنید</option>';
+async function loadProgress(target = 100000) {
+    // در نسخه واقعی از API اکسپلورر جمع‌آوری می‌شود
+    const totalRaised = 0; // مقدار واقعی را جایگزین کنید
+    const percent = Math.min((totalRaised / target) * 100, 100);
 
-            let hasAnyNetwork = false;
-            Object.keys(networks).forEach(key => {
-                const net = networks[key];
-                if (projectData[net.addressField] && projectData[net.addressField].trim() !== "") {
-                    const option = document.createElement('option');
-                    option.value = key;
-                    option.innerHTML = `<img src="${net.icon}" style="width:24px;height:24px;vertical-align:middle;margin-left:8px;"> ${net.name}`;
-                    select.appendChild(option);
-                    hasAnyNetwork = true;
-
-                    // پیش‌فرض Amoy اگر موجود باشد
-                    if (key === 'amoy') {
-                        option.selected = true;
-                        selectedNetwork = 'amoy';
-                    }
-                }
-            });
-
-            if (!hasAnyNetwork) {
-                select.innerHTML += '<option disabled>هیچ خزانه‌ای برای این پروژه تعریف نشده</option>';
-            }
-
-            // اگر Amoy موجود بود، اطلاعات را بروز کن
-            if (selectedNetwork) {
-                updateContractAddress();
-                loadProgress();
-            }
-        }
-		
-		function updateContractAddress() {
-            if (!selectedNetwork) {
-                document.getElementById('contractInfo').style.display = 'none';
-                document.getElementById('qrCode').innerHTML = '';
-                return;
-            }
-            const net = networks[selectedNetwork];
-            currentContract = projectData[net.addressField];
-            const contractInfo = document.getElementById('contractInfo');
-            const contractLink = document.getElementById('contractLink');
-            const qrContainer = document.getElementById('qrCode');
-
-            if (currentContract && currentContract.trim() !== "") {
-                contractLink.href = `${net.explorer}/address/${currentContract}`;
-                contractLink.innerText = currentContract;
-                contractInfo.style.display = 'block';
-                qrContainer.innerHTML = '';
-                new QRCode(qrContainer, {
-                    text: currentContract,
-                    width: 200,
-                    height: 200
-                });
-            } else {
-                contractInfo.style.display = 'none';
-                qrContainer.innerHTML = '';
-            }
-        }
-
-        async function loadProgress() {
-            // موقتاً دمو — بعداً با API واقعی جایگزین کن
-            const target = parseFloat(projectData["targetAmount(USDT)"]) || 1000;
-            const raised = Math.floor(Math.random() * target * 0.3);
-            const percent = (raised / target) * 100;
-            document.getElementById('progressFill').style.width = percent + '%';
-            document.getElementById('progressText').innerText = `${raised.toFixed(2)} USDT از ${target.toLocaleString('fa-IR')} USDT جمع شده`;
-        }
-
-
-//async function loadProgress(target = 100000) {
-//    // در نسخه واقعی از API اکسپلورر جمع‌آوری می‌شود
-//    const totalRaised = 0; // مقدار واقعی را جایگزین کنید
-//    const percent = Math.min((totalRaised / target) * 100, 100);
-//
-//    document.getElementById('progressFill').style.width = percent + '%';
-//    document.getElementById('progressText').innerText = `${totalRaised.toFixed(2)} USDT از ${target.toLocaleString('fa-IR')} USDT جمع شده (${percent.toFixed(1)}%)`;
-//}
+    document.getElementById('progressFill').style.width = percent + '%';
+    document.getElementById('progressText').innerText = `${totalRaised.toFixed(2)} USDT از ${target.toLocaleString('fa-IR')} USDT جمع شده (${percent.toFixed(1)}%)`;
+}
 
 document.getElementById('connectBtn').onclick = async () => {
     if (!currentContract) {
