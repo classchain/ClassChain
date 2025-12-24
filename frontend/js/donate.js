@@ -128,11 +128,6 @@ async function loadProject() {
     loadDonors();
 }
 
-function selectAmount(amount) {
-    selectedAmount = amount;
-    document.getElementById('customAmount').value = amount;
-}
-
 document.getElementById('customAmount').oninput = (e) => {
     selectedAmount = parseFloat(e.target.value) || 0;
 };
@@ -302,4 +297,5 @@ function isTronReady() {
 
 // اجرای اولیه
 loadProject();
+
 
