@@ -223,7 +223,7 @@
         const isMulti = event.isMultisig;
 
         // بروزرسانی JSON
-        const resp = await fetch('Projects.json');
+        const resp = await fetch('data/Projects.json');
         const data = await resp.json();
         let found = false;
         data.features.forEach(f => {
@@ -258,7 +258,7 @@
 
     async function loadProjectsTable() {
       try {
-        const resp = await fetch('Projects.json');
+        const resp = await fetch('data/Projects.json');
         const data = await resp.json();
         const tbody = document.querySelector('#projectsTable tbody');
         tbody.innerHTML = '';
