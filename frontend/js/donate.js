@@ -219,10 +219,10 @@ document.getElementById('connectBtn').onclick = async () => {
 
     try {
         if (net.chainId) {
-            await window.ethereum.request({
-                method: 'wallet_switchEthereumChain',
-                params: [{ chainId: '0x' + net.chainId.toString(16) }],
-            });
+            //await window.ethereum.request({
+            //    method: 'wallet_switchEthereumChain',
+            //    params: [{ chainId: '0x' + net.chainId.toString(16) }],
+            //});
         }
 
         await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -306,6 +306,7 @@ function isTronReady() {
 
 // اجرای اولیه
 loadProject();
+
 
 
 
