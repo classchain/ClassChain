@@ -5,15 +5,15 @@ let userAddress = null;
 let web3 = null;
 
 const networks = {
-            //amoy: {
-            //    name: "Polygon Amoy (تست‌نت)",
-            //    icon: "https://cryptologos.cc/logos/polygon-matic-logo.png",
-            //    addressField: "contractAddress",
-            //    usdtAddress: "0xf619f03999dfc383cFeaD476809eF3EEec420566",  // mock USDT تو
+            amoy: {
+                name: "Polygon Amoy (تست‌نت)",
+                icon: "https://cryptologos.cc/logos/polygon-matic-logo.png",
+                addressField: "contractAddress",
+                usdtAddress: "0xf619f03999dfc383cFeaD476809eF3EEec420566",  // mock USDT تو
                 //usdtAddress: "0x41e94eb019c0762f9bfcf9fb78e59bec0a32e187",
-            //    chainId: 80002,
-            //    explorer: "https://amoy.polygonscan.com",
-            //},
+                chainId: 80002,
+                explorer: "https://amoy.polygonscan.com",
+            },
             CLC: {
                 name: "CLC ClassChain (تست‌نت)",
                 icon: "https://cryptologos.cc/logos/polygon-matic-logo.png",
@@ -306,6 +306,7 @@ function isTronReady() {
 
 // اجرای اولیه
 loadProject();
+
 
 
 
