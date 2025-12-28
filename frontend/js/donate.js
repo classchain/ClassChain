@@ -213,101 +213,194 @@ document.getElementById('connectBtn').onclick = async () => {
        شاخه EVM — بدون تغییر
        ========================= */
 
+ //   if (typeof window.ethereum === 'undefined') {
+ //       alert("لطفاً MetaMask یا کیف پول سازگار نصب کنید");
+ //       return;
+ //   }
+//
+//    try {
+//        if (net.chainId) {
+//            //await window.ethereum.request({
+//            //    method: 'wallet_switchEthereumChain',
+//            //    params: [{ chainId: '0x' + net.chainId.toString(16) }],
+//            //});
+//        }
+
+//        await window.ethereum.request({ method: 'eth_requestAccounts' });
+//        web3 = new Web3(window.ethereum);
+//        const accounts = await web3.eth.getAccounts();
+//        userAddress = accounts[0];
+
+//        const usdtABI = [{
+//            "inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],
+//            "name":"transfer",
+//            "outputs":[{"name":"","type":"bool"}],
+//            "type":"function"
+//        }];
+
+//        const usdtContract = new web3.eth.Contract(usdtABI, net.usdtAddress);
+//        const amountWei = web3.utils.toBN(selectedAmount * 1_000_000);
+
+//        const tx = await usdtContract.methods
+//            .transfer(currentContract, amountWei)
+//            .send({ from: userAddress });
+
+//        document.getElementById('txHash').innerHTML =
+//            `تراکنش با موفقیت ارسال شد!<br>
+//            <a href="${net.explorer}/tx/${tx.transactionHash}" target="_blank">
+//            مشاهده در اکسپلورر
+//            </a>`;
+
+//        document.getElementById('successMessage').style.display = 'block';
+//        document.getElementById('connectBtn').style.display = 'none';
+
+//        loadProgress();
+
+//    } catch (err) {
+//        if (err.code === 4001) {
+//            alert("تراکنش توسط کاربر لغو شد");
+//        } else {
+//            alert("خطا در ارسال تراکنش: " + (err.message || "نامشخص"));
+//        }
+//    }
+//};
+
+// فعال کردن دکمه با تیک چک‌باکس
+//document.getElementById('termsConsent').addEventListener('change', function() {
+//    document.getElementById('connectBtn').disabled = !this.checked;
+//});
+
+//function saveEmail() {
+//    const email = document.getElementById('donorEmail').value.trim();
+//    if (!email || !document.getElementById('consent').checked) {
+//        alert("لطفاً ایمیل معتبر وارد کنید و تأیید را بزنید");
+//        return;
+//    }
+//    alert("ایمیل شما ثبت شد! آپدیت‌های پروژه برایتان ارسال خواهد شد ❤️");
+//}
+
+//// فعال‌سازی particles
+//particlesJS("particles-js", {
+//    "particles": {
+//        "number": { "value": 100 },
+//        "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] },
+//        "shape": { "type": "circle" },
+//        "opacity": { "value": 0.6, "random": true },
+//        "size": { "value": 3, "random": true },
+//        "line_linked": {
+//            "enable": true,
+//            "distance": 140,
+//            "color": "#6366f1",
+//            "opacity": 0.3,
+//            "width": 1
+//        },
+//        "move": { "enable": true, "speed": 1.5 }
+//    },
+//    "interactivity": {
+//        "events": { "onhover": { "enable": true, "mode": "repulse" } }
+//    }
+//});
+
+//function isTronReady() {
+//    return window.tronWeb && window.tronWeb.defaultAddress.base58;
+//}
+//
+//// اجرای اولیه
+//loadProject();
+
+    /* =========================
+       شاخه EVM — با approve + depositToken (رفع مشکل)
+       ========================= */
+
     if (typeof window.ethereum === 'undefined') {
         alert("لطفاً MetaMask یا کیف پول سازگار نصب کنید");
         return;
     }
-
+        const decimals = (selectedNetwork === 'CLC') ? 18 : 6;
+        const amount = web3.utils.toBN(selectedAmount * (10 ** decimals));
     try {
-        if (net.chainId) {
-            //await window.ethereum.request({
-            //    method: 'wallet_switchEthereumChain',
-            //    params: [{ chainId: '0x' + net.chainId.toString(16) }],
-            //});
-        }
-
+        // درخواست دسترسی به حساب
         await window.ethereum.request({ method: 'eth_requestAccounts' });
         web3 = new Web3(window.ethereum);
         const accounts = await web3.eth.getAccounts();
         userAddress = accounts[0];
 
-        const usdtABI = [{
-            "inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],
-            "name":"transfer",
-            "outputs":[{"name":"","type":"bool"}],
-            "type":"function"
-        }];
+        // ABI توکن USDT/USDC (فقط transfer و approve)
+        const tokenABI = [
+            {
+                "inputs": [{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],
+                "name":"transfer",
+                "outputs":[{"name":"","type":"bool"}],
+                "type":"function"
+            },
+            {
+                "inputs": [{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],
+                "name":"approve",
+                "outputs":[{"name":"","type":"bool"}],
+                "type":"function"
+            }
+        ];
 
-        const usdtContract = new web3.eth.Contract(usdtABI, net.usdtAddress);
-        const amountWei = web3.utils.toBN(selectedAmount * 1_000_000);
+        // ABI قرارداد خزانه (فقط depositToken و balanceOf برای آینده)
+        const fundABI = [
+            {
+                "inputs": [{"name":"token","type":"address"},{"name":"amount","type":"uint256"}],
+                "name":"depositToken",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [{"name":"token","type":"address"}],
+                "name":"balanceOf",
+                "outputs": [{"name":"","type":"uint256"}],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
 
-        const tx = await usdtContract.methods
-            .transfer(currentContract, amountWei)
+        const tokenContract = new web3.eth.Contract(tokenABI, net.usdtAddress);
+        const fundContract = new web3.eth.Contract(fundABI, currentContract);
+
+        // محاسبه مقدار با 6 decimals (USDT و USDC هر دو 6 رقم دارند)
+        const amount = web3.utils.toBN(selectedAmount * 1_000_000);
+
+        // مرحله ۱: Approve خزانه برای برداشت توکن از کیف کاربر
+        alert("مرحله ۱ از ۲: تأیید اجازه برداشت توکن (Approve) در MetaMask");
+        await tokenContract.methods
+            .approve(currentContract, amount)
             .send({ from: userAddress });
 
+        // مرحله ۲: فراخوانی depositToken در خزانه
+        alert("مرحله ۲ از ۲: ارسال کمک به خزانه (Deposit) در MetaMask");
+        const tx = await fundContract.methods
+            .depositToken(net.usdtAddress, amount)
+            .send({ from: userAddress });
+
+        // موفقیت
         document.getElementById('txHash').innerHTML =
-            `تراکنش با موفقیت ارسال شد!<br>
+            `کمک با موفقیت ثبت شد! ❤️<br>
             <a href="${net.explorer}/tx/${tx.transactionHash}" target="_blank">
-            مشاهده در اکسپلورر
+            مشاهده تراکنش در اکسپلورر
             </a>`;
 
         document.getElementById('successMessage').style.display = 'block';
         document.getElementById('connectBtn').style.display = 'none';
 
+        // به‌روزرسانی پیشرفت (در آینده می‌توانید واقعی کنید)
         loadProgress();
 
     } catch (err) {
         if (err.code === 4001) {
-            alert("تراکنش توسط کاربر لغو شد");
+            alert("تراکنش توسط شما لغو شد");
+        } else if (err.message && err.message.includes("User denied")) {
+            alert("تراکنش لغو شد");
         } else {
+            console.error(err);
             alert("خطا در ارسال تراکنش: " + (err.message || "نامشخص"));
         }
     }
 };
-
-// فعال کردن دکمه با تیک چک‌باکس
-document.getElementById('termsConsent').addEventListener('change', function() {
-    document.getElementById('connectBtn').disabled = !this.checked;
-});
-
-function saveEmail() {
-    const email = document.getElementById('donorEmail').value.trim();
-    if (!email || !document.getElementById('consent').checked) {
-        alert("لطفاً ایمیل معتبر وارد کنید و تأیید را بزنید");
-        return;
-    }
-    alert("ایمیل شما ثبت شد! آپدیت‌های پروژه برایتان ارسال خواهد شد ❤️");
-}
-
-// فعال‌سازی particles
-particlesJS("particles-js", {
-    "particles": {
-        "number": { "value": 100 },
-        "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] },
-        "shape": { "type": "circle" },
-        "opacity": { "value": 0.6, "random": true },
-        "size": { "value": 3, "random": true },
-        "line_linked": {
-            "enable": true,
-            "distance": 140,
-            "color": "#6366f1",
-            "opacity": 0.3,
-            "width": 1
-        },
-        "move": { "enable": true, "speed": 1.5 }
-    },
-    "interactivity": {
-        "events": { "onhover": { "enable": true, "mode": "repulse" } }
-    }
-});
-
-function isTronReady() {
-    return window.tronWeb && window.tronWeb.defaultAddress.base58;
-}
-
-// اجرای اولیه
-loadProject();
-
 
 
 
