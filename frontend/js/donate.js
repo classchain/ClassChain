@@ -225,10 +225,10 @@ document.getElementById('connectBtn').onclick = async () => {
             //});
         }
 
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        web3 = new Web3(window.ethereum);
-        const accounts = await web3.eth.getAccounts();
-        userAddress = accounts[0];
+        //await window.ethereum.request({ method: 'eth_requestAccounts' });
+        //web3 = new Web3(window.ethereum);
+        //const accounts = await web3.eth.getAccounts();
+        //userAddress = accounts[0];
 
         const usdtABI = [{
             "inputs":[{"name":"_to","type":"address"},{"name":"_value","type":"uint256"}],
@@ -306,6 +306,7 @@ function isTronReady() {
 
 // اجرای اولیه
 loadProject();
+
 
 
 
