@@ -412,7 +412,7 @@
         "مسئول پروژه": "مجتبي حسيني صديق (0940006243)",
         "شماره تلفن مسئول پروژه": "09153114832",
         "وضعیت راهبری پروژه": "وضعیت سفت کاری پروژه تایید شد",
-        "contractAddress": null,
+        "contractAddress": "0x34C7FD16697dD3f7751193D77F08fDCB1afe4B69",
         "contractAddressMainnet": null,
         "contractAddressTron": null,
         "contractAddressCLC": null,
@@ -425,6 +425,7 @@
         "targetAmount(USDT)": 79170,
         "status": null,
         "raisedAmount": null
+        "multisigAddress": "0x91842d5A313058C343663cd3c39dbCB1d6a73AF9"
       },
       "geometry": {
         "x": 60.20675,
