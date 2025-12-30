@@ -267,7 +267,7 @@ const decimals = (selectedNetwork === 'CLC') ? 18 : 6;
             .depositToken(net.usdtAddress, amount)
             .send({ 
                 from: userAddress,
-                gas: 200000,           // گس بالاتر — مهم! چون nonReentrant و transfer دارد
+                gas: 500000,           // گس بالاتر — مهم! چون nonReentrant و transfer دارد
                 gasPrice: await web3.eth.getGasPrice()
             });
 
@@ -354,4 +354,5 @@ function isTronReady() {
 
 // اجرای اولیه
 loadProject();
+
 
