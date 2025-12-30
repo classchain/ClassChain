@@ -205,7 +205,12 @@
           const owner = document.getElementById('singleOwnerAddress').value.trim();
           if (!web3.utils.isAddress(owner)) return alert("آدرس معتبر نیست");
 
-          tx = await factoryContract.methods.createSingleOwnerFund(projectId, owner).send({ from: account });
+          tx = await factoryContract.methods.createSingleOwnerFund(projectId, owner)
+              .send({ 
+                  from: account,
+                  gas: 5000000,  // گس بالا برای ساخت قراردادها
+                  gasPrice: await web3.eth.getGasPrice()
+              });
         } else {
           const reqSigs = parseInt(document.getElementById('requiredSigs').value);
           const inputs = document.querySelectorAll('#ownersContainer input');
@@ -214,7 +219,12 @@
           if (owners.length === 0) return alert("حداقل یک owner وارد کنید");
           if (reqSigs > owners.length || reqSigs < 1) return alert("تعداد امضا نامعتبر");
 
-          tx = await factoryContract.methods.createMultisigFund(projectId, owners, reqSigs).send({ from: account });
+          tx = await factoryContract.methods.createMultisigFund(projectId, owners, reqSigs)
+            .send({ 
+                from: account,
+                gas: 5000000,  // گس بالا برای ساخت قراردادها
+                gasPrice: await web3.eth.getGasPrice()
+            });          
         }
 
         const event = tx.events.FundCreated.returnValues;
