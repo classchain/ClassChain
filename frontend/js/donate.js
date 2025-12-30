@@ -220,59 +220,95 @@ document.getElementById('connectBtn').onclick = async () => {
         const accounts = await web3.eth.getAccounts();
         userAddress = accounts[0];
 
-        const tokenABI = [
-            {
-                "inputs": [{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],
-                "name":"approve",
-                "outputs":[{"name":"","type":"bool"}],
-                "type":"function"
-            }
-        ];
+		const chainId = await web3.eth.getChainId();
+				if (chainId !== net.chainId) {
+					alert(`لطفاً شبکه را به ${net.name} تغییر دهید (Chain ID: ${net.chainId})`);
+					return;
+				}
+				
+const decimals = (selectedNetwork === 'CLC') ? 18 : 6;
+        const amount = web3.utils.toBN(selectedAmount * (10 ** decimals));
 
-        const fundABI = [
-            {
-                "inputs": [{"name":"token","type":"address"},{"name":"amount","type":"uint256"}],
-                "name":"depositToken",
-                "outputs": [],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            }
-        ];
+        const tokenABI = [{ "inputs": [{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}], "name":"approve", "outputs":[{"name":"","type":"bool"}], "type":"function" }];
+        const fundABI = [{ "inputs": [{"name":"token","type":"address"},{"name":"amount","type":"uint256"}], "name":"depositToken", "outputs": [], "stateMutability": "nonpayable", "type": "function" }];
 
         const tokenContract = new web3.eth.Contract(tokenABI, net.usdtAddress);
         const fundContract = new web3.eth.Contract(fundABI, currentContract);
 
-        // محاسبه مقدار — USDT/USDC = 6 decimals، CLC = 18 decimals
-        const decimals = (selectedNetwork === 'CLC') ? 18 : 6;
-        const amount = web3.utils.toBN(selectedAmount * (10 ** decimals));
-
-        // مرحله ۱: Approve
-        await tokenContract.methods
-            .approve(currentContract, amount)
-            .send({ from: userAddress });
-
-        // مرحله ۲: Deposit
-        const tx = await fundContract.methods
-            .depositToken(net.usdtAddress, amount)
-            .send({ from: userAddress });
-
-        document.getElementById('txHash').innerHTML =
-            `کمک با موفقیت ثبت شد! ❤️<br>
-            <a href="${net.explorer}/tx/${tx.transactionHash}" target="_blank">
-            مشاهده در اکسپلورر
-            </a>`;
-
+        // نمایش وضعیت اولیه
+        document.getElementById('txHash').innerHTML = `
+            <p><strong>مرحله ۱ از ۲:</strong> تأیید اجازه برداشت (Approve)</p>
+            <p>در حال ارسال تراکنش اجازه به متامسک...</p>
+        `;
         document.getElementById('successMessage').style.display = 'block';
         document.getElementById('connectBtn').style.display = 'none';
 
-        loadProgress();
+        // مرحله ۱: Approve با گس بالاتر
+        const approveTx = await tokenContract.methods
+            .approve(currentContract, amount)
+            .send({ 
+                from: userAddress,
+                gas: 100000,           // گس بالاتر برای اطمینان
+                gasPrice: await web3.eth.getGasPrice()
+            });
+
+        approveTxHash = approveTx.transactionHash;
+
+        document.getElementById('txHash').innerHTML = `
+            <p style="color: green;">✅ مرحله ۱ موفق: اجازه برداشت تأیید شد!</p>
+            <p><a href="${net.explorer}/tx/${approveTxHash}" target="_blank">مشاهده Approve در اکسپلورر</a></p>
+            <hr>
+            <p><strong>مرحله ۲ از ۲:</strong> واریز به خزانه (Deposit)</p>
+            <p>تراکنش دوم را در متامسک تأیید کنید...</p>
+        `;
+
+        // مرحله ۲: Deposit با گس بالاتر
+        const depositTx = await fundContract.methods
+            .depositToken(net.usdtAddress, amount)
+            .send({ 
+                from: userAddress,
+                gas: 200000,           // گس بالاتر — مهم! چون nonReentrant و transfer دارد
+                gasPrice: await web3.eth.getGasPrice()
+            });
+
+        depositTxHash = depositTx.transactionHash;
+
+        document.getElementById('txHash').innerHTML = `
+            <p style="color: green;">🎉 کمک شما با موفقیت به خزانه واریز شد! ❤️</p>
+            <p><strong>تراکنش Approve:</strong> <a href="${net.explorer}/tx/${approveTxHash}" target="_blank">مشاهده</a></p>
+            <p><strong>تراکنش Deposit:</strong> <a href="${net.explorer}/tx/${depositTxHash}" target="_blank">مشاهده</a></p>
+            <p>ممنون از حمایت شما! پروژه به هدف نزدیک‌تر شد.</p>
+        `;
+
+loadProgress(); // به‌روزرسانی پیشرفت (در آینده on-chain می‌شود)
 
     } catch (err) {
+        console.error("خطا در تراکنش:", err);
+
+        let errorMsg = "خطا در ارسال تراکنش: ";
+
         if (err.code === 4001) {
-            alert("تراکنش توسط کاربر لغو شد");
+            errorMsg += "تراکنش توسط شما لغو شد.";
+        } else if (err.message.includes("User denied")) {
+            errorMsg += "تراکنش لغو شد.";
+        } else if (err.message.includes("insufficient funds")) {
+            errorMsg += "موجودی کافی نیست (گس یا توکن).";
+        } else if (err.message.includes("execution reverted")) {
+            errorMsg += "تراکنش برگشت خورد. ممکن است توکن مجاز نباشد یا خزانه مشکل داشته باشد.";
         } else {
-            alert("خطا در ارسال تراکنش: " + (err.message || "نامشخص"));
+            errorMsg += err.message || "نامشخص";
         }
+
+        // اگر approve موفق بود ولی deposit شکست خورد
+        if (approveTxHash && !depositTxHash) {
+            errorMsg += `\n\nApprove موفق بود: ${net.explorer}/tx/${approveTxHash}\nدوباره امتحان کنید یا مقدار کمتر انتخاب کنید.`;
+        }
+
+        alert(errorMsg);
+        
+        // برگرداندن دکمه برای تلاش دوباره
+        document.getElementById('connectBtn').style.display = 'block';
+        document.getElementById('successMessage').style.display = 'none';
     }
 };
 
@@ -318,3 +354,4 @@ function isTronReady() {
 
 // اجرای اولیه
 loadProject();
+
