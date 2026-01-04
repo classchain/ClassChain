@@ -60,7 +60,7 @@ async function connectWallet() {
 
 async function loadProjects() {
     try {
-        const resp = await fetch('../data/Projects.json');
+        const resp = await fetch('data/Projects.json');
         const data = await resp.json();
 
         const myProjects = [];
