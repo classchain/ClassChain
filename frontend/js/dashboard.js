@@ -60,38 +60,57 @@ async function connectWallet() {
 
 async function loadProjects() {
     try {
-        const resp = await fetch('data/Projects.json');
+        document.getElementById('loading').innerHTML = '<p>در حال بارگذاری لیست پروژه‌ها...</p>';
+
+        const resp = await fetch('./data/Projects.json');
+        if (!resp.ok) throw new Error("فایل Projects.json لود نشد");
         const data = await resp.json();
 
         const myProjects = [];
+        let checkedCount = 0;
+        const totalProjects = data.features.filter(f => f.attributes.contractAddress).length;
 
         for (const feature of data.features) {
             const attr = feature.attributes;
             if (!attr.contractAddress) continue;
 
-            const fundContract = new web3.eth.Contract(fundABI, attr.contractAddress);
+            checkedCount++;
 
             try {
-                const owner = await fundContract.methods.owner().call();
+                const fundContract = new web3.eth.Contract(fundABI, attr.contractAddress);
 
+                // اول موجودی رو بخون (این معمولاً کار می‌کنه)
+                let balance = 0;
+                try {
+                    balance = await fundContract.methods.balanceOf(USDC_ADDRESS).call();
+                } catch (e) {
+                    console.warn("موجودی برای پروژه", attr.ProjectID, "لود نشد");
+                }
+                const balanceFormatted = (balance / 1e6).toFixed(4);
+
+                // چک مالکیت
                 let isOwner = false;
+                try {
+                    const owner = await fundContract.methods.owner().call();
 
-                if (web3.utils.isAddress(owner)) {
-                    // چک Multisig owners
-                    try {
-                        const multisigContract = new web3.eth.Contract(multisigABI, owner);
-                        const owners = await multisigContract.methods.getOwners().call();
-                        isOwner = owners.some(o => o.toLowerCase() === userAddress.toLowerCase());
-                    } catch (e) {
-                        // اگر owner Multisig نباشه، مستقیم چک کن
+                    // اگر owner یک قرارداد باشه (Multisig)، owners رو چک کن
+                    if (owner !== userAddress && web3.utils.isAddress(owner)) {
+                        try {
+                            const multisigContract = new web3.eth.Contract(multisigABI, owner);
+                            const owners = await multisigContract.methods.getOwners().call();
+                            isOwner = owners.some(o => o.toLowerCase() === userAddress.toLowerCase());
+                        } catch (e) {
+                            // اگر Multisig نباشه یا خطا بده، isOwner = false
+                        }
+                    } else {
+                        // تک مالکی
                         isOwner = owner.toLowerCase() === userAddress.toLowerCase();
                     }
+                } catch (e) {
+                    console.warn("مالکیت پروژه", attr.ProjectID, "چک نشد", e);
                 }
 
                 if (isOwner) {
-                    const balance = await fundContract.methods.balanceOf(USDC_ADDRESS).call();
-                    const balanceFormatted = (balance / 1e6).toFixed(4);
-
                     myProjects.push({
                         id: attr.ProjectID,
                         name: attr.نام_پروژه || `پروژه ${attr.ProjectID}`,
@@ -99,16 +118,30 @@ async function loadProjects() {
                         balance: balanceFormatted
                     });
                 }
+
             } catch (e) {
-                console.warn("خطا در چک مالکیت پروژه", attr.ProjectID, e);
+                console.warn("خطا در پردازش پروژه", attr.ProjectID, e);
             }
         }
 
         displayProjects(myProjects);
 
+        if (myProjects.length === 0) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('noAccess').style.display = 'block';
+            document.getElementById('noAccess').innerHTML = `
+                <p>هیچ پروژه‌ای پیدا نشد که شما صاحب خزانه آن باشید.</p>
+                <p>تعداد پروژه‌های بررسی‌شده: ${checkedCount}</p>
+            `;
+        }
+
     } catch (err) {
-        console.error(err);
-        document.getElementById('loading').innerHTML = '<p style="color:var(--danger);">خطا در بارگذاری پروژه‌ها</p>';
+        console.error("خطای کلی در لود پروژه‌ها:", err);
+        document.getElementById('loading').innerHTML = `
+            <p style="color:var(--danger);">خطا در بارگذاری پروژه‌ها:</p>
+            <p>${err.message || "مشکل ناشناخته"}</p>
+            <p>لطفاً صفحه را رفرش کنید یا اتصال کیف پول را چک کنید.</p>
+        `;
     }
 }
 
