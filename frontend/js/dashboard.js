@@ -15,27 +15,47 @@ const multisigABI = [
 
 async function connectWallet() {
     if (typeof window.ethereum === 'undefined') {
-        alert("لطفاً MetaMask نصب کنید");
+        alert("لطفاً افزونه MetaMask را نصب کنید یا از کیف پول سازگار استفاده کنید.");
         return;
     }
 
-    await window.ethereum.request({ method: 'eth_requestAccounts' });
-    web3 = new Web3(window.ethereum);
-    const accounts = await web3.eth.getAccounts();
-    userAddress = accounts[0];
+    try {
+        // اول سعی کن حساب‌ها رو بگیر (اگر قبلاً وصل شده باشه)
+        let accounts = await window.ethereum.request({ method: 'eth_accounts' });
 
-    document.getElementById('accountDisplay').textContent = `وصل شد: ${userAddress.slice(0,8)}...${userAddress.slice(-6)}`;
+        if (accounts.length === 0) {
+            // اگر حساب وصل نباشه، درخواست اتصال بده
+            accounts = await window.ethereum.request({ 
+                method: 'eth_requestAccounts' 
+            });
+        }
 
-    const chainId = await web3.eth.getChainId();
-    if (chainId !== 80002) {
-        alert("لطفاً به شبکه Polygon Amoy Testnet سوئیچ کنید");
-        return;
+        web3 = new Web3(window.ethereum);
+        userAddress = accounts[0];
+
+        // چک شبکه
+        const chainId = await web3.eth.getChainId();
+        if (chainId !== 80002) {
+            alert(`لطفاً شبکه کیف پول را به Polygon Amoy Testnet تغییر دهید (Chain ID: 80002)`);
+            return;
+        }
+
+        document.getElementById('accountDisplay').textContent = 
+            `وصل شد: ${userAddress.slice(0,8)}...${userAddress.slice(-6)}`;
+
+        document.getElementById('connectSection').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+
+        await loadProjects(); // حالا پروژه‌ها رو بارگذاری کن
+
+    } catch (err) {
+        console.error("خطا در اتصال به کیف پول:", err);
+        if (err.code === 4001) {
+            alert("اتصال به کیف پول لغو شد. لطفاً دوباره امتحان کنید.");
+        } else {
+            alert("خطا در اتصال به کیف پول: " + (err.message || "مشکل ناشناخته"));
+        }
     }
-
-    document.getElementById('connectSection').style.display = 'none';
-    document.getElementById('loading').style.display = 'block';
-
-    await loadProjects();
 }
 
 async function loadProjects() {
