@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>داشبورد پروژه‌های من - کلاس‌چین</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/dashboard.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+</head>
+<body>
+    <div id="particles-js"></div>
+
+    <div class="container">
+        <h1>پروژه‌های من</h1>
+
+        <div id="connectSection" class="card">
+            <button onclick="connectWallet()">اتصال به کیف پول</button>
+            <p id="accountDisplay"></p>
+        </div>
+
+        <div id="loading" class="card" style="display:none;">
+            <p>در حال بارگذاری پروژه‌ها...</p>
+        </div>
+
+        <div id="projectsList" class="projects-grid"></div>
+
+        <div id="noAccess" class="card" style="display:none;">
+            <p>شما صاحب هیچ خزانه‌ای نیستید یا پروژه‌ای با خزانه فعال پیدا نشد.</p>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
