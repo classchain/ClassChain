@@ -82,7 +82,12 @@ async function loadFundData() {
     multisigContract = new web3.eth.Contract(multisigABI, multisigAddress);
 
     // موجودی USDC
-    const balance = await fundContract.methods.balanceOf(USDC_ADDRESS).call();
+    let balance = 0;
+    try {
+        balance = await fundContract.methods.balanceOf(USDC_ADDRESS).call();
+    } catch (e) {
+        console.warn("خطا در خواندن موجودی");
+    }
     const balanceFormatted = (balance / 1e6).toFixed(4);
     document.getElementById('fundBalance').textContent = balanceFormatted;
 
@@ -90,12 +95,44 @@ async function loadFundData() {
     document.getElementById('fundAddress').textContent = fundAddress.slice(0,10) + "..." + fundAddress.slice(-8);
     document.getElementById('ownerAddress').textContent = multisigAddress.slice(0,10) + "..." + multisigAddress.slice(-8);
 
-    // اطلاعات Multisig
-    const owners = await multisigContract.methods.getOwners().call();
-    const required = await multisigContract.methods.numConfirmationsRequired().call();
+    // چک مالکیت — اصلاح‌شده برای تک و چندمالکی
+    let isOwner = false;
+    try {
+        const owner = await fundContract.methods.owner().call();
 
+        if (owner.toLowerCase() === userAddress.toLowerCase()) {
+            // تک‌مالکی — مستقیم مالک هستی
+            isOwner = true;
+        } else {
+            // چندمالکی — چک کن در لیست صاحبان باشی
+            try {
+                const owners = await multisigContract.methods.getOwners().call();
+                isOwner = owners.some(o => o.toLowerCase() === userAddress.toLowerCase());
+            } catch (e) {
+                console.warn("این خزانه Multisig معتبر نیست");
+            }
+        }
+    } catch (e) {
+        console.warn("خطا در خواندن مالک خزانه", e);
+    }
+
+    if (!isOwner) {
+        document.getElementById('main').innerHTML = `
+            <div class="card">
+                <p style="color:var(--danger); text-align:center;">
+                    شما صاحب این خزانه نیستید یا دسترسی ندارید.
+                </p>
+                <p>مالک فعلی: ${multisigAddress}</p>
+            </div>
+        `;
+        return;
+    }
+
+    // ادامه کد قبلی (اطلاعات Multisig، pending txs و ...)
+    const required = await multisigContract.methods.numConfirmationsRequired().call();
     document.getElementById('requiredConfirmations').textContent = required;
 
+    const owners = await multisigContract.methods.getOwners().call();
     const ownersList = document.getElementById('ownersList');
     ownersList.innerHTML = '';
     owners.forEach(owner => {
