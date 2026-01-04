@@ -62,7 +62,7 @@ async function loadProjects() {
     try {
         document.getElementById('loading').innerHTML = '<p>در حال بارگذاری لیست پروژه‌ها...</p>';
 
-        const resp = await fetch('./data/Projects.json');
+        const resp = await fetch('data/Projects.json');
         if (!resp.ok) throw new Error("فایل Projects.json لود نشد");
         const data = await resp.json();
 
