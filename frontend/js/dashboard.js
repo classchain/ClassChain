@@ -76,38 +76,41 @@ async function loadProjects() {
 
             checkedCount++;
 
+            // داخل لوپ for... پروژه‌ها، این بخش رو جایگزین کن:
+
             try {
                 const fundContract = new web3.eth.Contract(fundABI, attr.contractAddress);
 
-                // اول موجودی رو بخون (این معمولاً کار می‌کنه)
+                // اول موجودی USDC رو بخون
                 let balance = 0;
                 try {
                     balance = await fundContract.methods.balanceOf(USDC_ADDRESS).call();
                 } catch (e) {
-                    console.warn("موجودی برای پروژه", attr.ProjectID, "لود نشد");
+                    console.warn("موجودی پروژه", attr.ProjectID, "لود نشد");
                 }
                 const balanceFormatted = (balance / 1e6).toFixed(4);
 
-                // چک مالکیت
+                // چک مالکیت — اصلاح‌شده برای هر دو نوع
                 let isOwner = false;
                 try {
                     const owner = await fundContract.methods.owner().call();
 
-                    // اگر owner یک قرارداد باشه (Multisig)، owners رو چک کن
-                    if (owner !== userAddress && web3.utils.isAddress(owner)) {
+                    // اگر owner مستقیم آدرس کاربر باشه → تک‌مالکی
+                    if (owner.toLowerCase() === userAddress.toLowerCase()) {
+                        isOwner = true;
+                    } else {
+                        // اگر owner یک قرارداد (Multisig) باشه → چک owners
                         try {
                             const multisigContract = new web3.eth.Contract(multisigABI, owner);
                             const owners = await multisigContract.methods.getOwners().call();
                             isOwner = owners.some(o => o.toLowerCase() === userAddress.toLowerCase());
                         } catch (e) {
                             // اگر Multisig نباشه یا خطا بده، isOwner = false
+                            console.warn("چک Multisig برای پروژه", attr.ProjectID, "ناموفق");
                         }
-                    } else {
-                        // تک مالکی
-                        isOwner = owner.toLowerCase() === userAddress.toLowerCase();
                     }
                 } catch (e) {
-                    console.warn("مالکیت پروژه", attr.ProjectID, "چک نشد", e);
+                    console.warn("خطا در خواندن owner پروژه", attr.ProjectID, e);
                 }
 
                 if (isOwner) {
