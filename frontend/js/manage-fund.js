@@ -33,7 +33,7 @@ async function loadProject() {
     }
 
     try {
-        const resp = await fetch('./data/Projects.json');
+        const resp = await fetch('data/Projects.json');
         const data = await resp.json();
         const project = data.features.find(f => f.attributes.ProjectID === projectId);
 
