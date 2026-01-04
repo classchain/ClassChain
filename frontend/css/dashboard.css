@@ -1,0 +1,116 @@
+:root {
+    --bg: #0a0e17;
+    --text: #f1f5f9;
+    --primary: #8b5cf6;
+    --success: #10b981;
+    --card-bg: rgba(17, 24, 39, 0.8);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body, html {
+    min-height: 100vh;
+    font-family: 'Vazirmatn', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+}
+
+#particles-js {
+    position: fixed;
+    width: 100%; height: 100%;
+    top: 0; left: 0; z-index: 1;
+    pointer-events: none;
+}
+
+.container {
+    position: relative;
+    z-index: 10;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+h1 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin: 2rem 0;
+    background: linear-gradient(120deg, #4cc9f0, #8b5cf6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.card {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+button {
+    padding: 1rem 2rem;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    cursor: pointer;
+}
+
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.project-card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 1.5rem;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    transition: transform 0.3s;
+}
+
+.project-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 10px 30px rgba(139, 92, 246, 0.2);
+}
+
+.project-title {
+    font-size: 1.4rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+
+.project-info {
+    margin: 0.8rem 0;
+    opacity: 0.9;
+}
+
+.project-balance {
+    font-size: 1.6rem;
+    color: var(--success);
+    font-weight: bold;
+    margin: 1rem 0;
+}
+
+.manage-btn {
+    display: block;
+    width: 100%;
+    padding: 1rem;
+    background: var(--primary);
+    color: white;
+    text-align: center;
+    border-radius: 12px;
+    text-decoration: none;
+    margin-top: 1rem;
+    font-weight: bold;
+}
+
+.manage-btn:hover {
+    background: #7c3aed;
+}
