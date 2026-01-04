@@ -4,7 +4,8 @@ let fundContract;
 let multisigContract;
 let projectData = {};
 let fundAddress;
-let multisigAddress;
+//let multisigAddress;
+let multisigAddress = null; // ابتدا null باشه
 
 const USDC_ADDRESS = "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582";
 
@@ -44,11 +45,33 @@ async function loadProject() {
 
         projectData = project.attributes;
         fundAddress = projectData.contractAddress;
-        multisigAddress = projectData.multisigAddress || projectData.contractAddress;
+        try {
+            const fundContractTemp = new web3.eth.Contract(fundABI, fundAddress);
+            const owner = await fundContractTemp.methods.owner().call();
 
-        document.getElementById('projectName').textContent = projectData.نام_پروژه || `پروژه ${projectId}`;
+            if (web3.utils.isAddress(owner) && owner.toLowerCase() !== userAddress.toLowerCase()) {
+            // احتمالاً Multisig
+                try {
+                    const tempMulti = new web3.eth.Contract(multisigABI, owner);
+                    await tempMulti.methods.getOwners().call(); // تست اگر Multisig باشه
+                    multisigAddress = owner;
+                } catch (e) {
+                    multisigAddress = null; // تک‌مالکی
+                }
+            } else {
+                multisigAddress = null; // تک‌مالکی مستقیم
+            }
+        } catch (e) {
+            console.warn("خطا در تشخیص نوع مالکیت");
+            multisigAddress = null;
+        }
+        //----------------------------------------------
+        //multisigAddress = projectData.multisigAddress || projectData.contractAddress;
 
-        await connectWallet();
+        //document.getElementById('projectName').textContent = projectData.نام_پروژه || `پروژه ${projectId}`;
+
+        //await connectWallet();
+        //----------------------------------------------
         await loadFundData();
 
         document.getElementById('loading').style.display = 'none';
@@ -79,9 +102,8 @@ async function connectWallet() {
 
 async function loadFundData() {
     fundContract = new web3.eth.Contract(fundABI, fundAddress);
-    multisigContract = new web3.eth.Contract(multisigABI, multisigAddress);
 
-    // موجودی USDC
+    // موجودی
     let balance = 0;
     try {
         balance = await fundContract.methods.balanceOf(USDC_ADDRESS).call();
@@ -91,48 +113,29 @@ async function loadFundData() {
     const balanceFormatted = (balance / 1e6).toFixed(4);
     document.getElementById('fundBalance').textContent = balanceFormatted;
 
-    // آدرس‌ها
+    // آدرس خزانه
     document.getElementById('fundAddress').textContent = fundAddress.slice(0,10) + "..." + fundAddress.slice(-8);
-    document.getElementById('ownerAddress').textContent = multisigAddress.slice(0,10) + "..." + multisigAddress.slice(-8);
 
-    // چک مالکیت — اصلاح‌شده برای تک و چندمالکی
-    let isOwner = false;
-    try {
-        const owner = await fundContract.methods.owner().call();
+    // مالک
+    let ownerAddr = "تک‌مالکی (مستقیم)";
+    let required = "1";
+    let owners = [userAddress];
 
-        if (owner.toLowerCase() === userAddress.toLowerCase()) {
-            // تک‌مالکی — مستقیم مالک هستی
-            isOwner = true;
-        } else {
-            // چندمالکی — چک کن در لیست صاحبان باشی
-            try {
-                const owners = await multisigContract.methods.getOwners().call();
-                isOwner = owners.some(o => o.toLowerCase() === userAddress.toLowerCase());
-            } catch (e) {
-                console.warn("این خزانه Multisig معتبر نیست");
-            }
+    if (multisigAddress) {
+        multisigContract = new web3.eth.Contract(multisigABI, multisigAddress);
+        ownerAddr = multisigAddress.slice(0,10) + "..." + multisigAddress.slice(-8);
+        try {
+            required = await multisigContract.methods.numConfirmationsRequired().call();
+            owners = await multisigContract.methods.getOwners().call();
+        } catch (e) {
+            console.warn("خطا در خواندن اطلاعات Multisig");
         }
-    } catch (e) {
-        console.warn("خطا در خواندن مالک خزانه", e);
     }
 
-    if (!isOwner) {
-        document.getElementById('main').innerHTML = `
-            <div class="card">
-                <p style="color:var(--danger); text-align:center;">
-                    شما صاحب این خزانه نیستید یا دسترسی ندارید.
-                </p>
-                <p>مالک فعلی: ${multisigAddress}</p>
-            </div>
-        `;
-        return;
-    }
-
-    // ادامه کد قبلی (اطلاعات Multisig، pending txs و ...)
-    const required = await multisigContract.methods.numConfirmationsRequired().call();
+    document.getElementById('ownerAddress').textContent = ownerAddr;
     document.getElementById('requiredConfirmations').textContent = required;
 
-    const owners = await multisigContract.methods.getOwners().call();
+    // لیست صاحبان
     const ownersList = document.getElementById('ownersList');
     ownersList.innerHTML = '';
     owners.forEach(owner => {
@@ -146,7 +149,13 @@ async function loadFundData() {
         ownersList.appendChild(item);
     });
 
-    await loadPendingTransactions();
+    // اگر تک‌مالکی باشه، pending txs نشون نده یا غیرفعال کن
+    if (!multisigAddress) {
+        document.querySelector('div.card h3:nth-of-type(2)').textContent = "تراکنش‌های در انتظار (فقط برای Multisig)";
+        document.getElementById('pendingTxs').innerHTML = '<p style="opacity:0.7;">این خزانه تک‌مالکی است و نیازی به تأیید چندگانه ندارد.</p>';
+    } else {
+        await loadPendingTransactions();
+    }
 }
 
 async function loadPendingTransactions() {
