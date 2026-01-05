@@ -166,4 +166,88 @@ async function loadFundData() {
     }
 }
 
-// بقیه کد بدون تغییر (loadPendingTransactions, confirmTx, submitWithdraw, setStatus, particlesJS)
+async function loadPendingTransactions() {
+    const count = await multisigContract.methods.getTransactionCount().call();
+    const pendingDiv = document.getElementById('pendingTxs');
+
+    if (count == 0) {
+        pendingDiv.innerHTML = '<p>هیچ تراکنش در انتظاری وجود ندارد.</p>';
+        return;
+    }
+
+    pendingDiv.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+        const tx = await multisigContract.methods.getTransaction(i).call();
+        if (tx.executed) continue;
+
+        const div = document.createElement('div');
+        div.className = 'pending-tx';
+        div.innerHTML = `
+            <p><strong>تراکنش #${i}</strong></p>
+            <p>مقصد: ${tx.to.slice(0,10)}...${tx.to.slice(-8)}</p>
+            <p>مقدار اتر: ${web3.utils.fromWei(tx.value, 'ether')}</p>
+            <p>تأییدها: ${tx.numConfirmations} / ${await multisigContract.methods.numConfirmationsRequired().call()}</p>
+            <button onclick="confirmTx(${i})" ${tx.numConfirmations > 0 ? 'class="success"' : ''}>تأیید این تراکنش</button>
+        `;
+        pendingDiv.appendChild(div);
+    }
+}
+
+async function confirmTx(txIndex) {
+    try {
+        setStatus("در حال ارسال تأیید...", "warning");
+        await multisigContract.methods.confirmTransaction(txIndex).send({ from: userAddress, gas: 300000 });
+        setStatus("تأیید موفق! در حال اجرا...", "success");
+        await loadFundData(); // رفرش اطلاعات
+    } catch (err) {
+        setStatus("خطا در تأیید: " + (err.message || "نامشخص"), "error");
+    }
+}
+
+async function submitWithdraw() {
+    const amountInput = document.getElementById('withdrawAmount').value;
+    const toAddress = document.getElementById('withdrawTo').value.trim();
+
+    if (!amountInput || !toAddress || !web3.utils.isAddress(toAddress)) {
+        setStatus("مقدار و آدرس معتبر وارد کنید", "error");
+        return;
+    }
+
+    const amount = web3.utils.toBN(Math.round(parseFloat(amountInput) * 1e6));
+
+    // ساخت encoded data برای withdrawToken
+    const withdrawData = web3.eth.abi.encodeFunctionCall({
+        name: 'withdrawToken',
+        type: 'function',
+        inputs: [{type: 'address', name: 'token'}, {type: 'address', name: 'to'}, {type: 'uint256', name: 'amount'}]
+    }, [USDC_ADDRESS, toAddress, amount]);
+
+    try {
+        setStatus("در حال ثبت درخواست برداشت...", "warning");
+        const tx = await multisigContract.methods.submitTransaction(
+            fundAddress,
+            0,
+            withdrawData
+        ).send({ from: userAddress, gas: 400000 });
+
+        setStatus(`درخواست برداشت ثبت شد! تراکنش #${tx.events.SubmitTransaction.returnValues.txIndex}`, "success");
+        await loadFundData();
+    } catch (err) {
+        setStatus("خطا در ثبت: " + (err.message || "نامشخص"), "error");
+    }
+}
+
+function setStatus(message, type) {
+    const statusDiv = document.getElementById('status');
+    statusDiv.className = `status ${type}`;
+    statusDiv.textContent = message;
+}
+
+// فعال‌سازی particles
+particlesJS("particles-js", {
+    "particles": { "number": { "value": 100 }, "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] }, "shape": { "type": "circle" }, "opacity": { "value": 0.6, "random": true }, "size": { "value": 3, "random": true }, "line_linked": { "enable": true, "distance": 140, "color": "#6366f1", "opacity": 0.3, "width": 1 }, "move": { "enable": true, "speed": 1.5 } },
+    "interactivity": { "events": { "onhover": { "enable": true, "mode": "repulse" } } }
+});
+
+loadProject();
+
