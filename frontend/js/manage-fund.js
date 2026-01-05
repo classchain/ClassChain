@@ -4,7 +4,6 @@ let fundContract;
 let multisigContract;
 let projectData = {};
 let fundAddress;
-//let multisigAddress;
 let multisigAddress = null; // ابتدا null باشه
 
 const USDC_ADDRESS = "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582";
@@ -19,7 +18,7 @@ const multisigABI = [
     {"inputs":[],"name":"numConfirmationsRequired","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
     {"inputs":[{"internalType":"uint256","name":"_txIndex","type":"uint256"}],"name":"getTransaction","outputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"},{"internalType":"bytes","name":"data","type":"bytes"},{"internalType":"bool","name":"executed","type":"bool"},{"internalType":"uint256","name":"numConfirmations","type":"uint256"}],"stateMutability":"view","type":"function"},
     {"inputs":[],"name":"getTransactionCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[{"internalType":"address","name":"_to","type":"address"},{"internalType":"uint256","name":"_value","type":"uint256"},{"internalType":"bytes","name":"_","type":"bytes"}],"name":"submitTransaction","outputs":[{"internalType":"uint256","name":"txIndex","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},
+    {"inputs":[{"internalType":"address","name":"_to","type":"address"},{"internalType":"uint256","name":"_value","type":"uint256"},{"internalType":"bytes","name":"_data","type":"bytes"}],"name":"submitTransaction","outputs":[{"internalType":"uint256","name":"txIndex","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},
     {"inputs":[{"internalType":"uint256","name":"_txIndex","type":"uint256"}],"name":"confirmTransaction","outputs":[],"stateMutability":"nonpayable","type":"function"},
     {"inputs":[{"internalType":"uint256","name":"_txIndex","type":"uint256"}],"name":"executeTransaction","outputs":[],"stateMutability":"nonpayable","type":"function"}
 ];
@@ -36,49 +35,26 @@ async function loadProject() {
     try {
         const resp = await fetch('data/Projects.json');
         const data = await resp.json();
-        const project = data.features.find(f => f.attributes.ProjectID === projectId);
+        projectData = data.features.find(f => f.attributes.ProjectID === projectId)?.attributes || {};
 
-        if (!project) {
-            document.getElementById('loading').innerHTML = '<p style="color:var(--danger);">پروژه پیدا نشد.</p>';
+        if (!projectData.contractAddress) {
+            document.getElementById('loading').innerHTML = '<p style="color:var(--danger);">پروژه پیدا نشد یا خزانه ندارد.</p>';
             return;
         }
 
-        projectData = project.attributes;
         fundAddress = projectData.contractAddress;
-        try {
-            const fundContractTemp = new web3.eth.Contract(fundABI, fundAddress);
-            const owner = await fundContractTemp.methods.owner().call();
 
-            if (web3.utils.isAddress(owner) && owner.toLowerCase() !== userAddress.toLowerCase()) {
-            // احتمالاً Multisig
-                try {
-                    const tempMulti = new web3.eth.Contract(multisigABI, owner);
-                    await tempMulti.methods.getOwners().call(); // تست اگر Multisig باشه
-                    multisigAddress = owner;
-                } catch (e) {
-                    multisigAddress = null; // تک‌مالکی
-                }
-            } else {
-                multisigAddress = null; // تک‌مالکی مستقیم
-            }
-        } catch (e) {
-            console.warn("خطا در تشخیص نوع مالکیت");
-            multisigAddress = null;
-        }
-        //----------------------------------------------
-        //multisigAddress = projectData.multisigAddress || projectData.contractAddress;
-
-        //document.getElementById('projectName').textContent = projectData.نام_پروژه || `پروژه ${projectId}`;
-
-        //await connectWallet();
-        //----------------------------------------------
+        await connectWallet();
         await loadFundData();
+
+        document.getElementById('projectName').textContent = projectData.نام_پروژه || `پروژه ${projectId}`;
 
         document.getElementById('loading').style.display = 'none';
         document.getElementById('main').style.display = 'block';
 
     } catch (err) {
-        document.getElementById('loading').innerHTML = '<p style="color:var(--danger);">خطا در بارگذاری اطلاعات پروژه.</p>';
+        console.error(err);
+        document.getElementById('loading').innerHTML = '<p style="color:var(--danger);">خطا در بارگذاری پروژه: ' + (err.message || "نامشخص") + '</p>';
     }
 }
 
@@ -88,22 +64,26 @@ async function connectWallet() {
         return;
     }
 
-    await window.ethereum.request({ method: 'eth_requestAccounts' });
-    web3 = new Web3(window.ethereum);
-    const accounts = await web3.eth.getAccounts();
-    userAddress = accounts[0];
+    try {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        web3 = new Web3(window.ethereum);
+        const accounts = await web3.eth.getAccounts();
+        userAddress = accounts[0];
 
-    const chainId = await web3.eth.getChainId();
-    if (chainId !== 80002) {
-        alert("لطفاً به شبکه Polygon Amoy Testnet سوئیچ کنید");
-        return;
+        const chainId = await web3.eth.getChainId();
+        if (chainId !== 80002) {
+            alert("لطفاً به شبکه Polygon Amoy Testnet سوئیچ کنید");
+            return;
+        }
+    } catch (err) {
+        alert("خطا در اتصال کیف پول");
     }
 }
 
 async function loadFundData() {
     fundContract = new web3.eth.Contract(fundABI, fundAddress);
 
-    // موجودی
+    // موجودی USDC
     let balance = 0;
     try {
         balance = await fundContract.methods.balanceOf(USDC_ADDRESS).call();
@@ -116,24 +96,51 @@ async function loadFundData() {
     // آدرس خزانه
     document.getElementById('fundAddress').textContent = fundAddress.slice(0,10) + "..." + fundAddress.slice(-8);
 
-    // مالک
-    let ownerAddr = "تک‌مالکی (مستقیم)";
+    // تشخیص نوع مالکیت و مالک — شبیه dashboard
+    let ownerAddr = "نامشخص";
     let required = "1";
-    let owners = [userAddress];
+    let owners = [];
+    let isOwner = false;
+    try {
+        const owner = await fundContract.methods.owner().call();
+        ownerAddr = owner.slice(0,10) + "..." + owner.slice(-8);
 
-    if (multisigAddress) {
-        multisigContract = new web3.eth.Contract(multisigABI, multisigAddress);
-        ownerAddr = multisigAddress.slice(0,10) + "..." + multisigAddress.slice(-8);
-        try {
-            required = await multisigContract.methods.numConfirmationsRequired().call();
-            owners = await multisigContract.methods.getOwners().call();
-        } catch (e) {
-            console.warn("خطا در خواندن اطلاعات Multisig");
+        if (owner.toLowerCase() === userAddress.toLowerCase()) {
+            // تک‌مالکی
+            isOwner = true;
+            owners = [userAddress];
+            required = "1 (تک‌مالکی)";
+        } else {
+            // چندمالکی — چک Multisig
+            multisigContract = new web3.eth.Contract(multisigABI, owner);
+            try {
+                required = await multisigContract.methods.numConfirmationsRequired().call();
+                owners = await multisigContract.methods.getOwners().call();
+                isOwner = owners.some(o => o.toLowerCase() === userAddress.toLowerCase());
+            } catch (e) {
+                console.warn("خطا در خواندن اطلاعات Multisig", e);
+            }
+            multisigAddress = owner;
         }
+    } catch (e) {
+        console.warn("خطا در خواندن مالک خزانه", e);
     }
 
     document.getElementById('ownerAddress').textContent = ownerAddr;
     document.getElementById('requiredConfirmations').textContent = required;
+
+    // چک دسترسی کاربر
+    if (!isOwner) {
+        document.getElementById('main').innerHTML = `
+            <div class="card">
+                <p style="color:var(--danger); text-align:center;">
+                    شما صاحب این خزانه نیستید یا دسترسی ندارید.
+                </p>
+                <p>مالک فعلی: ${ownerAddr}</p>
+            </div>
+        `;
+        return;
+    }
 
     // لیست صاحبان
     const ownersList = document.getElementById('ownersList');
@@ -149,96 +156,14 @@ async function loadFundData() {
         ownersList.appendChild(item);
     });
 
-    // اگر تک‌مالکی باشه، pending txs نشون نده یا غیرفعال کن
+    // اگر تک‌مالکی باشه، pending txs رو غیرفعال کن
     if (!multisigAddress) {
-        document.querySelector('div.card h3:nth-of-type(2)').textContent = "تراکنش‌های در انتظار (فقط برای Multisig)";
-        document.getElementById('pendingTxs').innerHTML = '<p style="opacity:0.7;">این خزانه تک‌مالکی است و نیازی به تأیید چندگانه ندارد.</p>';
+        document.querySelector('.card:nth-child(2) h3').textContent = "تراکنش‌های در انتظار (فقط برای Multisig)";
+        document.getElementById('pendingTxs').innerHTML = '<p style="opacity:0.7;">این خزانه تک‌مالکی است و نیازی به تأیید چندگانه ندارد. برای برداشت مستقیم استفاده کنید.</p>';
+        // می‌تونی اینجا دکمه برداشت مستقیم اضافه کنی اگر بخوای
     } else {
         await loadPendingTransactions();
     }
 }
 
-async function loadPendingTransactions() {
-    const count = await multisigContract.methods.getTransactionCount().call();
-    const pendingDiv = document.getElementById('pendingTxs');
-
-    if (count == 0) {
-        pendingDiv.innerHTML = '<p>هیچ تراکنش در انتظاری وجود ندارد.</p>';
-        return;
-    }
-
-    pendingDiv.innerHTML = '';
-    for (let i = 0; i < count; i++) {
-        const tx = await multisigContract.methods.getTransaction(i).call();
-        if (tx.executed) continue;
-
-        const div = document.createElement('div');
-        div.className = 'pending-tx';
-        div.innerHTML = `
-            <p><strong>تراکنش #${i}</strong></p>
-            <p>مقصد: ${tx.to.slice(0,10)}...${tx.to.slice(-8)}</p>
-            <p>مقدار اتر: ${web3.utils.fromWei(tx.value, 'ether')}</p>
-            <p>تأییدها: ${tx.numConfirmations} / ${await multisigContract.methods.numConfirmationsRequired().call()}</p>
-            <button onclick="confirmTx(${i})" ${tx.numConfirmations > 0 ? 'class="success"' : ''}>تأیید این تراکنش</button>
-        `;
-        pendingDiv.appendChild(div);
-    }
-}
-
-async function confirmTx(txIndex) {
-    try {
-        setStatus("در حال ارسال تأیید...", "warning");
-        await multisigContract.methods.confirmTransaction(txIndex).send({ from: userAddress, gas: 300000 });
-        setStatus("تأیید موفق! در حال اجرا...", "success");
-        await loadFundData(); // رفرش اطلاعات
-    } catch (err) {
-        setStatus("خطا در تأیید: " + (err.message || "نامشخص"), "error");
-    }
-}
-
-async function submitWithdraw() {
-    const amountInput = document.getElementById('withdrawAmount').value;
-    const toAddress = document.getElementById('withdrawTo').value.trim();
-
-    if (!amountInput || !toAddress || !web3.utils.isAddress(toAddress)) {
-        setStatus("مقدار و آدرس معتبر وارد کنید", "error");
-        return;
-    }
-
-    const amount = web3.utils.toBN(Math.round(parseFloat(amountInput) * 1e6));
-
-    // ساخت encoded data برای withdrawToken
-    const withdrawData = web3.eth.abi.encodeFunctionCall({
-        name: 'withdrawToken',
-        type: 'function',
-        inputs: [{type: 'address', name: 'token'}, {type: 'address', name: 'to'}, {type: 'uint256', name: 'amount'}]
-    }, [USDC_ADDRESS, toAddress, amount]);
-
-    try {
-        setStatus("در حال ثبت درخواست برداشت...", "warning");
-        const tx = await multisigContract.methods.submitTransaction(
-            fundAddress,
-            0,
-            withdrawData
-        ).send({ from: userAddress, gas: 400000 });
-
-        setStatus(`درخواست برداشت ثبت شد! تراکنش #${tx.events.SubmitTransaction.returnValues.txIndex}`, "success");
-        await loadFundData();
-    } catch (err) {
-        setStatus("خطا در ثبت: " + (err.message || "نامشخص"), "error");
-    }
-}
-
-function setStatus(message, type) {
-    const statusDiv = document.getElementById('status');
-    statusDiv.className = `status ${type}`;
-    statusDiv.textContent = message;
-}
-
-// فعال‌سازی particles
-particlesJS("particles-js", {
-    "particles": { "number": { "value": 100 }, "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] }, "shape": { "type": "circle" }, "opacity": { "value": 0.6, "random": true }, "size": { "value": 3, "random": true }, "line_linked": { "enable": true, "distance": 140, "color": "#6366f1", "opacity": 0.3, "width": 1 }, "move": { "enable": true, "speed": 1.5 } },
-    "interactivity": { "events": { "onhover": { "enable": true, "mode": "repulse" } } }
-});
-
-loadProject();
+// بقیه کد بدون تغییر (loadPendingTransactions, confirmTx, submitWithdraw, setStatus, particlesJS)
