@@ -239,56 +239,59 @@ async function submitWithdraw() {
     const amount = web3.utils.toBN(Math.round(parseFloat(amountInput) * 1e6));
 
     try {
+        let tx;
+
         if (!multisigAddress) {
-            // ========= تک‌مالکی — برداشت مستقیم =========
-            setStatus("در حال برداشت مستقیم (تک‌مالکی)...", "warning");
+            // تک‌مالکی — برداشت مستقیم
+            setStatus("در حال تخمین گس و برداشت مستقیم...", "warning");
 
-            const withdrawData = web3.eth.abi.encodeFunctionCall({
-                name: 'withdrawToken',
-                type: 'function',
-                inputs: [
-                    {type: 'address', name: 'token'},
-                    {type: 'address', name: 'to'},
-                    {type: 'uint256', name: 'amount'}
-                ]
-            }, [USDC_ADDRESS, toAddress, amount]);
+            // تخمین گس اتوماتیک
+            const gasEstimate = await fundContract.methods.withdrawToken(USDC_ADDRESS, toAddress, amount).estimateGas({ from: userAddress });
 
-            const tx = await fundContract.methods.withdrawToken(USDC_ADDRESS, toAddress, amount)
-                .send({ from: userAddress, gas: 300000 });
+            tx = await fundContract.methods.withdrawToken(USDC_ADDRESS, toAddress, amount)
+                .send({ 
+                    from: userAddress,
+                    gas: gasEstimate * 2,  // دو برابر برای اطمینان (Amoy گاهی کم تخمین می‌زنه)
+                });
 
             setStatus(`برداشت مستقیم موفق! 🎉<br>تراکنش: <a href="https://amoy.polygonscan.com/tx/${tx.transactionHash}" target="_blank">مشاهده</a>`, "success");
 
         } else {
-            // ========= چندمالکی — برداشت از طریق Multisig =========
-            setStatus("در حال ثبت درخواست برداشت در Multisig...", "warning");
+            // چندمالکی
+            setStatus("در حال تخمین گس و ثبت درخواست در Multisig...", "warning");
 
             const withdrawData = web3.eth.abi.encodeFunctionCall({
                 name: 'withdrawToken',
                 type: 'function',
-                inputs: [
-                    {type: 'address', name: 'token'},
-                    {type: 'address', name: 'to'},
-                    {type: 'uint256', name: 'amount'}
-                ]
+                inputs: [{type: 'address', name: 'token'}, {type: 'address', name: 'to'}, {type: 'uint256', name: 'amount'}]
             }, [USDC_ADDRESS, toAddress, amount]);
 
-            const tx = await multisigContract.methods.submitTransaction(
-                fundAddress,
-                0,
-                withdrawData
-            ).send({ from: userAddress, gas: 400000 });
+            const gasEstimate = await multisigContract.methods.submitTransaction(
+                fundAddress, 0, withdrawData
+            ).estimateGas({ from: userAddress });
+
+            tx = await multisigContract.methods.submitTransaction(
+                fundAddress, 0, withdrawData
+            ).send({ 
+                from: userAddress,
+                gas: gasEstimate * 2 
+            });
 
             const txIndex = tx.events.SubmitTransaction.returnValues.txIndex;
-            setStatus(`درخواست برداشت ثبت شد! تراکنش #${txIndex}<br>حالا تأیید کنید تا اجرا شود.`, "success");
+            setStatus(`درخواست ثبت شد! تراکنش #${txIndex}<br>حالا تأیید کنید.`, "success");
 
-            await loadFundData(); // رفرش pending txs
+            await loadFundData();
         }
     } catch (err) {
-        console.error(err);
-        setStatus("خطا در برداشت: " + (err.message || "نامشخص"), "error");
+        console.error("خطای کامل برداشت:", err);
+        let msg = "خطا در برداشت: ";
+        if (err.message.includes("revert")) msg += "تراکنش revert شد (ممکن است توکن مجاز نباشد یا موجودی کم باشد)";
+        else if (err.message.includes("gas")) msg += "گس ناکافی — مقدار بیشتری امتحان کنید";
+        else msg += err.message || "نامشخص";
+
+        setStatus(msg, "error");
     }
 }
-
 function setStatus(message, type) {
     const statusDiv = document.getElementById('status');
     statusDiv.className = `status ${type}`;
