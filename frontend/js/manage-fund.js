@@ -215,25 +215,54 @@ async function submitWithdraw() {
 
     const amount = web3.utils.toBN(Math.round(parseFloat(amountInput) * 1e6));
 
-    // ساخت encoded data برای withdrawToken
-    const withdrawData = web3.eth.abi.encodeFunctionCall({
-        name: 'withdrawToken',
-        type: 'function',
-        inputs: [{type: 'address', name: 'token'}, {type: 'address', name: 'to'}, {type: 'uint256', name: 'amount'}]
-    }, [USDC_ADDRESS, toAddress, amount]);
-
     try {
-        setStatus("در حال ثبت درخواست برداشت...", "warning");
-        const tx = await multisigContract.methods.submitTransaction(
-            fundAddress,
-            0,
-            withdrawData
-        ).send({ from: userAddress, gas: 400000 });
+        if (!multisigAddress) {
+            // ========= تک‌مالکی — برداشت مستقیم =========
+            setStatus("در حال برداشت مستقیم (تک‌مالکی)...", "warning");
 
-        setStatus(`درخواست برداشت ثبت شد! تراکنش #${tx.events.SubmitTransaction.returnValues.txIndex}`, "success");
-        await loadFundData();
+            const withdrawData = web3.eth.abi.encodeFunctionCall({
+                name: 'withdrawToken',
+                type: 'function',
+                inputs: [
+                    {type: 'address', name: 'token'},
+                    {type: 'address', name: 'to'},
+                    {type: 'uint256', name: 'amount'}
+                ]
+            }, [USDC_ADDRESS, toAddress, amount]);
+
+            const tx = await fundContract.methods.withdrawToken(USDC_ADDRESS, toAddress, amount)
+                .send({ from: userAddress, gas: 300000 });
+
+            setStatus(`برداشت مستقیم موفق! 🎉<br>تراکنش: <a href="https://amoy.polygonscan.com/tx/${tx.transactionHash}" target="_blank">مشاهده</a>`, "success");
+
+        } else {
+            // ========= چندمالکی — برداشت از طریق Multisig =========
+            setStatus("در حال ثبت درخواست برداشت در Multisig...", "warning");
+
+            const withdrawData = web3.eth.abi.encodeFunctionCall({
+                name: 'withdrawToken',
+                type: 'function',
+                inputs: [
+                    {type: 'address', name: 'token'},
+                    {type: 'address', name: 'to'},
+                    {type: 'uint256', name: 'amount'}
+                ]
+            }, [USDC_ADDRESS, toAddress, amount]);
+
+            const tx = await multisigContract.methods.submitTransaction(
+                fundAddress,
+                0,
+                withdrawData
+            ).send({ from: userAddress, gas: 400000 });
+
+            const txIndex = tx.events.SubmitTransaction.returnValues.txIndex;
+            setStatus(`درخواست برداشت ثبت شد! تراکنش #${txIndex}<br>حالا تأیید کنید تا اجرا شود.`, "success");
+
+            await loadFundData(); // رفرش pending txs
+        }
     } catch (err) {
-        setStatus("خطا در ثبت: " + (err.message || "نامشخص"), "error");
+        console.error(err);
+        setStatus("خطا در برداشت: " + (err.message || "نامشخص"), "error");
     }
 }
 
