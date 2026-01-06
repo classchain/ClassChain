@@ -4,36 +4,14 @@ let fundContract;
 let multisigContract;
 let projectData = {};
 let fundAddress;
-let multisigAddress = null; // ابتدا null باشه
+let multisigAddress = null;
 
 const USDC_ADDRESS = "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582";
 
 const fundABI = [
-    {
-        "inputs": [{"internalType":"address","name":"token","type":"address"}],
-        "name": "balanceOf",
-        "outputs": [{"internalType":"uint256","name":"","type":"uint256"}],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "owner",
-        "outputs": [{"internalType":"address","name":"","type":"address"}],
-        "stateMutability": "view",
-        "type": "function"
-    },
-    {
-        "inputs": [
-            {"internalType":"address","name":"token","type":"address"},
-            {"internalType":"address","name":"to","type":"address"},
-            {"internalType":"uint256","name":"amount","type":"uint256"}
-        ],
-        "name": "withdrawToken",
-        "outputs": [],
-        "stateMutability": "nonpayable",
-        "type": "function"
-    }
+    {"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+    {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+    {"inputs":[{"internalType":"address","name":"token","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"withdrawToken","outputs":[],"stateMutability":"nonpayable","type":"function"}
 ];
 
 const multisigABI = [
@@ -87,19 +65,15 @@ async function connectWallet() {
         return;
     }
 
-    try {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        web3 = new Web3(window.ethereum);
-        const accounts = await web3.eth.getAccounts();
-        userAddress = accounts[0];
+    await window.ethereum.request({ method: 'eth_requestAccounts' });
+    web3 = new Web3(window.ethereum);
+    const accounts = await web3.eth.getAccounts();
+    userAddress = accounts[0];
 
-        const chainId = await web3.eth.getChainId();
-        if (chainId !== 80002) {
-            alert("لطفاً به شبکه Polygon Amoy Testnet سوئیچ کنید");
-            return;
-        }
-    } catch (err) {
-        alert("خطا در اتصال کیف پول");
+    const chainId = await web3.eth.getChainId();
+    if (chainId !== 80002) {
+        alert("لطفاً به شبکه Polygon Amoy Testnet سوئیچ کنید");
+        return;
     }
 }
 
@@ -183,7 +157,6 @@ async function loadFundData() {
     if (!multisigAddress) {
         document.querySelector('.card:nth-child(2) h3').textContent = "تراکنش‌های در انتظار (فقط برای Multisig)";
         document.getElementById('pendingTxs').innerHTML = '<p style="opacity:0.7;">این خزانه تک‌مالکی است و نیازی به تأیید چندگانه ندارد. برای برداشت مستقیم استفاده کنید.</p>';
-        // می‌تونی اینجا دکمه برداشت مستقیم اضافه کنی اگر بخوای
     } else {
         await loadPendingTransactions();
     }
@@ -238,71 +211,74 @@ async function submitWithdraw() {
 
     const amount = web3.utils.toBN(Math.round(parseFloat(amountInput) * 1e6));
 
+    // ساخت encoded data برای withdrawToken
+    const withdrawData = web3.eth.abi.encodeFunctionCall({
+        name: 'withdrawToken',
+        type: 'function',
+        inputs: [{type: 'address', name: 'token'}, {type: 'address', name: 'to'}, {type: 'uint256', name: 'amount'}]
+    }, [USDC_ADDRESS, toAddress, amount]);
+
     try {
+        setStatus("در حال ارسال تراکنش...", "warning");
         let tx;
 
         if (!multisigAddress) {
             // تک‌مالکی — برداشت مستقیم
-            setStatus("در حال تخمین گس و برداشت مستقیم...", "warning");
-
-            // تخمین گس اتوماتیک
-            const gasEstimate = await fundContract.methods.withdrawToken(USDC_ADDRESS, toAddress, amount).estimateGas({ from: userAddress });
-
-            tx = await fundContract.methods.withdrawToken(USDC_ADDRESS, toAddress, amount)
-                .send({ 
-                    from: userAddress,
-                    gas: gasEstimate * 2,  // دو برابر برای اطمینان (Amoy گاهی کم تخمین می‌زنه)
-                });
-
-            setStatus(`برداشت مستقیم موفق! 🎉<br>تراکنش: <a href="https://amoy.polygonscan.com/tx/${tx.transactionHash}" target="_blank">مشاهده</a>`, "success");
-
+            tx = await fundContract.methods.withdrawToken(USDC_ADDRESS, toAddress, amount).send({ from: userAddress, gas: 300000 });
+            setStatus(`برداشت موفق! <a href="https://amoy.polygonscan.com/tx/${tx.transactionHash}" target="_blank">مشاهده</a>`, "success");
         } else {
-            // چندمالکی
-            setStatus("در حال تخمین گس و ثبت درخواست در Multisig...", "warning");
+            // چندمالکی — submitTransaction
+            tx = await multisigContract.methods.submitTransaction(fundAddress, 0, withdrawData).send({ from: userAddress, gas: 400000 });
 
-            const withdrawData = web3.eth.abi.encodeFunctionCall({
-                name: 'withdrawToken',
-                type: 'function',
-                inputs: [{type: 'address', name: 'token'}, {type: 'address', name: 'to'}, {type: 'uint256', name: 'amount'}]
-            }, [USDC_ADDRESS, toAddress, amount]);
+            // چک رویداد از logs (برای حل undefined)
+            let txIndex = 'نامشخص';
+            if (tx.logs && tx.logs.length > 0) {
+                const submitLog = tx.logs.find(log => log.event === 'SubmitTransaction');
+                if (submitLog) {
+                    txIndex = submitLog.returnValues.txIndex;
+                }
+            } else if (tx.events && tx.events.SubmitTransaction) {
+                txIndex = tx.events.SubmitTransaction.returnValues.txIndex;
+            }
 
-            const gasEstimate = await multisigContract.methods.submitTransaction(
-                fundAddress, 0, withdrawData
-            ).estimateGas({ from: userAddress });
-
-            tx = await multisigContract.methods.submitTransaction(
-                fundAddress, 0, withdrawData
-            ).send({ 
-                from: userAddress,
-                gas: gasEstimate * 2 
-            });
-
-            const txIndex = tx.events.SubmitTransaction.returnValues.txIndex;
-            setStatus(`درخواست ثبت شد! تراکنش #${txIndex}<br>حالا تأیید کنید.`, "success");
-
+            setStatus(`درخواست ثبت شد! تراکنش #${txIndex} <a href="https://amoy.polygonscan.com/tx/${tx.transactionHash}" target="_blank">مشاهده</a>`, "success");
             await loadFundData();
         }
-    } catch (err) {
-        console.error("خطای کامل برداشت:", err);
-        let msg = "خطا در برداشت: ";
-        if (err.message.includes("revert")) msg += "تراکنش revert شد (ممکن است توکن مجاز نباشد یا موجودی کم باشد)";
-        else if (err.message.includes("gas")) msg += "گس ناکافی — مقدار بیشتری امتحان کنید";
-        else msg += err.message || "نامشخص";
 
-        setStatus(msg, "error");
+        await loadFundData(); // رفرش
+
+    } catch (err) {
+        console.error(err);
+        setStatus("خطا در برداشت: " + (err.message || "نامشخص"), "error");
     }
 }
+
 function setStatus(message, type) {
     const statusDiv = document.getElementById('status');
     statusDiv.className = `status ${type}`;
-    statusDiv.textContent = message;
+    statusDiv.innerHTML = message; // برای لینک‌ها HTML بگذار
 }
 
 // فعال‌سازی particles
 particlesJS("particles-js", {
-    "particles": { "number": { "value": 100 }, "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] }, "shape": { "type": "circle" }, "opacity": { "value": 0.6, "random": true }, "size": { "value": 3, "random": true }, "line_linked": { "enable": true, "distance": 140, "color": "#6366f1", "opacity": 0.3, "width": 1 }, "move": { "enable": true, "speed": 1.5 } },
-    "interactivity": { "events": { "onhover": { "enable": true, "mode": "repulse" } } }
+    "particles": {
+        "number": { "value": 100 },
+        "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] },
+        "shape": { "type": "circle" },
+        "opacity": { "value": 0.6, "random": true },
+        "size": { "value": 3, "random": true },
+        "line_linked": {
+            "enable": true,
+            "distance": 140,
+            "color": "#6366f1",
+            "opacity": 0.3,
+            "width": 1
+        },
+        "move": { "enable": true, "speed": 1.5 }
+    },
+    "interactivity": {
+        "events": { "onhover": { "enable": true, "mode": "repulse" } }
+    }
 });
 
 loadProject();
-
