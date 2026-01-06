@@ -9,8 +9,31 @@ let multisigAddress = null; // ابتدا null باشه
 const USDC_ADDRESS = "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582";
 
 const fundABI = [
-    {"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"}
+    {
+        "inputs": [{"internalType":"address","name":"token","type":"address"}],
+        "name": "balanceOf",
+        "outputs": [{"internalType":"uint256","name":"","type":"uint256"}],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [{"internalType":"address","name":"","type":"address"}],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {"internalType":"address","name":"token","type":"address"},
+            {"internalType":"address","name":"to","type":"address"},
+            {"internalType":"uint256","name":"amount","type":"uint256"}
+        ],
+        "name": "withdrawToken",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
 ];
 
 const multisigABI = [
