@@ -4,12 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>مدیریت خزانه‌ها - ClassChain</title>
-  <!-- Web3 برای Polygon -->
   <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
-  <!-- TronWeb برای Tron (نسخه 6.2.0) -->
-  <script src="https://cdn.jsdelivr.net/npm/tronweb@6.2.0/dist/TronWeb.min.js"></script>
   <style>
-    /* دقیقاً همان استایل قبلی (بدون هیچ تغییری) */
     body { font-family: Tahoma, Arial; padding: 20px; background: #f4f6f9; }
     h1 { text-align: center; color: #2c3e50; }
     .container { max-width: 900px; margin: 0 auto; }
@@ -36,14 +32,14 @@
     <p style="text-align:center;">فقط برای مدیر سیستم</p>
 
     <div id="connectSection" class="section">
-      <button onclick="connectWallet()">اتصال به MetaMask (Polygon)</button>
+      <button onclick="connectWallet()">اتصال به MetaMask</button>
       <p id="accountDisplay"></p>
       <p id="networkDisplay"></p>
     </div>
 
     <div id="mainSection" style="display:none;">
       <div class="section">
-        <h2>ساخت خزانه جدید (Polygon + Tron)</h2>
+        <h2>ساخت خزانه جدید</h2>
         <label>آیدی پروژه (ProjectID):</label>
         <input type="text" id="projectId" placeholder="مثل P001">
 
@@ -54,7 +50,7 @@
         </select>
 
         <div id="singleOwnerDiv">
-          <label>آدرس صاحب خزانه (Polygon):</label>
+          <label>آدرس صاحب خزانه:</label>
           <input type="text" id="singleOwnerAddress" placeholder="0x...">
         </div>
 
@@ -62,7 +58,7 @@
           <label>تعداد امضای لازم:</label>
           <input type="number" id="requiredSigs" min="1" placeholder="مثل 2">
 
-          <label>آدرس owners (Polygon):</label>
+          <label>آدرس owners:</label>
           <div id="ownersContainer" class="owners-list">
             <div class="owner-item">
               <input type="text" placeholder="0x...">
@@ -72,7 +68,7 @@
           <button onclick="addOwnerField()">+ اضافه کردن owner</button>
         </div>
 
-        <button onclick="createNewFund()">ساخت خزانه (Polygon → Tron خودکار)</button>
+        <button onclick="createNewFund()">ساخت خزانه</button>
       </div>
 
       <table id="projectsTable">
@@ -80,7 +76,7 @@
           <tr>
             <th>آیدی</th>
             <th>نام پروژه</th>
-            <th>خزانه Polygon</th>
+            <th>خزانه</th>
             <th>وضعیت</th>
           </tr>
         </thead>
@@ -92,7 +88,6 @@
   </div>
 
   <script>
-    // ==================== Polygon (همان قبلی) ====================
     const FACTORY_ADDRESS = "0x83b1E4D6a3E494cCf86F50ef6934FFA1E23e421f"; // آدرس deploy شده شما
 
     const FACTORY_ABI = [
@@ -156,32 +151,31 @@
         "type": "event"
       }
     ];
-    // ==================== Tron (جدید) ====================
-    const FACTORY_ADDRESS_TRON = "TBHzdWwbR1XUXcgFAukN8jNAEL6tGWSUjD"; // ←←←←←←←←←←←←←←←← اینجا آدرس Factory روی Nile را بذار
-    const FACTORY_ABI_TRON = FACTORY_ABI; // اگر ABI Tron متفاوت بود، اینجا جایگزین کن
-    const TRON_NODE = "https://nile.trongrid.io";
 
     let web3, account, factoryContract;
-    let tronWeb, tronAccount;
 
-    // ==================== اتصال Polygon (همان) ====================
     async function connectWallet() {
       if (!window.ethereum) return alert("MetaMask نصب نیست!");
+
       await ethereum.request({ method: 'eth_requestAccounts' });
       web3 = new Web3(window.ethereum);
       const accounts = await web3.eth.getAccounts();
       account = accounts[0];
+
       const chainId = await web3.eth.getChainId();
       const network = chainId === 80002 ? "Polygon Amoy" : chainId === 137 ? "Polygon Mainnet" : "شبکه ناشناخته";
+
       document.getElementById('accountDisplay').innerText = `اتصال شد: ${account.substr(0,10)}...`;
       document.getElementById('networkDisplay').innerText = `شبکه: ${network}`;
+
       factoryContract = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
+
       document.getElementById('connectSection').style.display = 'none';
       document.getElementById('mainSection').style.display = 'block';
+
       loadProjectsTable();
     }
 
-    // ==================== UI handlers (همان) ====================
     document.getElementById('ownershipType').addEventListener('change', () => {
       const type = document.getElementById('ownershipType').value;
       document.getElementById('singleOwnerDiv').style.display = type === 'single' ? 'block' : 'none';
@@ -192,126 +186,74 @@
       const container = document.getElementById('ownersContainer');
       const div = document.createElement('div');
       div.className = 'owner-item';
-      div.innerHTML = `<input type="text" placeholder="0x..."><button class="remove-btn" onclick="this.parentElement.remove()">−</button>`;
+      div.innerHTML = `
+        <input type="text" placeholder="0x...">
+        <button class="remove-btn" onclick="this.parentElement.remove()">−</button>
+      `;
       container.appendChild(div);
     }
 
-    // ==================== ساخت روی Tron (جدید) ====================
-    async function createFundOnTron(projectId, type, singleOwnerOrOwners, reqSigs = 0) {
-      if (!window.tronWeb) {
-        alert("TronLink نصب نیست! فقط Polygon ساخته می‌شود.");
-        return { fundAddr: null, multisigAddr: null, isMulti: false };
-      }
-
-      try {
-        // درخواست اتصال TronLink (خودکار)
-        if (!window.tronWeb.defaultAddress) {
-          await window.tronLink.request({ method: 'tron_requestAccounts' });
-        }
-        tronWeb = window.tronWeb;
-        tronAccount = tronWeb.defaultAddress.base58;
-
-        const contract = await tronWeb.contract(FACTORY_ABI_TRON, FACTORY_ADDRESS_TRON);
-
-        let tx;
-        if (type === 'single') {
-          tx = await contract.createSingleOwnerFund(projectId, singleOwnerOrOwners).send({
-            feeLimit: 1500000000,
-            from: tronAccount
-          });
-        } else {
-          tx = await contract.createMultisigFund(projectId, singleOwnerOrOwners, reqSigs).send({
-            feeLimit: 2000000000,
-            from: tronAccount
-          });
-        }
-
-        // گرفتن رویداد FundCreated
-        const events = await tronWeb.getEventByTransactionID(tx);
-        const fundEvent = events.find(e => e.name === "FundCreated");
-        if (!fundEvent) throw new Error("رویداد FundCreated پیدا نشد");
-
-        const { fundAddress, ownerOrMultisig, isMultisig } = fundEvent.result;
-        return {
-          fundAddr: fundAddress,
-          multisigAddr: isMultisig ? ownerOrMultisig : null,
-          isMulti: isMultisig
-        };
-      } catch (e) {
-        console.error("خطا در Tron:", e);
-        alert("TronLink خطا: " + (e.message || "نامشخص") + "\nفقط Polygon ساخته شد.");
-        return { fundAddr: null, multisigAddr: null, isMulti: false };
-      }
-    }
-
-    // ==================== ساخت اصلی (Polygon + Tron خودکار) ====================
     async function createNewFund() {
       const projectId = document.getElementById('projectId').value.trim();
       if (!projectId) return alert("آیدی پروژه را وارد کنید");
 
       const type = document.getElementById('ownershipType').value;
-      let tx, event, fundAddr, ownerAddr, isMulti;
 
       try {
-        // ۱. Polygon (دقیقاً همان کد قبلی)
+        let tx;
         if (type === 'single') {
           const owner = document.getElementById('singleOwnerAddress').value.trim();
-          if (!web3.utils.isAddress(owner)) return alert("آدرس Polygon معتبر نیست");
-          tx = await factoryContract.methods.createSingleOwnerFund(projectId, owner).send({
-            from: account, gas: 5000000, gasPrice: await web3.eth.getGasPrice()
-          });
+          if (!web3.utils.isAddress(owner)) return alert("آدرس معتبر نیست");
+
+          tx = await factoryContract.methods.createSingleOwnerFund(projectId, owner)
+              .send({ 
+                  from: account,
+                  gas: 5000000,  // گس بالا برای ساخت قراردادها
+                  gasPrice: await web3.eth.getGasPrice()
+              });
         } else {
           const reqSigs = parseInt(document.getElementById('requiredSigs').value);
           const inputs = document.querySelectorAll('#ownersContainer input');
           const owners = Array.from(inputs).map(i => i.value.trim()).filter(a => web3.utils.isAddress(a));
-          if (owners.length === 0 || reqSigs > owners.length || reqSigs < 1) return alert("ownerها یا تعداد امضا نامعتبر");
-          tx = await factoryContract.methods.createMultisigFund(projectId, owners, reqSigs).send({
-            from: account, gas: 5000000, gasPrice: await web3.eth.getGasPrice()
-          });
+
+          if (owners.length === 0) return alert("حداقل یک owner وارد کنید");
+          if (reqSigs > owners.length || reqSigs < 1) return alert("تعداد امضا نامعتبر");
+
+          tx = await factoryContract.methods.createMultisigFund(projectId, owners, reqSigs)
+            .send({ 
+                from: account,
+                gas: 5000000,  // گس بالا برای ساخت قراردادها
+                gasPrice: await web3.eth.getGasPrice()
+            });          
         }
 
-        event = tx.events.FundCreated.returnValues;
-        fundAddr = event.fundAddress;
-        ownerAddr = event.ownerOrMultisig;
-        isMulti = event.isMultisig;
+        const event = tx.events.FundCreated.returnValues;
+        const fundAddr = event.fundAddress;
+        const ownerAddr = event.ownerOrMultisig;
+        const isMulti = event.isMultisig;
 
-        // ۲. Tron خودکار
-        let tronResult = { fundAddr: null, multisigAddr: null, isMulti: false };
-        if (confirm("خزانه Polygon ساخته شد.\nحالا TronLink را باز کنید و والت را انتخاب کنید؟")) {
-          const ownersForTron = type === 'single' 
-            ? document.getElementById('singleOwnerAddress').value.trim() 
-            : Array.from(document.querySelectorAll('#ownersContainer input')).map(i => i.value.trim()).filter(Boolean);
-          tronResult = await createFundOnTron(projectId, type, type === 'single' ? ownersForTron : ownersForTron, parseInt(document.getElementById('requiredSigs').value) || 0);
-        }
-
-        // ۳. آپدیت JSON (هر دو شبکه)
+        // بروزرسانی JSON
         const resp = await fetch('data/Projects.json');
         const data = await resp.json();
         let found = false;
         data.features.forEach(f => {
           if (f.attributes.ProjectID === projectId) {
-            f.attributes.contractAddress = fundAddr;                     // Polygon
-            if (tronResult.fundAddr) f.attributes.contractAddressTron = tronResult.fundAddr;
-            if (isMulti) f.attributes.multisigAddress = ownerAddr;       // Polygon Multisig
-            if (tronResult.multisigAddr) f.attributes.multisigAddressTron = tronResult.multisigAddr;
+            f.attributes.contractAddress = fundAddr;
+            if (isMulti) f.attributes.multisigAddress = ownerAddr;
             found = true;
           }
         });
+
         if (!found) return alert("پروژه در JSON پیدا نشد");
 
         const newJson = JSON.stringify(data, null, 2);
 
-        // نمایش نتیجه (Polygon + Tron)
         document.getElementById('result').style.display = 'block';
         document.getElementById('result').innerHTML = `
-          <h3>خزانه‌ها با موفقیت ساخته شدند!</h3>
+          <h3>خزانه با موفقیت ساخته شد!</h3>
           <p><strong>آیدی:</strong> ${projectId}</p>
-          <p><strong>Polygon Fund:</strong> <a href="https://amoy.polygonscan.com/address/${fundAddr}" target="_blank">${fundAddr}</a></p>
-          ${isMulti ? `<p><strong>Polygon Multisig:</strong> <a href="https://amoy.polygonscan.com/address/${ownerAddr}" target="_blank">${ownerAddr}</a></p>` : ''}
-          ${tronResult.fundAddr ? `
-            <p><strong>Tron Fund (Nile):</strong> <a href="https://nile.tronscan.org/address/${tronResult.fundAddr}" target="_blank">${tronResult.fundAddr}</a></p>
-            ${tronResult.multisigAddr ? `<p><strong>Tron Multisig:</strong> <a href="https://nile.tronscan.org/address/${tronResult.multisigAddr}" target="_blank">${tronResult.multisigAddr}</a></p>` : ''}
-          ` : '<p style="color:#e67e22;">Tron ساخته نشد (خطا یا TronLink رد شد)</p>'}
+          <p><strong>آدرس خزانه:</strong> <a href="https://amoy.polygonscan.com/address/${fundAddr}" target="_blank">${fundAddr}</a></p>
+          ${isMulti ? `<p><strong>آدرس Multisig:</strong> <a href="https://amoy.polygonscan.com/address/${ownerAddr}" target="_blank">${ownerAddr}</a></p>` : ''}
           <p>JSON بروزشده (کپی و در GitHub جایگزین کن):</p>
           <textarea>${newJson}</textarea>
           <button onclick="navigator.clipboard.writeText(this.previousElementSibling.value); alert('کپی شد!')">کپی JSON</button>
@@ -320,17 +262,17 @@
         loadProjectsTable();
       } catch (e) {
         console.error(e);
-        alert("خطا در Polygon: " + (e.message || "نامشخص"));
+        alert("خطا در ساخت: " + (e.message || "نامشخص"));
       }
     }
 
     async function loadProjectsTable() {
-      // همان کد قبلی (بدون تغییر)
       try {
         const resp = await fetch('data/Projects.json');
         const data = await resp.json();
         const tbody = document.querySelector('#projectsTable tbody');
         tbody.innerHTML = '';
+
         data.features.forEach(f => {
           const attr = f.attributes;
           const row = document.createElement('tr');
@@ -339,11 +281,13 @@
             <td>${attr.ProjectID}</td>
             <td>${attr.نام_پروژه || 'نامشخص'}</td>
             <td>${attr.contractAddress || 'ندارد'}</td>
-            <td>${attr.contractAddress ? 'ساخته شده' : 'در انتظار'}</td>
+            <td>${attr.contractAddress ? 'ساخته شده' : 'در انتظار ساخت'}</td>
           `;
           tbody.appendChild(row);
         });
-      } catch (e) { console.error(e); }
+      } catch (e) {
+        console.error(e);
+      }
     }
   </script>
 </body>
