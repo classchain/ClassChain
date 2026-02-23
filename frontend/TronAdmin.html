@@ -386,11 +386,11 @@
         if (type === 'single') {
           const owner = document.getElementById('singleOwnerAddress').value.trim();
           if (!tronWeb.isAddress(owner)) return alert("آدرس معتبر نیست");
-
-          txId = await factoryContract.createSingleOwnerFund(projectId, owner).send({
-            feeLimit: 100000000,
-            callValue: 0
-          });
+			txId = await factoryContract.createSingleOwnerFund(projectId, owner).send({
+        		feeLimit: 2000000000,  // 2000 TRX – برای اطمینان
+        		callValue: 0,
+        		shouldPollResponse: false  // اختیاری – گاهی کمک می‌کند
+    		});
         } else {
           const reqSigs = parseInt(document.getElementById('requiredSigs').value);
           const inputs = document.querySelectorAll('#ownersContainer input');
@@ -399,10 +399,11 @@
           if (owners.length === 0) return alert("حداقل یک owner وارد کنید");
           if (reqSigs > owners.length || reqSigs < 1) return alert("تعداد امضا نامعتبر");
 
-          txId = await factoryContract.createMultisigFund(projectId, owners, reqSigs).send({
-            feeLimit: 100000000,
-            callValue: 0
-          });
+		txId = await factoryContract.createMultisigFund(projectId, owners, reqSigs).send({
+        	feeLimit: 5000000000,  // 5000 TRX برای Multisig
+        	callValue: 0,
+        	shouldPollResponse: false
+    	});
         }
 
         // انتظار برای تایید تراکنش
