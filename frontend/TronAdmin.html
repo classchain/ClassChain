@@ -332,54 +332,63 @@
 
 async function connectWallet() {
   if (!window.tronLink) {
-    return alert("TronLink نصب نیست! لطفاً نصب کنید و دوباره امتحان کنید.");
+    return alert("TronLink نصب نیست! لطفاً از فروشگاه extensions مرورگر نصب کنید.");
   }
 
   try {
-    // درخواست اتصال
+    // درخواست اتصال – این خط معمولاً پنجره TronLink رو باز می‌کنه
     const res = await window.tronLink.request({ method: 'tron_requestAccounts' });
-    if (!res || !res.data || !res.data.length) {
-      return alert("اتصال ناموفق بود. لطفاً دوباره امتحان کنید.");
+
+    // چک پاسخ (اگر کاربر رد کنه یا مشکلی باشه)
+    if (res.code !== 200) {
+      return alert("اتصال رد شد یا مشکلی پیش آمد. کد خطا: " + res.code + "\nپیام: " + (res.message || "نامشخص"));
     }
 
     tronWeb = window.tronWeb;
 
-    // چک ایمن برای account
+    // چک ایمن آدرس (مهم‌ترین بخش)
     if (!tronWeb || !tronWeb.defaultAddress || !tronWeb.defaultAddress.base58) {
-      return alert("آدرس حساب پیدا نشد. TronLink را ری‌استارت کنید.");
+      return alert("آدرس کیف پول پیدا نشد. TronLink را ری‌استارت کنید یا دوباره اتصال بزنید.");
     }
 
     account = tronWeb.defaultAddress.base58;
 
-    // چک شبکه به صورت ایمن (بدون crash اگر host undefined باشه)
-    let network = "شبکه ناشناخته";
-    let explorer = "nile.tronscan.org"; // پیش‌فرض Nile
+    // تشخیص شبکه بدون وابستگی به fullNode.host (که ممکنه undefined باشه)
+    // در عمل، TronLink روی Nile وقتی متصل می‌شه، معمولاً fullNode رو به api.nileex.io ست می‌کنه
+    // اما برای ایمنی، پیش‌فرض Nile بگذار و اگر خواستی دقیق‌تر چک کن
+    let network = "Nile Testnet"; // چون از اسکرین‌شات‌ها معلومه Nile هست
+    let explorer = "nile.tronscan.org";
 
+    // چک اختیاری – اگر fullNode موجود بود، دقیق‌تر کن (بدون کرش)
     if (tronWeb.fullNode && tronWeb.fullNode.host) {
-      if (tronWeb.fullNode.host.includes('nile')) {
+      if (tronWeb.fullNode.host.includes('nile') || tronWeb.fullNode.host.includes('nillex')) {
         network = "Nile Testnet";
         explorer = "nile.tronscan.org";
-      } else if (tronWeb.fullNode.host.includes('api.trongrid.io')) {
+      } else if (tronWeb.fullNode.host.includes('trongrid') || tronWeb.fullNode.host.includes('api.tron')) {
         network = "Tron Mainnet";
         explorer = "tronscan.org";
       }
     } else {
-      console.warn("tronWeb.fullNode.host در دسترس نیست – شبکه پیش‌فرض Nile فرض شد.");
+      console.log("fullNode.host در دسترس نیست – Nile فرض شد.");
     }
 
-    document.getElementById('accountDisplay').innerText = `اتصال شد: ${account.substring(0,10)}...`;
+    // نمایش در صفحه
+    document.getElementById('accountDisplay').innerText = `اتصال شد: ${account.substring(0, 10)}...`;
     document.getElementById('networkDisplay').innerText = `شبکه: ${network}`;
 
-    // ساخت قرارداد کارخانه
+    // ساخت instance قرارداد کارخانه – از .at استفاده کن (ایمن‌تر)
     factoryContract = await tronWeb.contract(FACTORY_ABI).at(FACTORY_ADDRESS);
 
+    // مخفی کردن بخش اتصال و نشان دادن اصلی
     document.getElementById('connectSection').style.display = 'none';
     document.getElementById('mainSection').style.display = 'block';
 
+    // لود جدول پروژه‌ها
     loadProjectsTable();
+
   } catch (e) {
-    console.error("خطا در اتصال:", e);
-    alert("خطا در اتصال به TronLink: " + (e.message || "نامشخص") + "\nلطفاً TronLink را چک کنید یا صفحه را رفرش کنید.");
+    console.error("خطای اتصال:", e);
+    alert("خطا در اتصال: " + (e.message || "نامشخص") + "\n\nنکات:\n- مطمئن شوید TronLink روی Nile Testnet است.\n- Disconnect All بزنید و دوباره اتصال امتحان کنید.\n- صفحه را رفرش کنید (Ctrl + F5).");
   }
 }
 
