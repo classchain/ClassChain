@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>School Fund Admin - NILE</title>
+  <script src="https://cdn.jsdelivr.net/npm/tronweb/dist/TronWeb.js"></script>
+</head>
+<body>
+
+<h2>School Fund Admin (NILE)</h2>
+
+<button onclick="connectWallet()">Connect TronLink</button>
+<p id="wallet"></p>
+
+<hr>
+
+<h3>Factory</h3>
+<input type="text" id="projectId" placeholder="Project ID">
+<input type="text" id="ownerAddress" placeholder="Owner Base58">
+<button onclick="createSingle()">Create Single Owner Fund</button>
+
+<br><br>
+<input type="text" id="queryProjectId" placeholder="Project ID">
+<button onclick="getFund()">Get Fund Address</button>
+<p id="fundAddress"></p>
+
+<hr>
+
+<h3>Fund Actions</h3>
+<input type="text" id="tokenAddress" placeholder="Token Base58">
+<input type="number" id="amount" placeholder="Amount (raw units)">
+<button onclick="approveToken()">Approve</button>
+<button onclick="depositToken()">Deposit</button>
+
+<br><br>
+<button onclick="checkBalance()">Check Fund Balance</button>
+<p id="fundBalance"></p>
+
+<br><br>
+<input type="text" id="withdrawTo" placeholder="Withdraw To (Base58)">
+<button onclick="withdrawToken()">Withdraw</button>
+
+<script>
+
+let tronWeb;
+let factory;
+let fund;
+let currentFundAddress = null;
+
+const factoryAddress = "PASTE_FACTORY_BASE58_ADDRESS";
+const factoryABI = PASTE_FACTORY_ABI_HERE;
+const fundABI = PASTE_FUND_ABI_HERE;
+
+async function connectWallet() {
+    if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+        tronWeb = window.tronWeb;
+
+        if (tronWeb.fullNode.host.indexOf("nile") === -1) {
+            alert("Switch TronLink to Nile network");
+            return;
+        }
+
+        document.getElementById("wallet").innerText =
+            "Connected: " + tronWeb.defaultAddress.base58;
+
+        factory = await tronWeb.contract(factoryABI, factoryAddress);
+    } else {
+        alert("Install TronLink");
+    }
+}
+
+async function createSingle() {
+    const projectId = document.getElementById("projectId").value;
+    const owner = document.getElementById("ownerAddress").value;
+
+    const tx = await factory.createSingleOwnerFund(projectId, owner)
+        .send({ feeLimit: 300_000_000 });
+
+    alert("TX: " + tx);
+}
+
+async function getFund() {
+    const projectId = document.getElementById("queryProjectId").value;
+
+    const address = await factory.getFundAddress(projectId).call();
+    currentFundAddress = address;
+
+    document.getElementById("fundAddress").innerText = address;
+
+    fund = await tronWeb.contract(fundABI, address);
+}
+
+async function approveToken() {
+    const tokenAddr = document.getElementById("tokenAddress").value;
+    const amount = document.getElementById("amount").value;
+
+    const tokenContract = await tronWeb.contract([
+        {
+            "constant": false,
+            "inputs": [
+                {"name":"_spender","type":"address"},
+                {"name":"_value","type":"uint256"}
+            ],
+            "name":"approve",
+            "outputs":[{"name":"","type":"bool"}],
+            "type":"function"
+        }
+    ], tokenAddr);
+
+    const tx = await tokenContract.approve(currentFundAddress, amount)
+        .send({ feeLimit: 100_000_000 });
+
+    alert("Approve TX: " + tx);
+}
+
+async function depositToken() {
+    const tokenAddr = document.getElementById("tokenAddress").value;
+    const amount = document.getElementById("amount").value;
+
+    const tx = await fund.depositToken(tokenAddr, amount)
+        .send({ feeLimit: 200_000_000 });
+
+    alert("Deposit TX: " + tx);
+}
+
+async function checkBalance() {
+    const tokenAddr = document.getElementById("tokenAddress").value;
+
+    const balance = await fund.balanceOf(tokenAddr).call();
+    document.getElementById("fundBalance").innerText = balance;
+}
+
+async function withdrawToken() {
+    const tokenAddr = document.getElementById("tokenAddress").value;
+    const to = document.getElementById("withdrawTo").value;
+    const amount = document.getElementById("amount").value;
+
+    const tx = await fund.withdrawToken(tokenAddr, to, amount)
+        .send({ feeLimit: 300_000_000 });
+
+    alert("Withdraw TX: " + tx);
+}
+
+</script>
+
+</body>
+</html>
