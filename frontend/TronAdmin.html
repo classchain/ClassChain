@@ -330,33 +330,58 @@
 
     let tronWeb, account, factoryContract;
 
-    async function connectWallet() {
-      if (!window.tronLink) return alert("TronLink نصب نیست!");
+async function connectWallet() {
+  if (!window.tronLink) {
+    return alert("TronLink نصب نیست! لطفاً نصب کنید و دوباره امتحان کنید.");
+  }
 
-      try {
-        await window.tronLink.request({ method: 'tron_requestAccounts' });
-        tronWeb = window.tronWeb;
-        if (!tronWeb || !tronWeb.defaultAddress) return alert("اتصال ناموفق");
-
-        account = tronWeb.defaultAddress.base58;
-
-        const network = tronWeb.fullNode.host.includes('nile') ? "Nile Testnet" : "Tron Mainnet";
-        const explorer = tronWeb.fullNode.host.includes('nile') ? 'nile.tronscan.org' : 'tronscan.org';
-
-        document.getElementById('accountDisplay').innerText = `اتصال شد: ${account.substr(0,10)}...`;
-        document.getElementById('networkDisplay').innerText = `شبکه: ${network}`;
-
-        factoryContract = await tronWeb.contract(FACTORY_ABI, FACTORY_ADDRESS);
-
-        document.getElementById('connectSection').style.display = 'none';
-        document.getElementById('mainSection').style.display = 'block';
-
-        loadProjectsTable();
-      } catch (e) {
-        console.error(e);
-        alert("خطا در اتصال: " + (e.message || "نامشخص"));
-      }
+  try {
+    // درخواست اتصال
+    const res = await window.tronLink.request({ method: 'tron_requestAccounts' });
+    if (!res || !res.data || !res.data.length) {
+      return alert("اتصال ناموفق بود. لطفاً دوباره امتحان کنید.");
     }
+
+    tronWeb = window.tronWeb;
+
+    // چک ایمن برای account
+    if (!tronWeb || !tronWeb.defaultAddress || !tronWeb.defaultAddress.base58) {
+      return alert("آدرس حساب پیدا نشد. TronLink را ری‌استارت کنید.");
+    }
+
+    account = tronWeb.defaultAddress.base58;
+
+    // چک شبکه به صورت ایمن (بدون crash اگر host undefined باشه)
+    let network = "شبکه ناشناخته";
+    let explorer = "nile.tronscan.org"; // پیش‌فرض Nile
+
+    if (tronWeb.fullNode && tronWeb.fullNode.host) {
+      if (tronWeb.fullNode.host.includes('nile')) {
+        network = "Nile Testnet";
+        explorer = "nile.tronscan.org";
+      } else if (tronWeb.fullNode.host.includes('api.trongrid.io')) {
+        network = "Tron Mainnet";
+        explorer = "tronscan.org";
+      }
+    } else {
+      console.warn("tronWeb.fullNode.host در دسترس نیست – شبکه پیش‌فرض Nile فرض شد.");
+    }
+
+    document.getElementById('accountDisplay').innerText = `اتصال شد: ${account.substring(0,10)}...`;
+    document.getElementById('networkDisplay').innerText = `شبکه: ${network}`;
+
+    // ساخت قرارداد کارخانه
+    factoryContract = await tronWeb.contract(FACTORY_ABI).at(FACTORY_ADDRESS);
+
+    document.getElementById('connectSection').style.display = 'none';
+    document.getElementById('mainSection').style.display = 'block';
+
+    loadProjectsTable();
+  } catch (e) {
+    console.error("خطا در اتصال:", e);
+    alert("خطا در اتصال به TronLink: " + (e.message || "نامشخص") + "\nلطفاً TronLink را چک کنید یا صفحه را رفرش کنید.");
+  }
+}
 
     document.getElementById('ownershipType').addEventListener('change', () => {
       const type = document.getElementById('ownershipType').value;
