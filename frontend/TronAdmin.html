@@ -47,13 +47,244 @@ let factory;
 let fund;
 let currentFundAddress = null;
 
-const factoryAddress = "PASTE_FACTORY_BASE58_ADDRESS";
-const factoryABI = PASTE_FACTORY_ABI_HERE;
-	      {
-        "inputs": [{"internalType": "address[]","name": "_defaultAllowedTokens","type": "address[]"},{"internalType": "bool","name": "_defaultIncludeCLC","type": "bool"}],
-        "stateMutability": "nonpayable",
-        "type": "constructor"
-      },
+const factoryAddress = "TBHzdWwbR1XUXcgFAukN8jNAEL6tGWSUjD";
+const factoryABI = [
+	{
+		"inputs": [
+			{
+				"internalType": "address[]",
+				"name": "_defaultAllowedTokens",
+				"type": "address[]"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "constructor"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "string",
+				"name": "projectId",
+				"type": "string"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "fundAddress",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "ownerOrMultisig",
+				"type": "address"
+			},
+			{
+				"indexed": false,
+				"internalType": "bool",
+				"name": "isMultisig",
+				"type": "bool"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "requiredConfirmations",
+				"type": "uint256"
+			}
+		],
+		"name": "FundCreated",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "previousOwner",
+				"type": "address"
+			},
+			{
+				"indexed": true,
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "OwnershipTransferred",
+		"type": "event"
+	},
+	{
+		"inputs": [],
+		"name": "USDT_TOKEN",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "projectId",
+				"type": "string"
+			},
+			{
+				"internalType": "address[]",
+				"name": "multisigOwners",
+				"type": "address[]"
+			},
+			{
+				"internalType": "uint256",
+				"name": "requiredConfirmations",
+				"type": "uint256"
+			}
+		],
+		"name": "createMultisigFund",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "fundAddress",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "multisigAddress",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "projectId",
+				"type": "string"
+			},
+			{
+				"internalType": "address",
+				"name": "singleOwner",
+				"type": "address"
+			}
+		],
+		"name": "createSingleOwnerFund",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "fundAddress",
+				"type": "address"
+			}
+		],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"name": "defaultAllowedTokens",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "projectId",
+				"type": "string"
+			}
+		],
+		"name": "getFundAddress",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "owner",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
+			}
+		],
+		"name": "projectFunds",
+		"outputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "newOwner",
+				"type": "address"
+			}
+		],
+		"name": "transferOwnership",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address[]",
+				"name": "newTokens",
+				"type": "address[]"
+			}
+		],
+		"name": "updateDefaultAllowedTokens",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	}
+];
+
 const fundABI =[
 	{
 		"inputs": [{"internalType": "address[]","name": "_initialAllowedTokens","type": "address[]"}],
@@ -341,8 +572,7 @@ const fundABI =[
 		"stateMutability": "payable",
 		"type": "receive"
 	}
-]
-  PASTE_FUND_ABI_HERE;
+];
 
 async function connectWallet() {
     if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
