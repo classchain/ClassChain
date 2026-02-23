@@ -49,34 +49,20 @@ let currentFundAddress = null;
 
 const factoryAddress = "PASTE_FACTORY_BASE58_ADDRESS";
 const factoryABI = PASTE_FACTORY_ABI_HERE;
+	      {
+        "inputs": [{"internalType": "address[]","name": "_defaultAllowedTokens","type": "address[]"},{"internalType": "bool","name": "_defaultIncludeCLC","type": "bool"}],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
 const fundABI =[
 	{
-		"inputs": [
-			{
-				"internalType": "address[]",
-				"name": "_initialAllowedTokens",
-				"type": "address[]"
-			}
-		],
+		"inputs": [{"internalType": "address[]","name": "_initialAllowedTokens","type": "address[]"}],
 		"stateMutability": "nonpayable",
 		"type": "constructor"
 	},
 	{
 		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "previousOwner",
-				"type": "address"
-			},
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "newOwner",
-				"type": "address"
-			}
-		],
+		"inputs": [{"indexed": true,"internalType": "address","name": "previousOwner","type": "address"},{"indexed": true,"internalType": "address","name": "newOwner","type": "address"}],
 		"name": "OwnershipTransferred",
 		"type": "event"
 	},
