@@ -332,63 +332,63 @@
 
 async function connectWallet() {
   if (!window.tronLink) {
-    return alert("TronLink نصب نیست! لطفاً از فروشگاه extensions مرورگر نصب کنید.");
+    return alert("TronLink نصب نیست! لطفاً از فروشگاه مرورگر نصب کنید.");
   }
 
   try {
-    // درخواست اتصال – این خط معمولاً پنجره TronLink رو باز می‌کنه
+    // درخواست اتصال – پنجره TronLink باز می‌شه
     const res = await window.tronLink.request({ method: 'tron_requestAccounts' });
 
-    // چک پاسخ (اگر کاربر رد کنه یا مشکلی باشه)
     if (res.code !== 200) {
-      return alert("اتصال رد شد یا مشکلی پیش آمد. کد خطا: " + res.code + "\nپیام: " + (res.message || "نامشخص"));
+      return alert("اتصال رد شد یا مشکلی پیش آمد. کد: " + (res.code || "نامشخص") + "\nپیام: " + (res.message || ""));
+    }
+
+    // حالا منتظر می‌مونیم تا tronWeb کامل آماده بشه (polling ایمن)
+    let attempts = 0;
+    const maxAttempts = 50; // حدود ۵ ثانیه
+    while (!window.tronWeb || !window.tronWeb.defaultAddress || !window.tronWeb.defaultAddress.base58) {
+      if (attempts >= maxAttempts) {
+        throw new Error("TronWeb بعد از زمان طولانی آماده نشد. TronLink را ری‌استارت کنید.");
+      }
+      await new Promise(resolve => setTimeout(resolve, 100)); // ۱۰۰ میلی‌ثانیه صبر
+      attempts++;
     }
 
     tronWeb = window.tronWeb;
-
-    // چک ایمن آدرس (مهم‌ترین بخش)
-    if (!tronWeb || !tronWeb.defaultAddress || !tronWeb.defaultAddress.base58) {
-      return alert("آدرس کیف پول پیدا نشد. TronLink را ری‌استارت کنید یا دوباره اتصال بزنید.");
-    }
-
     account = tronWeb.defaultAddress.base58;
 
-    // تشخیص شبکه بدون وابستگی به fullNode.host (که ممکنه undefined باشه)
-    // در عمل، TronLink روی Nile وقتی متصل می‌شه، معمولاً fullNode رو به api.nileex.io ست می‌کنه
-    // اما برای ایمنی، پیش‌فرض Nile بگذار و اگر خواستی دقیق‌تر چک کن
-    let network = "Nile Testnet"; // چون از اسکرین‌شات‌ها معلومه Nile هست
+    // تشخیص شبکه – بدون وابستگی سخت به fullNode.host (که ممکنه دیر لود بشه)
+    let network = "Nile Testnet"; // پیش‌فرض بر اساس اسکرین‌شات‌های شما
     let explorer = "nile.tronscan.org";
 
-    // چک اختیاری – اگر fullNode موجود بود، دقیق‌تر کن (بدون کرش)
+    // اگر fullNode لود شد، دقیق‌تر چک کن
     if (tronWeb.fullNode && tronWeb.fullNode.host) {
-      if (tronWeb.fullNode.host.includes('nile') || tronWeb.fullNode.host.includes('nillex')) {
+      const host = tronWeb.fullNode.host.toLowerCase();
+      if (host.includes('nile') || host.includes('nillex')) {
         network = "Nile Testnet";
         explorer = "nile.tronscan.org";
-      } else if (tronWeb.fullNode.host.includes('trongrid') || tronWeb.fullNode.host.includes('api.tron')) {
+      } else if (host.includes('trongrid') || host.includes('api.tron')) {
         network = "Tron Mainnet";
         explorer = "tronscan.org";
       }
-    } else {
-      console.log("fullNode.host در دسترس نیست – Nile فرض شد.");
     }
 
     // نمایش در صفحه
     document.getElementById('accountDisplay').innerText = `اتصال شد: ${account.substring(0, 10)}...`;
     document.getElementById('networkDisplay').innerText = `شبکه: ${network}`;
 
-    // ساخت instance قرارداد کارخانه – از .at استفاده کن (ایمن‌تر)
+    // قرارداد کارخانه
     factoryContract = await tronWeb.contract(FACTORY_ABI).at(FACTORY_ADDRESS);
 
-    // مخفی کردن بخش اتصال و نشان دادن اصلی
+    // نمایش بخش اصلی
     document.getElementById('connectSection').style.display = 'none';
     document.getElementById('mainSection').style.display = 'block';
 
-    // لود جدول پروژه‌ها
     loadProjectsTable();
 
   } catch (e) {
     console.error("خطای اتصال:", e);
-    alert("خطا در اتصال: " + (e.message || "نامشخص") + "\n\nنکات:\n- مطمئن شوید TronLink روی Nile Testnet است.\n- Disconnect All بزنید و دوباره اتصال امتحان کنید.\n- صفحه را رفرش کنید (Ctrl + F5).");
+    alert("خطا در اتصال به TronLink:\n" + (e.message || "نامشخص") + "\n\nراه‌حل‌های سریع:\n1. TronLink را باز کنید و مطمئن شوید روی Nile Testnet است.\n2. در Connected Websites، classchain.github.io را Disconnect کنید و دوباره امتحان کنید.\n3. مرورگر را ری‌استارت کنید یا در حالت Incognito تست کنید.\n4. صفحه را با Ctrl + F5 رفرش کنید.");
   }
 }
 
