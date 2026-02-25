@@ -193,78 +193,113 @@
       container.appendChild(div);
     }
 
-    async function createNewFund() {
-      const projectId = document.getElementById('projectId').value.trim();
-      if (!projectId) return alert("آیدی پروژه را وارد کنید");
+async function createNewFund() {
+  const projectId = document.getElementById('projectId').value.trim();
+  if (!projectId) return alert("آیدی پروژه را وارد کنید");
 
-      const type = document.getElementById('ownershipType').value;
+  const type = document.getElementById('ownershipType').value;
 
-      try {
-        let tx;
-        if (type === 'single') {
-          const owner = document.getElementById('singleOwnerAddress').value.trim();
-          if (!web3.utils.isAddress(owner)) return alert("آدرس معتبر نیست");
+  try {
+    let method;
 
-          tx = await factoryContract.methods.createSingleOwnerFund(projectId, owner)
-              .send({ 
-                  from: account,
-                  gas: 5000000,  // گس بالا برای ساخت قراردادها
-                  gasPrice: await web3.eth.getGasPrice()
-              });
-        } else {
-          const reqSigs = parseInt(document.getElementById('requiredSigs').value);
-          const inputs = document.querySelectorAll('#ownersContainer input');
-          const owners = Array.from(inputs).map(i => i.value.trim()).filter(a => web3.utils.isAddress(a));
+    if (type === 'single') {
+      const owner = document.getElementById('singleOwnerAddress').value.trim();
+      if (!web3.utils.isAddress(owner)) return alert("آدرس معتبر نیست");
+      method = factoryContract.methods.createSingleOwnerFund(projectId, owner);
+    } else {
+      const reqSigs = parseInt(document.getElementById('requiredSigs').value);
+      if (isNaN(reqSigs) || reqSigs < 1) return alert("تعداد امضای لازم معتبر نیست");
 
-          if (owners.length === 0) return alert("حداقل یک owner وارد کنید");
-          if (reqSigs > owners.length || reqSigs < 1) return alert("تعداد امضا نامعتبر");
+      const inputs = document.querySelectorAll('#ownersContainer input');
+      const owners = Array.from(inputs)
+        .map(i => i.value.trim())
+        .filter(a => web3.utils.isAddress(a));
 
-          tx = await factoryContract.methods.createMultisigFund(projectId, owners, reqSigs)
-            .send({ 
-                from: account,
-                gas: 5000000,  // گس بالا برای ساخت قراردادها
-                gasPrice: await web3.eth.getGasPrice()
-            });          
+      if (owners.length === 0) return alert("حداقل یک owner معتبر وارد کنید");
+      if (reqSigs > owners.length) return alert("تعداد امضا نمی‌تواند بیشتر از تعداد owners باشد");
+
+      method = factoryContract.methods.createMultisigFund(projectId, owners, reqSigs);
+    }
+
+    // تخمین گاز + ارسال تراکنش با سبک EIP-1559 (MetaMask خودش فی را محاسبه کند)
+    const gasEstimate = await method.estimateGas({ from: account });
+    const gasLimit = Math.floor(gasEstimate * 1.3); // ۳۰٪ حاشیه ایمنی برای deploy
+
+    const tx = await method.send({
+      from: account,
+      gas: gasLimit,
+      // مهم: این دو خط باعث می‌شود MetaMask خودش maxFeePerGas و maxPriorityFeePerGas را تنظیم کند
+      maxFeePerGas: null,
+      maxPriorityFeePerGas: null
+    });
+
+    // استخراج اطلاعات از رویداد
+    const event = tx.events.FundCreated.returnValues;
+    const fundAddr = event.fundAddress;
+    const ownerAddr = event.ownerOrMultisig;
+    const isMulti = event.isMultisig === 'true' || event.isMultisig === true;
+
+    // بروزرسانی JSON
+    const resp = await fetch('data/Projects.json');
+    const data = await resp.json();
+    let found = false;
+
+    data.features.forEach(f => {
+      if (f.attributes.ProjectID === projectId) {
+        f.attributes.contractAddress = fundAddr;
+        if (isMulti) {
+          f.attributes.multisigAddress = ownerAddr;
         }
+        found = true;
+      }
+    });
 
-        const event = tx.events.FundCreated.returnValues;
-        const fundAddr = event.fundAddress;
-        const ownerAddr = event.ownerOrMultisig;
-        const isMulti = event.isMultisig;
+    if (!found) {
+      alert("پروژه با این آیدی در فایل JSON پیدا نشد!");
+      return;
+    }
 
-        // بروزرسانی JSON
-        const resp = await fetch('data/Projects.json');
-        const data = await resp.json();
-        let found = false;
-        data.features.forEach(f => {
-          if (f.attributes.ProjectID === projectId) {
-            f.attributes.contractAddress = fundAddr;
-            if (isMulti) f.attributes.multisigAddress = ownerAddr;
-            found = true;
-          }
-        });
+    const newJson = JSON.stringify(data, null, 2);
 
-        if (!found) return alert("پروژه در JSON پیدا نشد");
+    // نمایش نتیجه
+    document.getElementById('result').style.display = 'block';
+    document.getElementById('result').innerHTML = `
+      <h3>خزانه با موفقیت ساخته شد!</h3>
+      <p><strong>آیدی پروژه:</strong> ${projectId}</p>
+      <p><strong>آدرس خزانه:</strong> 
+        <a href="https://amoy.polygonscan.com/address/${fundAddr}" target="_blank">${fundAddr}</a>
+      </p>
+      ${isMulti ? `
+        <p><strong>آدرس Multisig:</strong> 
+          <a href="https://amoy.polygonscan.com/address/${ownerAddr}" target="_blank">${ownerAddr}</a>
+        </p>` : ''}
+      <p>JSON به‌روزشده (کپی کنید و در مخزن جایگزین کنید):</p>
+      <textarea style="width:100%; height:380px; font-family:monospace;">${newJson}</textarea>
+      <button onclick="navigator.clipboard.writeText(this.previousElementSibling.value); alert('JSON کپی شد!')">کپی JSON</button>
+    `;
 
-        const newJson = JSON.stringify(data, null, 2);
+    // رفرش جدول
+    loadProjectsTable();
 
-        document.getElementById('result').style.display = 'block';
-        document.getElementById('result').innerHTML = `
-          <h3>خزانه با موفقیت ساخته شد!</h3>
-          <p><strong>آیدی:</strong> ${projectId}</p>
-          <p><strong>آدرس خزانه:</strong> <a href="https://amoy.polygonscan.com/address/${fundAddr}" target="_blank">${fundAddr}</a></p>
-          ${isMulti ? `<p><strong>آدرس Multisig:</strong> <a href="https://amoy.polygonscan.com/address/${ownerAddr}" target="_blank">${ownerAddr}</a></p>` : ''}
-          <p>JSON بروزشده (کپی و در GitHub جایگزین کن):</p>
-          <textarea>${newJson}</textarea>
-          <button onclick="navigator.clipboard.writeText(this.previousElementSibling.value); alert('کپی شد!')">کپی JSON</button>
-        `;
-
-        loadProjectsTable();
-      } catch (e) {
-        console.error(e);
-        alert("خطا در ساخت: " + (e.message || "نامشخص"));
+  } catch (e) {
+    console.error("خطا در ساخت خزانه:", e);
+    let errorMsg = "خطا در ساخت خزانه";
+    
+    if (e.message) {
+      if (e.message.includes("insufficient funds")) {
+        errorMsg = "موجودی کیف پول کافی نیست (برای گاز + deploy)";
+      } else if (e.message.includes("User denied")) {
+        errorMsg = "تراکنش توسط شما رد شد";
+      } else if (e.message.includes("out of gas")) {
+        errorMsg = "گاز ناکافی بود – لطفاً دوباره امتحان کنید";
+      } else {
+        errorMsg += `: ${e.message}`;
       }
     }
+    
+    alert(errorMsg);
+  }
+}
 
     async function loadProjectsTable() {
       try {
