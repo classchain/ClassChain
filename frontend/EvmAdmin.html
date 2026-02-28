@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مدیریت خزانه‌ها - ClassChain</title>
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.8.0/dist/web3.min.js"></script>
+  <style>
+    body { font-family: Tahoma, Arial; padding: 20px; background: #f4f6f9; }
+    h1 { text-align: center; color: #2c3e50; }
+    .container { max-width: 900px; margin: 0 auto; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
+    th { background: #3498db; color: white; }
+    .has-contract { background: #d5f5e3; }
+    .no-contract { background: #fff3cd; }
+    button { padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; margin: 5px; }
+    button:disabled { background: #95a5a6; cursor: not-allowed; }
+    input, select { padding: 10px; margin: 5px 0; width: 100%; border-radius: 6px; border: 1px solid #ccc; }
+    .section { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .owners-list { margin-top: 10px; }
+    .owner-item { display: flex; gap: 10px; margin-bottom: 8px; }
+    .owner-item input { flex: 1; }
+    .remove-btn { background: #e74c3c; width: 40px; }
+    #result { padding: 20px; background: #e8f5e9; border: 2px solid #27ae60; border-radius: 10px; }
+    textarea { width: 100%; height: 400px; font-family: monospace; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>مدیریت خزانه‌های پروژه - ClassChain</h1>
+    <p style="text-align:center;">فقط برای مدیر سیستم</p>
+
+    <div id="connectSection" class="section">
+      <button onclick="connectWallet()">اتصال به MetaMask</button>
+      <p id="accountDisplay"></p>
+      <p id="networkDisplay"></p>
+    </div>
+
+    <div id="mainSection" style="display:none;">
+      <div class="section">
+        <h2>ساخت خزانه جدید</h2>
+        <label>آیدی پروژه (ProjectID):</label>
+        <input type="text" id="projectId" placeholder="مثل P001">
+
+        <label>نوع مالکیت:</label>
+        <select id="ownershipType">
+          <option value="single">تک‌مالکی (Single Owner)</option>
+          <option value="multisig">چندمالکی (Multisig)</option>
+        </select>
+
+        <div id="singleOwnerDiv">
+          <label>آدرس صاحب خزانه:</label>
+          <input type="text" id="singleOwnerAddress" placeholder="0x...">
+        </div>
+
+        <div id="multisigDiv" style="display:none;">
+          <label>تعداد امضای لازم:</label>
+          <input type="number" id="requiredSigs" min="1" placeholder="مثل 2">
+
+          <label>آدرس owners:</label>
+          <div id="ownersContainer" class="owners-list">
+            <div class="owner-item">
+              <input type="text" placeholder="0x...">
+              <button class="remove-btn" onclick="this.parentElement.remove()">−</button>
+            </div>
+          </div>
+          <button onclick="addOwnerField()">+ اضافه کردن owner</button>
+        </div>
+
+        <button onclick="createNewFund()">ساخت خزانه</button>
+      </div>
+
+      <table id="projectsTable">
+        <thead>
+          <tr>
+            <th>آیدی</th>
+            <th>نام پروژه</th>
+            <th>خزانه</th>
+            <th>وضعیت</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div id="result" style="display:none;"></div>
+    </div>
+  </div>
+
+  <script>
+    const FACTORY_ADDRESS = "0x83b1E4D6a3E494cCf86F50ef6934FFA1E23e421f"; // آدرس deploy شده شما
+
+    const FACTORY_ABI = [
+      {
+        "inputs": [{"internalType": "address[]","name": "_defaultAllowedTokens","type": "address[]"},{"internalType": "bool","name": "_defaultIncludeCLC","type": "bool"}],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+      },
+      {
+        "inputs": [{"internalType": "string","name": "projectId","type": "string"},{"internalType": "address","name": "singleOwner","type": "address"}],
+        "name": "createSingleOwnerFund",
+        "outputs": [{"internalType": "address","name": "fundAddress","type": "address"}],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [{"internalType": "string","name": "projectId","type": "string"},{"internalType": "address[]","name": "multisigOwners","type": "address[]"},{"internalType": "uint256","name": "requiredConfirmations","type": "uint256"}],
+        "name": "createMultisigFund",
+        "outputs": [{"internalType": "address","name": "fundAddress","type": "address"},{"internalType": "address","name": "multisigAddress","type": "address"}],
+        "stateMutability": "nonpayable",
+        "type": "function"
+      },
+      {
+        "inputs": [{"internalType": "string","name": "projectId","type": "string"}],
+        "name": "getFundAddress",
+        "outputs": [{"internalType": "address","name": "","type": "address"}],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [{"internalType": "string","name": "","type": "string"}],
+        "name": "projectFunds",
+        "outputs": [{"internalType": "address","name": "","type": "address"}],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "defaultAllowedTokens",
+        "outputs": [{"internalType": "address[]","name": "","type": "address[]"}],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "inputs": [],
+        "name": "defaultIncludeCLC",
+        "outputs": [{"internalType": "bool","name": "","type": "bool"}],
+        "stateMutability": "view",
+        "type": "function"
+      },
+      {
+        "anonymous": false,
+        "inputs": [
+          {"indexed": true, "internalType": "string", "name": "projectId", "type": "string"},
+          {"indexed": true, "internalType": "address", "name": "fundAddress", "type": "address"},
+          {"indexed": true, "internalType": "address", "name": "ownerOrMultisig", "type": "address"},
+          {"indexed": false, "internalType": "bool", "name": "isMultisig", "type": "bool"},
+          {"indexed": false, "internalType": "uint256", "name": "requiredConfirmations", "type": "uint256"}
+        ],
+        "name": "FundCreated",
+        "type": "event"
+      }
+    ];
+
+    let web3, account, factoryContract;
+
+    async function connectWallet() {
+      if (!window.ethereum) return alert("MetaMask نصب نیست!");
+
+      await ethereum.request({ method: 'eth_requestAccounts' });
+      web3 = new Web3(window.ethereum);
+      const accounts = await web3.eth.getAccounts();
+      account = accounts[0];
+
+      const chainId = await web3.eth.getChainId();
+      const network = chainId === 80002 ? "Polygon Amoy" : chainId === 137 ? "Polygon Mainnet" : "شبکه ناشناخته";
+
+      document.getElementById('accountDisplay').innerText = `اتصال شد: ${account.substr(0,10)}...`;
+      document.getElementById('networkDisplay').innerText = `شبکه: ${network}`;
+
+      factoryContract = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
+
+      document.getElementById('connectSection').style.display = 'none';
+      document.getElementById('mainSection').style.display = 'block';
+
+      loadProjectsTable();
+    }
+
+    document.getElementById('ownershipType').addEventListener('change', () => {
+      const type = document.getElementById('ownershipType').value;
+      document.getElementById('singleOwnerDiv').style.display = type === 'single' ? 'block' : 'none';
+      document.getElementById('multisigDiv').style.display = type === 'multisig' ? 'block' : 'none';
+    });
+
+    function addOwnerField() {
+      const container = document.getElementById('ownersContainer');
+      const div = document.createElement('div');
+      div.className = 'owner-item';
+      div.innerHTML = `
+        <input type="text" placeholder="0x...">
+        <button class="remove-btn" onclick="this.parentElement.remove()">−</button>
+      `;
+      container.appendChild(div);
+    }
+
+    async function createNewFund() {
+      const projectId = document.getElementById('projectId').value.trim();
+      if (!projectId) return alert("آیدی پروژه را وارد کنید");
+
+      const type = document.getElementById('ownershipType').value;
+
+      try {
+        let tx;
+        if (type === 'single') {
+          const owner = document.getElementById('singleOwnerAddress').value.trim();
+          if (!web3.utils.isAddress(owner)) return alert("آدرس معتبر نیست");
+
+          tx = await factoryContract.methods.createSingleOwnerFund(projectId, owner)
+              .send({ 
+                  from: account,
+                  gas: 5000000,  // گس بالا برای ساخت قراردادها
+                  gasPrice: await web3.eth.getGasPrice()
+              });
+        } else {
+          const reqSigs = parseInt(document.getElementById('requiredSigs').value);
+          const inputs = document.querySelectorAll('#ownersContainer input');
+          const owners = Array.from(inputs).map(i => i.value.trim()).filter(a => web3.utils.isAddress(a));
+
+          if (owners.length === 0) return alert("حداقل یک owner وارد کنید");
+          if (reqSigs > owners.length || reqSigs < 1) return alert("تعداد امضا نامعتبر");
+
+          tx = await factoryContract.methods.createMultisigFund(projectId, owners, reqSigs)
+            .send({ 
+                from: account,
+                gas: 5000000,  // گس بالا برای ساخت قراردادها
+                gasPrice: await web3.eth.getGasPrice()
+            });          
+        }
+
+        const event = tx.events.FundCreated.returnValues;
+        const fundAddr = event.fundAddress;
+        const ownerAddr = event.ownerOrMultisig;
+        const isMulti = event.isMultisig;
+
+        // بروزرسانی JSON
+        const resp = await fetch('data/Projects.json');
+        const data = await resp.json();
+        let found = false;
+        data.features.forEach(f => {
+          if (f.attributes.ProjectID === projectId) {
+            f.attributes.contractAddress = fundAddr;
+            if (isMulti) f.attributes.multisigAddress = ownerAddr;
+            found = true;
+          }
+        });
+
+        if (!found) return alert("پروژه در JSON پیدا نشد");
+
+        const newJson = JSON.stringify(data, null, 2);
+
+        document.getElementById('result').style.display = 'block';
+        document.getElementById('result').innerHTML = `
+          <h3>خزانه با موفقیت ساخته شد!</h3>
+          <p><strong>آیدی:</strong> ${projectId}</p>
+          <p><strong>آدرس خزانه:</strong> <a href="https://amoy.polygonscan.com/address/${fundAddr}" target="_blank">${fundAddr}</a></p>
+          ${isMulti ? `<p><strong>آدرس Multisig:</strong> <a href="https://amoy.polygonscan.com/address/${ownerAddr}" target="_blank">${ownerAddr}</a></p>` : ''}
+          <p>JSON بروزشده (کپی و در GitHub جایگزین کن):</p>
+          <textarea>${newJson}</textarea>
+          <button onclick="navigator.clipboard.writeText(this.previousElementSibling.value); alert('کپی شد!')">کپی JSON</button>
+        `;
+
+        loadProjectsTable();
+      } catch (e) {
+        console.error(e);
+        alert("خطا در ساخت: " + (e.message || "نامشخص"));
+      }
+    }
+
+    async function loadProjectsTable() {
+      try {
+        const resp = await fetch('data/Projects.json');
+        const data = await resp.json();
+        const tbody = document.querySelector('#projectsTable tbody');
+        tbody.innerHTML = '';
+
+        data.features.forEach(f => {
+          const attr = f.attributes;
+          const row = document.createElement('tr');
+          row.className = attr.contractAddress ? 'has-contract' : 'no-contract';
+          row.innerHTML = `
+            <td>${attr.ProjectID}</td>
+            <td>${attr.نام_پروژه || 'نامشخص'}</td>
+            <td>${attr.contractAddress || 'ندارد'}</td>
+            <td>${attr.contractAddress ? 'ساخته شده' : 'در انتظار ساخت'}</td>
+          `;
+          tbody.appendChild(row);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  </script>
+</body>
+</html>
