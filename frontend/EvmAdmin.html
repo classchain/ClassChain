@@ -95,7 +95,7 @@
   <script>
     const FACTORY_ADDRESS = "0x83b1E4D6a3E494cCf86F50ef6934FFA1E23e421f";
 
-    const FACTORY_ABI = [ /* ABI بدون تغییر */ 
+    const FACTORY_ABI = [
       {
         "inputs": [{"internalType": "address[]","name": "_defaultAllowedTokens","type": "address[]"},{"internalType": "bool","name": "_defaultIncludeCLC","type": "bool"}],
         "stateMutability": "nonpayable",
@@ -164,18 +164,15 @@
 
     async function switchToCorrectNetwork() {
       const chainId = await web3.eth.getChainId();
-      
       if (chainId !== 80002 && chainId !== 137) {
         try {
           await ethereum.request({
             method: 'wallet_switchEthereumChain',
-            params: [{ chainId: '0x13882' }] // 80002 in hex (Polygon Amoy)
+            params: [{ chainId: '0x13882' }]
           });
         } catch (switchError) {
           if (switchError.code === 4902) {
             alert("لطفاً شبکه Polygon Amoy را به MetaMask اضافه کنید.");
-          } else {
-            console.error(switchError);
           }
         }
       }
@@ -202,7 +199,7 @@
       const projectId = document.getElementById('projectId').value.trim();
       if (!projectId) return alert("آیدی پروژه را وارد کنید");
 
-      // === اعتبارسنجی: پروژه قبلاً خزانه دارد؟ ===
+      // چک وجود قبلی خزانه
       try {
         const existingFund = await factoryContract.methods.getFundAddress(projectId).call();
         if (existingFund && existingFund !== "0x0000000000000000000000000000000000000000") {
@@ -215,13 +212,18 @@
       const type = document.getElementById('ownershipType').value;
 
       try {
-        let tx;
+        // === Gas Settings بهبود یافته برای Amoy ===
+        const gasPrice = await web3.eth.getGasPrice();
+        const maxPriorityFee = web3.utils.toWei('30', 'gwei'); // حداقل ۳۰ Gwei برای Amoy
+
         const gasSettings = {
           from: account,
-          maxFeePerGas: await web3.eth.getGasPrice(),     // EIP-1559
-          maxPriorityFeePerGas: web3.utils.toWei('5', 'gwei')
+          gas: 5000000,
+          maxFeePerGas: web3.utils.toBN(gasPrice).mul(web3.utils.toBN(2)), // 2 برابر gasPrice فعلی
+          maxPriorityFeePerGas: maxPriorityFee
         };
 
+        let tx;
         if (type === 'single') {
           const owner = document.getElementById('singleOwnerAddress').value.trim();
           if (!web3.utils.isAddress(owner)) return alert("آدرس معتبر نیست");
