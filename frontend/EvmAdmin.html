@@ -56,7 +56,7 @@
 
         <div id="multisigDiv" style="display:none;">
           <label>تعداد امضای لازم:</label>
-          <input type="number" id="requiredSigs" min="1" placeholder="مثل 2">
+          <input type="number" id="requiredSigs" min="1" value="2" placeholder="مثل 2">
 
           <label>آدرس owners:</label>
           <div id="ownersContainer" class="owners-list">
@@ -69,6 +69,11 @@
         </div>
 
         <button onclick="createNewFund()">ساخت خزانه</button>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h2>لیست پروژه‌ها</h2>
+        <button onclick="loadProjectsTable()" style="background: #3498db;">🔄 Refresh جدول</button>
       </div>
 
       <table id="projectsTable">
@@ -88,9 +93,9 @@
   </div>
 
   <script>
-    const FACTORY_ADDRESS = "0x83b1E4D6a3E494cCf86F50ef6934FFA1E23e421f"; // آدرس deploy شده شما
+    const FACTORY_ADDRESS = "0x83b1E4D6a3E494cCf86F50ef6934FFA1E23e421f";
 
-    const FACTORY_ABI = [
+    const FACTORY_ABI = [ /* ABI بدون تغییر */ 
       {
         "inputs": [{"internalType": "address[]","name": "_defaultAllowedTokens","type": "address[]"},{"internalType": "bool","name": "_defaultIncludeCLC","type": "bool"}],
         "stateMutability": "nonpayable",
@@ -123,32 +128,6 @@
         "outputs": [{"internalType": "address","name": "","type": "address"}],
         "stateMutability": "view",
         "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "defaultAllowedTokens",
-        "outputs": [{"internalType": "address[]","name": "","type": "address[]"}],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "inputs": [],
-        "name": "defaultIncludeCLC",
-        "outputs": [{"internalType": "bool","name": "","type": "bool"}],
-        "stateMutability": "view",
-        "type": "function"
-      },
-      {
-        "anonymous": false,
-        "inputs": [
-          {"indexed": true, "internalType": "string", "name": "projectId", "type": "string"},
-          {"indexed": true, "internalType": "address", "name": "fundAddress", "type": "address"},
-          {"indexed": true, "internalType": "address", "name": "ownerOrMultisig", "type": "address"},
-          {"indexed": false, "internalType": "bool", "name": "isMultisig", "type": "bool"},
-          {"indexed": false, "internalType": "uint256", "name": "requiredConfirmations", "type": "uint256"}
-        ],
-        "name": "FundCreated",
-        "type": "event"
       }
     ];
 
@@ -157,23 +136,49 @@
     async function connectWallet() {
       if (!window.ethereum) return alert("MetaMask نصب نیست!");
 
-      await ethereum.request({ method: 'eth_requestAccounts' });
-      web3 = new Web3(window.ethereum);
-      const accounts = await web3.eth.getAccounts();
-      account = accounts[0];
+      try {
+        await ethereum.request({ method: 'eth_requestAccounts' });
+        web3 = new Web3(window.ethereum);
+        const accounts = await web3.eth.getAccounts();
+        account = accounts[0];
 
+        await switchToCorrectNetwork();
+
+        const chainId = await web3.eth.getChainId();
+        const network = chainId === 80002 ? "Polygon Amoy" : chainId === 137 ? "Polygon Mainnet" : "شبکه ناشناخته";
+
+        document.getElementById('accountDisplay').innerText = `اتصال شد: ${account.slice(0,6)}...${account.slice(-4)}`;
+        document.getElementById('networkDisplay').innerText = `شبکه: ${network}`;
+
+        factoryContract = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
+
+        document.getElementById('connectSection').style.display = 'none';
+        document.getElementById('mainSection').style.display = 'block';
+
+        loadProjectsTable();
+      } catch (e) {
+        console.error(e);
+        alert("خطا در اتصال والت: " + e.message);
+      }
+    }
+
+    async function switchToCorrectNetwork() {
       const chainId = await web3.eth.getChainId();
-      const network = chainId === 80002 ? "Polygon Amoy" : chainId === 137 ? "Polygon Mainnet" : "شبکه ناشناخته";
-
-      document.getElementById('accountDisplay').innerText = `اتصال شد: ${account.substr(0,10)}...`;
-      document.getElementById('networkDisplay').innerText = `شبکه: ${network}`;
-
-      factoryContract = new web3.eth.Contract(FACTORY_ABI, FACTORY_ADDRESS);
-
-      document.getElementById('connectSection').style.display = 'none';
-      document.getElementById('mainSection').style.display = 'block';
-
-      loadProjectsTable();
+      
+      if (chainId !== 80002 && chainId !== 137) {
+        try {
+          await ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: '0x13882' }] // 80002 in hex (Polygon Amoy)
+          });
+        } catch (switchError) {
+          if (switchError.code === 4902) {
+            alert("لطفاً شبکه Polygon Amoy را به MetaMask اضافه کنید.");
+          } else {
+            console.error(switchError);
+          }
+        }
+      }
     }
 
     document.getElementById('ownershipType').addEventListener('change', () => {
@@ -197,22 +202,34 @@
       const projectId = document.getElementById('projectId').value.trim();
       if (!projectId) return alert("آیدی پروژه را وارد کنید");
 
+      // === اعتبارسنجی: پروژه قبلاً خزانه دارد؟ ===
+      try {
+        const existingFund = await factoryContract.methods.getFundAddress(projectId).call();
+        if (existingFund && existingFund !== "0x0000000000000000000000000000000000000000") {
+          return alert(`این پروژه (${projectId}) قبلاً خزانه دارد!\nآدرس: ${existingFund}`);
+        }
+      } catch (e) {
+        console.warn("خطا در چک کردن خزانه قبلی:", e);
+      }
+
       const type = document.getElementById('ownershipType').value;
 
       try {
         let tx;
+        const gasSettings = {
+          from: account,
+          maxFeePerGas: await web3.eth.getGasPrice(),     // EIP-1559
+          maxPriorityFeePerGas: web3.utils.toWei('5', 'gwei')
+        };
+
         if (type === 'single') {
           const owner = document.getElementById('singleOwnerAddress').value.trim();
           if (!web3.utils.isAddress(owner)) return alert("آدرس معتبر نیست");
 
           tx = await factoryContract.methods.createSingleOwnerFund(projectId, owner)
-              .send({ 
-                  from: account,
-                  gas: 5000000,  // گس بالا برای ساخت قراردادها
-                  gasPrice: await web3.eth.getGasPrice()
-              });
+              .send(gasSettings);
         } else {
-          const reqSigs = parseInt(document.getElementById('requiredSigs').value);
+          const reqSigs = parseInt(document.getElementById('requiredSigs').value) || 2;
           const inputs = document.querySelectorAll('#ownersContainer input');
           const owners = Array.from(inputs).map(i => i.value.trim()).filter(a => web3.utils.isAddress(a));
 
@@ -220,11 +237,7 @@
           if (reqSigs > owners.length || reqSigs < 1) return alert("تعداد امضا نامعتبر");
 
           tx = await factoryContract.methods.createMultisigFund(projectId, owners, reqSigs)
-            .send({ 
-                from: account,
-                gas: 5000000,  // گس بالا برای ساخت قراردادها
-                gasPrice: await web3.eth.getGasPrice()
-            });          
+            .send(gasSettings);          
         }
 
         const event = tx.events.FundCreated.returnValues;
@@ -262,7 +275,7 @@
         loadProjectsTable();
       } catch (e) {
         console.error(e);
-        alert("خطا در ساخت: " + (e.message || "نامشخص"));
+        alert("خطا در ساخت خزانه: " + (e.message || "نامشخص"));
       }
     }
 
@@ -287,6 +300,7 @@
         });
       } catch (e) {
         console.error(e);
+        alert("خطا در بارگذاری جدول پروژه‌ها");
       }
     }
   </script>
