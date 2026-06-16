@@ -217,7 +217,8 @@ document.getElementById('connectBtn').onclick = async () => {
         alert("لطفاً MetaMask یا کیف پول سازگار نصب کنید");
         return;
     }
-
+	let approveTxHash = null;
+	let depositTxHash = null;
     try {
         await window.ethereum.request({ method: 'eth_requestAccounts' });
         web3 = new Web3(window.ethereum);
@@ -246,8 +247,25 @@ document.getElementById('connectBtn').onclick = async () => {
 		const decimals = tokenDecimals[selectedNetwork] || 6;
 		
         const amount = web3.utils.toBN(selectedAmount * (10 ** decimals));
-
-        const tokenABI = [{ "inputs": [{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}], "name":"approve", "outputs":[{"name":"","type":"bool"}], "type":"function" }];
+		const tokenABI = [
+  		  {
+		        "constant": true,
+		        "inputs": [{"name": "_owner", "type": "address"}],
+		        "name": "balanceOf",
+		        "outputs": [{"name": "balance", "type": "uint256"}],
+		        "type": "function"
+		    },
+		    {
+		        "inputs": [
+		            {"name": "spender", "type": "address"},
+		            {"name": "amount", "type": "uint256"}
+		        ],
+ 		       "name": "approve",
+		        "outputs": [{"name": "", "type": "bool"}],
+		        "type": "function"
+		    }
+		];
+        //const tokenABI = [{ "inputs": [{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}], "name":"approve", "outputs":[{"name":"","type":"bool"}], "type":"function" }];
         const fundABI = [{ "inputs": [{"name":"token","type":"address"},{"name":"amount","type":"uint256"}], "name":"depositToken", "outputs": [], "stateMutability": "nonpayable", "type": "function" }];
 
         const tokenContract = new web3.eth.Contract(tokenABI, net.usdtAddress);
@@ -262,8 +280,8 @@ document.getElementById('connectBtn').onclick = async () => {
 	    // مقایسه موجودی با مقدار درخواستی
 	    if (web3.utils.toBN(userBalance).lt(amount)) {
         // محاسبه موجودی به واحد اصلی برای نمایش بهتر
- 	       const balanceInMainUnit = web3.utils.fromWei(userBalance, 'ether');
- 	       const amountInMainUnit = selectedAmount;
+			const balanceInMainUnit = userBalance / (10 ** decimals);
+			//const amountInMainUnit = selectedAmount;
         
 	        alert(`⚠️ موجودی کافی نیست!\n\n` +
 	              `موجودی شما: ${balanceInMainUnit} ${net.name === 'CLC' ? 'CLC' : 'USDT'}\n` +
@@ -341,8 +359,8 @@ loadProgress(); // به‌روزرسانی پیشرفت (در آینده on-chai
 
         // اگر approve موفق بود ولی deposit شکست خورد
         if (approveTxHash && !depositTxHash) {
-            errorMsg += `\n\nApprove موفق بود: ${net.explorer}/tx/${approveTxHash}\nدوباره امتحان کنید یا مقدار کمتر انتخاب کنید.`;
-        }
+			errorMsg += `\n\n✅ Approve موفق بود: ${net.explorer}/tx/${approveTxHash}\n❌ اما Deposit شکست خورد. دوباره امتحان کنید.`;        
+		}
 
         alert(errorMsg);
         
