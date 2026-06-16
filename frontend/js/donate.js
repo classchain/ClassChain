@@ -50,7 +50,7 @@ const networks = {
         name: "Tron (TRC-20)",
         icon: "https://cryptologos.cc/logos/tron-trx-logo.png",
         addressField: "contractAddressTron",
-        usdtAddress: "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+        usdtAddress: "0xECa9bC828A3005B9a3b909f2cc5c2a54794DE05F",
         chainId: null,
         explorer: "https://tronscan.org",
     },
@@ -197,11 +197,15 @@ document.getElementById('connectBtn').onclick = async () => {
             document.getElementById('connectBtn').style.display = 'none';
 
             loadProgress();
-
-        } catch (err) {
-            alert("خطا در ارسال تراکنش ترون: " + (err.message || "نامشخص"));
-        }
-
+        } 
+		catch (err) {
+		    let userMessage = 'خطا در تراکنش:\n';
+		    if (err.code === 4001) userMessage += '❌ شما تراکنش را لغو کردید.';
+		    else if (err.message.includes('insufficient funds')) userMessage += '❌ موجودی کیف پول کافی نیست.';
+		    else if (err.message.includes('execution reverted')) userMessage += '❌ تراکنش برگشت خورد. ممکن است توکن مجاز نباشد.';
+		    else userMessage += err.message;
+		    alert(userMessage);
+		}
         return;
     }
 
@@ -221,20 +225,56 @@ document.getElementById('connectBtn').onclick = async () => {
         userAddress = accounts[0];
 
 		const chainId = await web3.eth.getChainId();
-				if (chainId !== net.chainId) {
-					alert(`لطفاً شبکه را به ${net.name} تغییر دهید (Chain ID: ${net.chainId})`);
-					return;
-				}
+		if (chainId !== net.chainId) {
+			alert(`لطفاً شبکه را به ${net.name} تغییر دهید (Chain ID: ${net.chainId})`);
+			return;
+		}
 				
-const decimals = (selectedNetwork === 'CLC') ? 18 : 6;
+		//const decimals = (selectedNetwork === 'CLC') ? 18 : 6;
+		const tokenDecimals = {
+		    'amoy': 6,
+		    'CLC': 18,
+		    'polygon': 6,
+		    'ethereum': 6,
+		    'bsc': 6,
+		    'arbitrum': 6,
+		    'optimism': 6,
+		    'avalanche': 6,
+		    'solana': 6,
+		    'tron': 6
+		};
+		const decimals = tokenDecimals[selectedNetwork] || 6;
+		
         const amount = web3.utils.toBN(selectedAmount * (10 ** decimals));
 
         const tokenABI = [{ "inputs": [{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}], "name":"approve", "outputs":[{"name":"","type":"bool"}], "type":"function" }];
         const fundABI = [{ "inputs": [{"name":"token","type":"address"},{"name":"amount","type":"uint256"}], "name":"depositToken", "outputs": [], "stateMutability": "nonpayable", "type": "function" }];
 
         const tokenContract = new web3.eth.Contract(tokenABI, net.usdtAddress);
+		
         const fundContract = new web3.eth.Contract(fundABI, currentContract);
+	    // ✅ مرحله 1: بررسی موجودی
+	    console.log(`🔍 بررسی موجودی کاربر ${userAddress} برای توکن ${net.usdtAddress}`);
+		const userBalance = await tokenContract.methods.balanceOf(userAddress).call();
+	    console.log(`💰 موجودی کاربر: ${userBalance} (واحدهای کوچک)`);
+	    console.log(`💰 موجودی مورد نیاز: ${amount} (واحدهای کوچک)`);
 
+	    // مقایسه موجودی با مقدار درخواستی
+	    if (web3.utils.toBN(userBalance).lt(amount)) {
+        // محاسبه موجودی به واحد اصلی برای نمایش بهتر
+ 	       const balanceInMainUnit = web3.utils.fromWei(userBalance, 'ether');
+ 	       const amountInMainUnit = selectedAmount;
+        
+	        alert(`⚠️ موجودی کافی نیست!\n\n` +
+	              `موجودی شما: ${balanceInMainUnit} ${net.name === 'CLC' ? 'CLC' : 'USDT'}\n` +
+	              `مبلغ مورد نیاز: ${amountInMainUnit} ${net.name === 'CLC' ? 'CLC' : 'USDT'}\n\n` +
+	              `لطفاً کیف پول خود را شارژ کنید.`);
+	        return; // 🛑 توقف اجرا
+	    }
+
+	    console.log('✅ موجودی کافی است، ادامه فرآیند...');
+
+    // مرحله ۲: Approve
         // نمایش وضعیت اولیه
         document.getElementById('txHash').innerHTML = `
             <p><strong>مرحله ۱ از ۲:</strong> تأیید اجازه برداشت (Approve)</p>
