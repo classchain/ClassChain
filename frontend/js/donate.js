@@ -321,11 +321,15 @@ document.getElementById('connectBtn').onclick = async () => {
         `;
 
         // مرحله ۲: Deposit با گس بالاتر
+		const depositGas = await fundContract.methods
+            .depositToken(net.usdtAddress, amount)
+            .estimateGas({ from: userAddress });
+		
         const depositTx = await fundContract.methods
             .depositToken(net.usdtAddress, amount)
             .send({ 
                 from: userAddress,
-                gas: 500000,           // گس بالاتر — مهم! چون nonReentrant و transfer دارد
+                gas: Math.floor(depositGas * 1.25),
                 gasPrice: await web3.eth.getGasPrice()
             });
 
