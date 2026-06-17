@@ -101,16 +101,12 @@ function getTokenDecimals(network) {
 function optimisticProgressUpdate(donatedAmount) {
     const progressTextEl = document.getElementById('progressText');
     if (!progressTextEl) return;
-
     let currentText = progressTextEl.innerText || "0";
     let currentRaised = parseFloat(currentText) || 0;
     currentRaised += donatedAmount;
-
     const targetMatch = currentText.match(/از ([\d,]+)/);
     const target = targetMatch ? parseFloat(targetMatch[1].replace(/,/g, '')) : 100000;
-
     const percent = Math.min((currentRaised / target) * 100, 100);
-
     document.getElementById('progressFill').style.width = percent + '%';
     document.getElementById('progressText').innerText = 
         `${currentRaised.toFixed(2)} USDT از ${target.toLocaleString('fa-IR')} USDT جمع شده (${percent.toFixed(1)}%)`;
@@ -118,7 +114,6 @@ function optimisticProgressUpdate(donatedAmount) {
 
 function handleTransactionError(err, approveTxHash, depositTxHash, net) {
     let errorMsg = "خطا در ارسال تراکنش:\n";
-
     if (err.code === 4001 || err.message?.includes("User denied") || err.message?.includes("denied")) {
         errorMsg += "تراکنش توسط شما لغو شد.";
     } else if (err.message?.includes("insufficient funds")) {
@@ -128,13 +123,10 @@ function handleTransactionError(err, approveTxHash, depositTxHash, net) {
     } else {
         errorMsg += err.message || "خطای نامشخص";
     }
-
     if (approveTxHash && !depositTxHash) {
         errorMsg += `\n\n✅ Approve موفق بود:\n${net.explorer}/tx/${approveTxHash}\n❌ اما مرحله واریز (Deposit) شکست خورد.`;
     }
-
     alert(errorMsg);
-
     document.getElementById('connectBtn').style.display = 'block';
     document.getElementById('successMessage').style.display = 'none';
 }
@@ -143,24 +135,37 @@ function updateButtonState() {
     const termsChecked = document.getElementById('termsConsent').checked;
     document.getElementById('connectBtn').disabled = !termsChecked;
 }
-// ==================== تابع اصلی Donate (بهبود یافته) ====================
 
+// ==================== انتخاب شبکه ====================
+function selectNetwork(network) {
+    selectedNetwork = network;
+    const net = networks[network];
+
+	if (network === 'tron') {
+        currentContract = projects.contractAddressTron || null;
+    } else {
+        currentContract = projects.contractAddress || projects[net.addressField] || null;
+    }
+	
+    //currentContract = (network === 'tron') ? projects.contractAddressTron : projects.contractAddress || null;
+    document.getElementById('qrSection').style.display = network === 'tron' ? 'block' : 'none';
+}
+
+// ==================== تابع اصلی Donate (بهبود یافته) ====================
 document.getElementById('connectBtn').onclick = async () => {
     if (!currentContract) {
         alert("خزانه هوشمند برای این شبکه هنوز راه‌اندازی نشده");
         return;
     }
-
     if (selectedAmount <= 0) {
         alert("لطفاً مقدار معتبر وارد کنید");
         return;
     }
-
     const net = networks[];
 	const isInfinite = document.getElementById('infiniteApprove')?.checked || false;
 	
     /* =========================
-       شاخه TRON — بدون تغییر
+       شاخه TRON
        ========================= */
     if ( === 'tron') {
         if (!isTronReady()) {
@@ -211,8 +216,10 @@ document.getElementById('connectBtn').onclick = async () => {
         alert("لطفاً MetaMask یا کیف پول سازگار نصب کنید");
         return;
     }
+	
 	let approveTxHash = null;
 	let depositTxHash = null;
+	
     try {
         await window.ethereum.request({ method: 'eth_requestAccounts' });
         web3 = new Web3(window.ethereum);
@@ -222,7 +229,6 @@ document.getElementById('connectBtn').onclick = async () => {
 
         // ====================== مدیریت شبکه ======================
         const currentChainId = await web3.eth.getChainId();
-
         if (currentChainId !== net.chainId) {
             document.getElementById('txHash').innerHTML = `
                 <p><strong>در حال تغییر شبکه به ${net.name}...</strong></p>
@@ -237,7 +243,7 @@ document.getElementById('connectBtn').onclick = async () => {
                 });
 
                 // کمی صبر برای اعمال تغییر شبکه
-                await new Promise(resolve => setTimeout(resolve, 1200));
+                await new Promise(resolve => setTimeout(resolve, 1500));
                 
                 const newChainId = await web3.eth.getChainId();
                 if (newChainId !== net.chainId) {
@@ -518,19 +524,7 @@ document.getElementById('termsConsent').addEventListener('change', updateButtonS
 
 document.getElementById('infiniteApprove') && document.getElementById('infiniteApprove').addEventListener('change', () => {});
 
-function selectNetwork(network) {
-    selectedNetwork = network;
-    const net = networks[network];
 
-	if (network === 'tron') {
-        currentContract = projects.contractAddressTron || null;
-    } else {
-        currentContract = projects.contractAddress || projects[net.addressField] || null;
-    }
-	
-    //currentContract = (network === 'tron') ? projects.contractAddressTron : projects.contractAddress || null;
-    document.getElementById('qrSection').style.display = network === 'tron' ? 'block' : 'none';
-}
 
 // فعال کردن دکمه با تیک چک‌باکس
 document.getElementById('termsConsent').addEventListener('change', function() {
