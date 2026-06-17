@@ -483,13 +483,12 @@ function selectNetwork(network) {
     document.getElementById('qrSection').style.display = network === 'tron' ? 'block' : 'none';
 }
 
-
-// **************************** این قسمت در Grok جدید حذف شده ***********************************
 // فعال کردن دکمه با تیک چک‌باکس
-//document.getElementById('termsConsent').addEventListener('change', function() {
-//    document.getElementById('connectBtn').disabled = !this.checked;
-//});
-// ******************************************************************************************
+document.getElementById('termsConsent').addEventListener('change', function() {
+    document.getElementById('connectBtn').disabled = !this.checked;
+});
+
+
 async function loadProject() {
     const urlParams = new URLSearchParams(window.location.search);
     const projectId = urlParams.get('project');
