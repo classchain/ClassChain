@@ -102,7 +102,7 @@ function optimisticProgressUpdate(donatedAmount) {
     const progressTextEl = document.getElementById('progressText');
     if (!progressTextEl) return;
 
-    let currentText = progressTextEl.innerText;
+    let currentText = progressTextEl.innerText || "0";
     let currentRaised = parseFloat(currentText) || 0;
     currentRaised += donatedAmount;
 
@@ -139,6 +139,10 @@ function handleTransactionError(err, approveTxHash, depositTxHash, net) {
     document.getElementById('successMessage').style.display = 'none';
 }
 
+function updateButtonState() {
+    const termsChecked = document.getElementById('termsConsent').checked;
+    document.getElementById('connectBtn').disabled = !termsChecked;
+}
 // ==================== تابع اصلی Donate (بهبود یافته) ====================
 
 document.getElementById('connectBtn').onclick = async () => {
@@ -475,6 +479,9 @@ document.getElementById('connectBtn').onclick = async () => {
 document.getElementById('customAmount').oninput = (e) => {
     selectedAmount = parseFloat(e.target.value) || 0;
 };
+document.getElementById('termsConsent').addEventListener('change', updateButtonState);
+
+document.getElementById('infiniteApprove') && document.getElementById('infiniteApprove').addEventListener('change', () => {});
 
 function selectNetwork(network) {
     selectedNetwork = network;
@@ -582,5 +589,5 @@ function isTronReady() {
 
 // اجرای اولیه
 loadProject();
-
+updateButtonState(); // برای حالت اولیه
 
