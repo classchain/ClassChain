@@ -156,13 +156,13 @@ document.getElementById('connectBtn').onclick = async () => {
         return;
     }
 
-    const net = networks[selectedNetwork];
+    const net = networks[];
 	const isInfinite = document.getElementById('infiniteApprove')?.checked || false;
 	
     /* =========================
        شاخه TRON — بدون تغییر
        ========================= */
-    if (selectedNetwork === 'tron') {
+    if ( === 'tron') {
         if (!isTronReady()) {
             alert("لطفاً TronLink را نصب و فعال کنید");
             return;
@@ -218,7 +218,7 @@ document.getElementById('connectBtn').onclick = async () => {
         web3 = new Web3(window.ethereum);
         const accounts = await web3.eth.getAccounts();
         userAddress = accounts[0];
-		const net = networks[selectedNetwork];
+		const net = networks[];
 
         // ====================== مدیریت شبکه ======================
         const currentChainId = await web3.eth.getChainId();
@@ -260,7 +260,7 @@ document.getElementById('connectBtn').onclick = async () => {
 //			return;
 //		}
 				
-		const decimals = getTokenDecimals(selectedNetwork);
+		const decimals = getTokenDecimals();
         const amount = web3.utils.toBN(selectedAmount * (10 ** decimals));
 
 		const balanceABI = [{
@@ -278,7 +278,7 @@ document.getElementById('connectBtn').onclick = async () => {
             alert(`⚠️ موجودی کافی نیست!\n\nموجودی شما: ${balanceMain} USDT\nمبلغ درخواستی: ${selectedAmount} USDT`);
             return;
         }
-		//const decimals = (selectedNetwork === 'CLC') ? 18 : 6;
+		//const decimals = ( === 'CLC') ? 18 : 6;
 		//const tokenDecimals = {
 		//    'amoy': 6,
 		//    'CLC': 18,
@@ -291,7 +291,7 @@ document.getElementById('connectBtn').onclick = async () => {
 		//    'solana': 6,
 		//    'tron': 6
 		//};
-		//const decimals = tokenDecimals[selectedNetwork] || 6;
+		//const decimals = tokenDecimals[] || 6;
 		
 		//const tokenABI = [
   		//  {
@@ -521,7 +521,14 @@ document.getElementById('infiniteApprove') && document.getElementById('infiniteA
 function selectNetwork(network) {
     selectedNetwork = network;
     const net = networks[network];
-    currentContract = (network === 'tron') ? projects.contractAddressTron : projects.contractAddress || null;
+
+	if (network === 'tron') {
+        currentContract = projects.contractAddressTron || null;
+    } else {
+        currentContract = projects.contractAddress || projects[net.addressField] || null;
+    }
+	
+    //currentContract = (network === 'tron') ? projects.contractAddressTron : projects.contractAddress || null;
     document.getElementById('qrSection').style.display = network === 'tron' ? 'block' : 'none';
 }
 
