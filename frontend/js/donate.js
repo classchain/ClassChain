@@ -1,5 +1,5 @@
 let selectedAmount = 0;
-let selectedNetwork = 'polygon';
+let selectedNetwork = null;
 let currentContract = null;
 let userAddress = null;
 let web3 = null;
@@ -144,15 +144,18 @@ function selectNetwork(network) {
 	if (network === 'tron') {
         currentContract = projects.contractAddressTron || null;
     } else {
-        currentContract = projects.contractAddress || projects[net.addressField] || null;
-    }
+		currentContract = projects[net.addressField] || projects.contractAddress || null;
+	}
 	
-    //currentContract = (network === 'tron') ? projects.contractAddressTron : projects.contractAddress || null;
     document.getElementById('qrSection').style.display = network === 'tron' ? 'block' : 'none';
 }
 
 // ==================== تابع اصلی Donate (بهبود یافته) ====================
 document.getElementById('connectBtn').onclick = async () => {
+	if (!selectedNetwork) {
+        alert("لطفاً ابتدا یک شبکه از منو انتخاب کنید");
+        return;
+    }
     if (!currentContract) {
         alert("خزانه هوشمند برای این شبکه هنوز راه‌اندازی نشده");
         return;
@@ -167,47 +170,35 @@ document.getElementById('connectBtn').onclick = async () => {
     /* =========================
        شاخه TRON
        ========================= */
-    if ( === 'tron') {
+	if (selectedNetwork === 'tron') {
         if (!isTronReady()) {
             alert("لطفاً TronLink را نصب و فعال کنید");
             return;
         }
-
         try {
             const tronWeb = window.tronWeb;
-            const userAddress = tronWeb.defaultAddress.base58;
-
+            const userAddr = tronWeb.defaultAddress.base58;
             const usdtContract = await tronWeb.contract().at(net.usdtAddress);
             const amount = Math.floor(selectedAmount * 1_000_000);
 
-            const tx = await usdtContract
-                .transfer(currentContract, amount)
-                .send();
+            const tx = await usdtContract.transfer(currentContract, amount).send();
 
-            document.getElementById('txHash').innerHTML =
+            document.getElementById('txHash').innerHTML = 
                 `تراکنش با موفقیت ارسال شد!<br>
-                <a href="${net.explorer}/transaction/${tx}" target="_blank">
-                مشاهده در Tronscan
-                </a>`;
+                <a href="${net.explorer}/transaction/${tx}" target="_blank">مشاهده در Tronscan</a>`;
 
             document.getElementById('successMessage').style.display = 'block';
             document.getElementById('connectBtn').style.display = 'none';
-
-			optimisticProgressUpdate(selectedAmount);
-			
-            //loadProgress();
-        } 
-		catch (err) {
-		    let userMessage = 'خطا در تراکنش:\n';
-		    if (err.code === 4001) userMessage += '❌ شما تراکنش را لغو کردید.';
-		    else if (err.message.includes('insufficient funds')) userMessage += '❌ موجودی کیف پول کافی نیست.';
-		    else if (err.message.includes('execution reverted')) userMessage += '❌ تراکنش برگشت خورد. ممکن است توکن مجاز نباشد.';
-		    else userMessage += err.message;
-		    alert(userMessage);
-		}
+            optimisticProgressUpdate(selectedAmount);
+        } catch (err) {
+            let userMessage = 'خطا در تراکنش:\n';
+            if (err.code === 4001) userMessage += '❌ شما تراکنش را لغو کردید.';
+            else if (err.message.includes('insufficient funds')) userMessage += '❌ موجودی کیف پول کافی نیست.';
+            else userMessage += err.message;
+            alert(userMessage);
+        }
         return;
     }
-
     /* =========================
        شاخه EVM — با approve + depositToken (رفع شکست تراکنش)
        ========================= */
@@ -229,136 +220,61 @@ document.getElementById('connectBtn').onclick = async () => {
 
         // ====================== مدیریت شبکه ======================
         const currentChainId = await web3.eth.getChainId();
-        if (currentChainId !== net.chainId) {
-            document.getElementById('txHash').innerHTML = `
-                <p><strong>در حال تغییر شبکه به ${net.name}...</strong></p>
-            `;
+		if (currentChainId !== net.chainId) {
+            document.getElementById('txHash').innerHTML = `<p><strong>در حال تغییر شبکه به ${net.name}...</strong></p>`;
             document.getElementById('successMessage').style.display = 'block';
             document.getElementById('connectBtn').style.display = 'none';
 
             try {
                 await window.ethereum.request({
                     method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: '0x' + net.chainId.toString(16) }],
+                    params: [{ chainId: '0x' + net.chainId.toString(16) }]
                 });
-
-                // کمی صبر برای اعمال تغییر شبکه
                 await new Promise(resolve => setTimeout(resolve, 1500));
-                
-                const newChainId = await web3.eth.getChainId();
-                if (newChainId !== net.chainId) {
-                    throw new Error("تغییر شبکه انجام نشد");
-                }
             } catch (switchError) {
                 document.getElementById('connectBtn').style.display = 'block';
                 document.getElementById('successMessage').style.display = 'none';
-                
-                alert(`❌ شبکه کیف پول شما با شبکه انتخابی مطابقت ندارد.\n\n` +
-                      `شبکه انتخابی: ${net.name}\n` +
-                      `لطفاً دستی به این شبکه سوئیچ کنید.`);
+                alert(`❌ شبکه کیف پول شما با شبکه انتخابی مطابقت ندارد.\n\nشبکه انتخابی: ${net.name}\nلطفاً دستی سوئیچ کنید.`);
                 return;
             }
         }
-
-//		const chainId = await web3.eth.getChainId();
-//		if (chainId !== net.chainId) {
-//			alert(`لطفاً شبکه را به ${net.name} تغییر دهید (Chain ID: ${net.chainId})`);
-//			return;
-//		}
-				
+	
 		const decimals = getTokenDecimals();
         const amount = web3.utils.toBN(selectedAmount * (10 ** decimals));
-
-		const balanceABI = [{
-            "constant": true,
-            "inputs": [{"name": "_owner", "type": "address"}],
-            "name": "balanceOf",
-            "outputs": [{"name": "balance", "type": "uint256"}],
-            "type": "function"
-        }];
-		const tokenContractForBalance = new web3.eth.Contract(balanceABI, net.usdtAddress);
-        const userBalance = await tokenContractForBalance.methods.balanceOf(userAddress).call();
-
+		const balanceABI = [{ "constant": true, "inputs": [{"name": "_owner"}], "name": "balanceOf", "outputs": [{"name": "balance"}], "type": "function" }];
+        const tokenForBalance = new web3.eth.Contract(balanceABI, net.usdtAddress);
+        const userBalance = await tokenForBalance.methods.balanceOf(userAddress).call();
+		
 		if (web3.utils.toBN(userBalance).lt(amount)) {
             const balanceMain = (Number(userBalance) / (10 ** decimals)).toFixed(2);
             alert(`⚠️ موجودی کافی نیست!\n\nموجودی شما: ${balanceMain} USDT\nمبلغ درخواستی: ${selectedAmount} USDT`);
             return;
         }
-		//const decimals = ( === 'CLC') ? 18 : 6;
-		//const tokenDecimals = {
-		//    'amoy': 6,
-		//    'CLC': 18,
-		//    'polygon': 6,
-		//    'ethereum': 6,
-		//    'bsc': 6,
-		//    'arbitrum': 6,
-		//    'optimism': 6,
-		//    'avalanche': 6,
-		//    'solana': 6,
-		//    'tron': 6
-		//};
-		//const decimals = tokenDecimals[] || 6;
 		
-		//const tokenABI = [
-  		//  {
-		//        "constant": true,
-		//        "inputs": [{"name": "_owner", "type": "address"}],
-		//        "name": "balanceOf",
-		//        "outputs": [{"name": "balance", "type": "uint256"}],
-		//        "type": "function"
-		//    },
-		//    {
-		//        "inputs": [
-		//            {"name": "spender", "type": "address"},
-		//            {"name": "amount", "type": "uint256"}
-		//        ],
- 		//       "name": "approve",
-		//        "outputs": [{"name": "", "type": "bool"}],
-		//        "type": "function"
-		//    }
-		//];
-		// ABI کامل
-        const tokenABI = [
-            {
-                "inputs": [{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],
-                "name":"approve",
-                "outputs":[{"name":"","type":"bool"}],
-                "type":"function"
-            },
-            {
-                "constant": true,
-                "inputs": [{"name": "_owner", "type": "address"}],
-                "name": "balanceOf",
-                "outputs": [{"name": "balance", "type": "uint256"}],
-                "type": "function"
-            }
+		const tokenABI = [
+            { "inputs": [{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}], "name":"approve", "outputs":[{"name":"","type":"bool"}], "type":"function" },
+            { "constant": true, "inputs": [{"name": "_owner"}], "name": "balanceOf", "outputs": [{"name": "balance"}], "type": "function" }
         ];
-        //const tokenABI = [{ "inputs": [{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}], "name":"approve", "outputs":[{"name":"","type":"bool"}], "type":"function" }];
-        //const fundABI = [{ "inputs": [{"name":"token","type":"address"},{"name":"amount","type":"uint256"}], "name":"depositToken", "outputs": [], "stateMutability": "nonpayable", "type": "function" }];
-		const fundABI = [{
-            "inputs": [{"name":"token","type":"address"},{"name":"amount","type":"uint256"}],
-            "name":"depositToken",
-            "outputs": [],
-            "stateMutability": "nonpayable",
-            "type": "function"
-        }];
-		
+        const fundABI = [{ "inputs": [{"name":"token","type":"address"},{"name":"amount","type":"uint256"}], "name":"depositToken", "outputs": [], "stateMutability": "nonpayable", "type": "function" }];
+
         const tokenContract = new web3.eth.Contract(tokenABI, net.usdtAddress);
         const fundContract = new web3.eth.Contract(fundABI, currentContract);
 		
 		// نمایش وضعیت
-        document.getElementById('successMessage').style.display = 'block';
-        document.getElementById('connectBtn').style.display = 'none';
-        document.getElementById('txHash').innerHTML = `<p><strong>در حال آماده‌سازی تراکنش...</strong></p>`;
+        //document.getElementById('successMessage').style.display = 'block';
+        //document.getElementById('connectBtn').style.display = 'none';
+        //document.getElementById('txHash').innerHTML = `<p><strong>در حال آماده‌سازی تراکنش...</strong></p>`;
 		//-------------- تغییرات جدید -----------------
 		// مرحله ۱: Approve
         const approveAmount = isInfinite 
             ? web3.utils.toBN('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
             : amount;
-
-        document.getElementById('txHash').innerHTML = `
-            <p><strong>مرحله ۱ از ۲:</strong> ${isInfinite ? 'اجازه دائمی برداشت' : 'تأیید برداشت'} (Approve)</p>
-        `;
+		document.getElementById('successMessage').style.display = 'block';
+        document.getElementById('connectBtn').style.display = 'none';
+		
+        //document.getElementById('txHash').innerHTML = `
+        //    <p><strong>مرحله ۱ از ۲:</strong> ${isInfinite ? 'اجازه دائمی برداشت' : 'تأیید برداشت'} (Approve)</p>
+        //`;
 
         const approveGas = await tokenContract.methods
             .approve(currentContract, approveAmount)
@@ -367,18 +283,18 @@ document.getElementById('connectBtn').onclick = async () => {
             .approve(currentContract, approveAmount)
             .send({ 
                 from: userAddress,
-                gas: Math.floor(approveGas * 1.25),
-                gasPrice: await web3.eth.getGasPrice()
+                gas: Math.floor(approveGas * 1.25)//,
+                //gasPrice: await web3.eth.getGasPrice()
             });
 
         approveTxHash = approveTx.transactionHash;
 
-        document.getElementById('txHash').innerHTML = `
-            <p style="color: green;">✅ مرحله ۱ موفق: ${isInfinite ? 'اجازه دائمی' : 'اجازه برداشت'} صادر شد!</p>
-            <p><a href="${net.explorer}/tx/${approveTxHash}" target="_blank">مشاهده Approve</a></p>
-            <hr>
-            <p><strong>مرحله ۲ از ۲:</strong> واریز به خزانه (Deposit)</p>
-        `;
+        //document.getElementById('txHash').innerHTML = `
+        //    <p style="color: green;">✅ مرحله ۱ موفق: ${isInfinite ? 'اجازه دائمی' : 'اجازه برداشت'} صادر شد!</p>
+        //    <p><a href="${net.explorer}/tx/${approveTxHash}" target="_blank">مشاهده Approve</a></p>
+        //    <hr>
+        //    <p><strong>مرحله ۲ از ۲:</strong> واریز به خزانه (Deposit)</p>
+        //`;
 		// مرحله ۲: Deposit
         const depositGas = await fundContract.methods
             .depositToken(net.usdtAddress, amount)
@@ -388,20 +304,19 @@ document.getElementById('connectBtn').onclick = async () => {
             .depositToken(net.usdtAddress, amount)
             .send({ 
                 from: userAddress,
-                gas: Math.floor(depositGas * 1.3),
-                gasPrice: await web3.eth.getGasPrice()
+                gas: Math.floor(depositGas * 1.3)//,
+                //gasPrice: await web3.eth.getGasPrice()
             });
 
         depositTxHash = depositTx.transactionHash;
 
         // موفقیت نهایی
-        document.getElementById('txHash').innerHTML = `
+		document.getElementById('txHash').innerHTML = `
             <p style="color: green; font-size: 1.15em;">🎉 کمک شما با موفقیت ثبت شد! ❤️</p>
             <p>مبلغ: <strong>${selectedAmount} USDT</strong></p>
-            ${isInfinite ? '<p style="color:#10b981">✅ اجازه دائمی فعال شد — دفعات بعدی خیلی سریع‌تر خواهد بود.</p>' : ''}
-            <p><strong>Approve Tx:</strong> <a href="${net.explorer}/tx/${approveTxHash}" target="_blank">مشاهده</a></p>
-            <p><strong>Deposit Tx:</strong> <a href="${net.explorer}/tx/${depositTxHash}" target="_blank">مشاهده</a></p>
-            <p>از حمایت گرم شما صمیمانه سپاسگزاریم.</p>
+            ${isInfinite ? '<p style="color:#10b981">✅ اجازه دائمی فعال شد</p>' : ''}
+            <p><a href="${net.explorer}/tx/${approveTxHash}" target="_blank">Approve</a> | 
+               <a href="${net.explorer}/tx/${depositTxHash}" target="_blank">Deposit</a></p>
         `;
 		optimisticProgressUpdate(selectedAmount);
 	} catch (err) {
@@ -522,14 +437,14 @@ document.getElementById('customAmount').oninput = (e) => {
 };
 document.getElementById('termsConsent').addEventListener('change', updateButtonState);
 
-document.getElementById('infiniteApprove') && document.getElementById('infiniteApprove').addEventListener('change', () => {});
+//document.getElementById('infiniteApprove') && document.getElementById('infiniteApprove').addEventListener('change', () => {});
 
 
 
 // فعال کردن دکمه با تیک چک‌باکس
-document.getElementById('termsConsent').addEventListener('change', function() {
-    document.getElementById('connectBtn').disabled = !this.checked;
-});
+//document.getElementById('termsConsent').addEventListener('change', function() {
+//    document.getElementById('connectBtn').disabled = !this.checked;
+//});
 
 
 async function loadProject() {
@@ -541,42 +456,49 @@ async function loadProject() {
         return;
     }
 
-    const response = await fetch('data/Projects.json');
-    const data = await response.json();
+    try {
+        const response = await fetch('data/Projects.json');
+        const data = await response.json();
 
-    let foundProject = null;
-    data.features.forEach(feature => {
-        if (feature.attributes.ProjectID === projectId) {
-            foundProject = feature.attributes;
+        let foundProject = null;
+        data.features.forEach(feature => {
+            if (feature.attributes.ProjectID === projectId) {
+                foundProject = feature.attributes;
+            }
+        });
+
+        if (!foundProject) {
+            document.getElementById('projectTitle').innerText = "پروژه یافت نشد";
+            return;
         }
-    });
 
-    if (!foundProject) {
-        document.getElementById('projectTitle').innerText = "پروژه یافت نشد";
-        return;
+        projects = foundProject;
+        document.getElementById('projectTitle').innerText = foundProject["نام پروژه"];
+        document.getElementById('projectDesc').innerText = `${foundProject.استان} - ${foundProject.منطقه} | ${foundProject["تعداد کلاس"]} کلاس`;
+
+        const target = foundProject["targetAmount(USDT)"] || 0;
+
+        // پر کردن منوی شبکه
+        const select = document.getElementById('networkSelect');
+        select.innerHTML = '';
+        Object.keys(networks).forEach(key => {
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = networks[key].name;
+            select.appendChild(opt);
+        });
+
+        loadProgress(target);
+        loadDonors();
+
+        // انتخاب پیش‌فرض
+        if (select.options.length > 0) {
+            select.value = 'polygon';
+            selectNetwork('polygon');
+        }
+    } catch (e) {
+        console.error("خطا در لود پروژه:", e);
     }
-
-    // ذخیره پروژه برای استفاده در بقیه کدها
-    projects = foundProject;
-
-    document.getElementById('projectTitle').innerText = foundProject["نام پروژه"];
-    document.getElementById('projectDesc').innerText = `${foundProject.استان} - ${foundProject.منطقه} | ${foundProject["تعداد کلاس"]} کلاس`;
-
-    const target = foundProject["targetAmount(USDT)"] || 0;
-    currentContract = foundProject.contractAddress || foundProject.contractAddressTron || null;
-
-    // پر کردن سلکتور شبکه
-    const select = document.getElementById('networkSelect');
-    select.innerHTML = '';
-    Object.keys(networks).forEach(key => {
-        const opt = document.createElement('option');
-        opt.value = key;
-        opt.textContent = networks[key].name;
-        select.appendChild(opt);
-    });
-
-    loadProgress(target);
-    loadDonors();
 }
 
 
