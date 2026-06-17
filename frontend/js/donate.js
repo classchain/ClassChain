@@ -218,12 +218,47 @@ document.getElementById('connectBtn').onclick = async () => {
         web3 = new Web3(window.ethereum);
         const accounts = await web3.eth.getAccounts();
         userAddress = accounts[0];
+		const net = networks[selectedNetwork];
 
-		const chainId = await web3.eth.getChainId();
-		if (chainId !== net.chainId) {
-			alert(`لطفاً شبکه را به ${net.name} تغییر دهید (Chain ID: ${net.chainId})`);
-			return;
-		}
+        // ====================== مدیریت شبکه ======================
+        const currentChainId = await web3.eth.getChainId();
+
+        if (currentChainId !== net.chainId) {
+            document.getElementById('txHash').innerHTML = `
+                <p><strong>در حال تغییر شبکه به ${net.name}...</strong></p>
+            `;
+            document.getElementById('successMessage').style.display = 'block';
+            document.getElementById('connectBtn').style.display = 'none';
+
+            try {
+                await window.ethereum.request({
+                    method: 'wallet_switchEthereumChain',
+                    params: [{ chainId: '0x' + net.chainId.toString(16) }],
+                });
+
+                // کمی صبر برای اعمال تغییر شبکه
+                await new Promise(resolve => setTimeout(resolve, 1200));
+                
+                const newChainId = await web3.eth.getChainId();
+                if (newChainId !== net.chainId) {
+                    throw new Error("تغییر شبکه انجام نشد");
+                }
+            } catch (switchError) {
+                document.getElementById('connectBtn').style.display = 'block';
+                document.getElementById('successMessage').style.display = 'none';
+                
+                alert(`❌ شبکه کیف پول شما با شبکه انتخابی مطابقت ندارد.\n\n` +
+                      `شبکه انتخابی: ${net.name}\n` +
+                      `لطفاً دستی به این شبکه سوئیچ کنید.`);
+                return;
+            }
+        }
+
+//		const chainId = await web3.eth.getChainId();
+//		if (chainId !== net.chainId) {
+//			alert(`لطفاً شبکه را به ${net.name} تغییر دهید (Chain ID: ${net.chainId})`);
+//			return;
+//		}
 				
 		const decimals = getTokenDecimals(selectedNetwork);
         const amount = web3.utils.toBN(selectedAmount * (10 ** decimals));
