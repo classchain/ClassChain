@@ -2,7 +2,7 @@
 export class ProjectManager {
   constructor() {
     this.projects = null;
-    this.jsonPath = 'data/Projects.json';
+    this.jsonPath = '../frontend/data/Projects.json';
   }
 
   async loadProjects() {
