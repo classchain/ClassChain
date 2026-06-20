@@ -89,7 +89,7 @@ export class ProjectManager {
     }
 
     const REPO = 'your-username/your-repo';
-    const PATH = 'data/Projects.json';
+    const PATH = '..frontend/data/Projects.json';
 
     const response = await fetch(
       `https://api.github.com/repos/${REPO}/contents/${PATH}`,
