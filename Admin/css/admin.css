@@ -1,0 +1,394 @@
+/* css/admin.css */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Vazirmatn', Tahoma, Arial, sans-serif;
+    background: #f0f2f5;
+    color: #2c3e50;
+}
+
+.admin-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* ============ Header ============ */
+.admin-header {
+    background: #1a1a2e;
+    color: white;
+    padding: 16px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.logo-icon {
+    font-size: 28px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.status-badge {
+    font-size: 13px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.1);
+}
+
+.btn-connect {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-connect:hover {
+    background: #2980b9;
+    transform: scale(1.02);
+}
+
+/* ============ Body ============ */
+.admin-body {
+    display: flex;
+    flex: 1;
+}
+
+/* ============ Sidebar ============ */
+.sidebar {
+    width: 220px;
+    background: white;
+    padding: 20px 0;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+    height: calc(100vh - 80px);
+    position: sticky;
+    top: 80px;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-nav a {
+    padding: 14px 24px;
+    text-decoration: none;
+    color: #555;
+    font-size: 15px;
+    transition: all 0.3s;
+    border-right: 3px solid transparent;
+}
+
+.sidebar-nav a:hover {
+    background: #f8f9fa;
+    color: #2c3e50;
+}
+
+.sidebar-nav a.active {
+    background: #e8f4fd;
+    color: #3498db;
+    border-right-color: #3498db;
+}
+
+/* ============ Main Content ============ */
+.main-content {
+    flex: 1;
+    padding: 30px;
+    overflow-y: auto;
+}
+
+.section {
+    display: none;
+}
+
+.section.active {
+    display: block;
+}
+
+.section h2 {
+    margin-bottom: 24px;
+    font-size: 22px;
+    color: #2c3e50;
+}
+
+/* ============ Form ============ */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 6px;
+    font-size: 14px;
+    color: #555;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    transition: border-color 0.3s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    border-color: #3498db;
+    outline: none;
+}
+
+.input-group {
+    display: flex;
+    gap: 10px;
+}
+
+.input-group input {
+    flex: 1;
+}
+
+/* ============ Tabs ============ */
+.network-tabs,
+.ownership-tabs {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.network-tab,
+.ownership-tab {
+    padding: 10px 18px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: inherit;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.network-tab:hover,
+.ownership-tab:hover {
+    border-color: #3498db;
+    background: #f8f9fa;
+}
+
+.network-tab.active,
+.ownership-tab.active {
+    border-color: #3498db;
+    background: #e8f4fd;
+    font-weight: 500;
+}
+
+.network-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    color: white;
+}
+
+/* ============ Buttons ============ */
+.btn-create,
+.btn-secondary {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-family: inherit;
+}
+
+.btn-create {
+    background: #27ae60;
+    color: white;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.btn-create:hover {
+    background: #219a52;
+    transform: scale(1.01);
+}
+
+.btn-create:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-secondary {
+    background: #ecf0f1;
+    color: #2c3e50;
+    padding: 8px 16px;
+    font-size: 13px;
+}
+
+.btn-secondary:hover {
+    background: #d5dbdb;
+}
+
+.btn-add {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    margin-top: 8px;
+}
+
+.btn-add:hover {
+    background: #2980b9;
+}
+
+.btn-remove {
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* ============ Owner Items ============ */
+.owner-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+    align-items: center;
+}
+
+.owner-item input {
+    flex: 1;
+}
+
+/* ============ Table ============ */
+.table-wrapper {
+    overflow-x: auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    padding: 4px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+thead {
+    background: #f8f9fa;
+}
+
+th {
+    padding: 14px 16px;
+    text-align: center;
+    font-weight: 600;
+    color: #555;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+td {
+    padding: 12px 16px;
+    text-align: center;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+tbody tr:hover {
+    background: #f8f9fa;
+}
+
+/* ============ Result ============ */
+#createResult {
+    margin-top: 20px;
+    padding: 20px;
+    border-radius: 10px;
+}
+
+/* ============ Responsive ============ */
+@media (max-width: 768px) {
+    .admin-body {
+        flex-direction: column;
+    }
+
+    .sidebar {
+        width: 100%;
+        height: auto;
+        position: static;
+        padding: 10px 0;
+    }
+
+    .sidebar-nav {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 4px;
+        padding: 0 12px;
+    }
+
+    .sidebar-nav a {
+        padding: 10px 16px;
+        font-size: 13px;
+        border-right: none;
+        border-bottom: 3px solid transparent;
+    }
+
+    .sidebar-nav a.active {
+        border-bottom-color: #3498db;
+        border-right-color: transparent;
+    }
+
+    .admin-header {
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px 16px;
+    }
+
+    .header-actions {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .network-tabs,
+    .ownership-tabs {
+        flex-direction: column;
+    }
+
+    .network-tab {
+        justify-content: center;
+    }
+}
