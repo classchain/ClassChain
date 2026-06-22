@@ -581,9 +581,20 @@ window.pushToGitHub = async () => {
 // رویدادهای DOM
 // ============================================
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('📱 Admin Panel راه‌اندازی شد');
-    
+    try {
+        // بارگذاری اولیه پروژه‌ها
+        await projectManager.loadProjects();
+        console.log('✅ پروژه‌ها بارگذاری شدند:', projectManager.projects?.features?.length || 0, 'مورد');
+    } catch (error) {
+        console.error('❌ خطا در بارگذاری اولیه:', error);
+        // نمایش خطا به کاربر
+        const statusEl = document.getElementById('connectionStatus');
+        if (statusEl) {
+            statusEl.innerHTML = `<span style="color: #e74c3c;">⚠️ خطا: ${error.message}</span>`;
+        }
+    }
     // رندر تب‌های شبکه
     renderNetworkTabs();
     
