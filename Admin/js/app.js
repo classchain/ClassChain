@@ -232,6 +232,143 @@ async function createFund() {
 }
 
 // ============================================
+// تابع بررسی پروژه
+// ============================================
+
+async function checkProject() {
+    const projectIdInput = document.getElementById('projectId');
+    const projectId = projectIdInput?.value?.trim();
+    
+    if (!projectId) {
+        showError('لطفاً ProjectID را وارد کنید');
+        return;
+    }
+
+    // نمایش لودینگ
+    const resultDiv = document.getElementById('createResult');
+    if (resultDiv) {
+        resultDiv.style.display = 'block';
+        resultDiv.style.background = '#f8f9fa';
+        resultDiv.style.border = '2px solid #3498db';
+        resultDiv.innerHTML = `
+            <div style="text-align:center;padding:20px;">
+                <span style="font-size:24px;">⏳</span>
+                <p>در حال جستجوی پروژه ${projectId}...</p>
+            </div>
+        `;
+    }
+
+    try {
+        // بارگذاری پروژه‌ها
+        await projectManager.loadProjects();
+        const project = await projectManager.getProjectById(projectId);
+        
+        if (!project) {
+            showError(`❌ پروژه ${projectId} در سیستم یافت نشد`);
+            return;
+        }
+
+        const attr = project.attributes;
+        
+        // ساخت HTML نمایش اطلاعات
+        let html = `
+            <div style="padding:10px 0;">
+                <h3 style="color: #2c3e50; margin-top: 0;">✅ پروژه پیدا شد</h3>
+                <table style="width:100%;border-collapse:collapse;margin-top:10px;direction:rtl;">
+                    <tr>
+                        <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">ProjectID:</td>
+                        <td style="padding:8px 12px;border-bottom:1px solid #eee;">${attr.ProjectID || '---'}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">نام پروژه:</td>
+                        <td style="padding:8px 12px;border-bottom:1px solid #eee;">${attr['نام پروژه'] || 'نامشخص'}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">استان:</td>
+                        <td style="padding:8px 12px;border-bottom:1px solid #eee;">${attr['استان'] || 'نامشخص'}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">هدف (USDT):</td>
+                        <td style="padding:8px 12px;border-bottom:1px solid #eee;">${attr['targetAmount(USDT)']?.toLocaleString() || '0'}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">وضعیت:</td>
+                        <td style="padding:8px 12px;border-bottom:1px solid #eee;">${attr.status || 'در انتظار'}</td>
+                    </tr>
+        `;
+
+        // نمایش وضعیت خزانه‌ها در شبکه‌های مختلف
+        const funds = attr.funds || {};
+        const hasFund = Object.values(funds).some(f => f && f.address);
+        
+        if (hasFund) {
+            html += `
+                <tr>
+                    <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;" colspan="2">
+                        <span style="color:#27ae60;">✅ خزانه‌های موجود:</span>
+                    </td>
+                </tr>
+            `;
+            ACTIVE_NETWORKS.forEach(network => {
+                const fund = funds[network.id];
+                if (fund && fund.address) {
+                    html += `
+                        <tr>
+                            <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;padding-right:20px;">
+                                ${network.icon} ${network.name}:
+                            </td>
+                            <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:12px;direction:ltr;">
+                                <a href="${network.explorerUrl}/address/${fund.address}" target="_blank" style="color:#3498db;">
+                                    ${fund.address.slice(0, 8)}...${fund.address.slice(-6)}
+                                </a>
+                                ${fund.multisigAddress ? `🔑 MultiSig: ${fund.multisigAddress.slice(0, 6)}...` : ''}
+                            </td>
+                        </tr>
+                    `;
+                }
+            });
+        } else {
+            html += `
+                <tr>
+                    <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;" colspan="2">
+                        <span style="color:#f39c12;">⏳ این پروژه هنوز خزانه‌ای ندارد</span>
+                    </td>
+                </tr>
+            `;
+        }
+
+        html += `
+                </table>
+                <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
+                    <button onclick="window.fillProjectId('${attr.ProjectID}')" style="padding:8px 16px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer;">
+                        📝 پر کردن فیلدها
+                    </button>
+                    <button onclick="window.scrollToCreate()" style="padding:8px 16px;background:#27ae60;color:white;border:none;border-radius:6px;cursor:pointer;">
+                        🚀 ساخت خزانه
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // نمایش نتیجه
+        if (resultDiv) {
+            resultDiv.style.display = 'block';
+            resultDiv.style.background = '#e8f5e9';
+            resultDiv.style.border = '2px solid #27ae60';
+            resultDiv.innerHTML = html;
+        }
+
+        // پر کردن خودکار ProjectID در فیلد
+        if (projectIdInput) {
+            projectIdInput.value = attr.ProjectID;
+        }
+
+    } catch (error) {
+        console.error('خطا در بررسی پروژه:', error);
+        showError('خطا در بررسی پروژه: ' + (error.message || 'نامشخص'));
+    }
+}
+// ============================================
 // توابع کمکی
 // ============================================
 
@@ -287,7 +424,12 @@ function showSuccess(projectId, fundAddress, ownerAddress, isMultisig, json) {
         </div>
     `;
 }
-
+function scrollToCreate() {
+    const section = document.getElementById('section-create');
+    if (section) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
 // ============================================
 // توابع بارگذاری جدول
 // ============================================
@@ -389,6 +531,8 @@ async function loadProjectsTable() {
 // توابع Global (برای استفاده در onclick)
 // ============================================
 
+window.checkProject = checkProject;
+window.scrollToCreate = scrollToCreate;
 window.selectNetwork = selectNetwork;
 window.connectToNetwork = connectToNetwork;
 window.createFund = createFund;
