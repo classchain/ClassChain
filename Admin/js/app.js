@@ -645,7 +645,40 @@ document.addEventListener('DOMContentLoaded', () => {
             container.appendChild(div);
         });
     }
-
+    
+    // Auto-complete برای ProjectID
+    const projectIdInput = document.getElementById('projectId');
+    if (projectIdInput) {
+        // پیشنهاد پروژه‌ها هنگام تایپ
+        projectIdInput.addEventListener('input', async function() {
+            const value = this.value.trim();
+            if (value.length < 2) return;
+            
+            try {
+                await projectManager.loadProjects();
+                const projects = projectManager.projects?.features || [];
+                const matches = projects
+                    .filter(f => {
+                        const id = f.attributes.ProjectID || '';
+                        return id.includes(value);
+                    })
+                    .slice(0, 5);
+                
+                if (matches.length > 0) {
+                    // نمایش پیشنهادات (می‌توانید از datalist استفاده کنید)
+                    const datalist = document.getElementById('projectSuggestions');
+                    if (datalist) {
+                        datalist.innerHTML = matches.map(f => 
+                            `<option value="${f.attributes.ProjectID}">${f.attributes['نام پروژه'] || ''}</option>`
+                        ).join('');
+                    }
+                }
+            } catch (error) {
+                console.error('خطا در auto-complete:', error);
+            }
+        });
+    }
+    
     // ذخیره توکن GitHub
     const saveTokenBtn = document.querySelector('[onclick="saveGitHubToken()"]');
     if (saveTokenBtn) {
