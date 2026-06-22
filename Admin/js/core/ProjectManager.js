@@ -2,8 +2,8 @@
 export class ProjectManager {
   constructor() {
     this.projects = null;
-    this.jsonPath = '../../frontend/data/Projects.json';
-    this.basePath = '../../frontend/data/'; // برای فایل‌های دیگر
+    this.jsonPath = '/frontend/data/Projects.json';
+    this.basePath = '/frontend/data/'; // برای فایل‌های دیگر
   }
 
   async loadProjects() {
