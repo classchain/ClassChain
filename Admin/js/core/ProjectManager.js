@@ -2,15 +2,15 @@
 export class ProjectManager {
   constructor() {
     this.projects = null;
-    this.jsonPath = '/frontend/data/Projects.json';
-    this.basePath = '/frontend/data/'; // برای فایل‌های دیگر
+    this.jsonPath = '/ClassChain/frontend/data/Projects.json';
+    this.basePath = '/ClassChain/frontend/data/'; // برای فایل‌های دیگر
   }
 
   async loadProjects() {
     const paths = [
-        '../../frontend/data/Projects.json',
-        '/frontend/data/Projects.json',
-        'frontend/data/Projects.json'
+        '/ClassChain/frontend/data/Projects.json',
+        //'/frontend/data/Projects.json',
+        //'frontend/data/Projects.json'
     ]; 
     for (const path of paths) {
         try {
@@ -49,7 +49,7 @@ export class ProjectManager {
             // تلاش با مسیر جایگزین (اگر از root اجرا می‌شود)
             try {
                 console.log('🔄 تلاش با مسیر جایگزین...');
-                const fallbackResponse = await fetch('/frontend/data/Projects.json');
+                const fallbackResponse = await fetch('/ClassChain/frontend/data/Projects.json');
                 if (fallbackResponse.ok) {
                     this.projects = await fallbackResponse.json();
                     console.log(`✅ ${this.projects.features?.length || 0} پروژه با مسیر جایگزین بارگذاری شد`);
@@ -151,7 +151,7 @@ export class ProjectManager {
       }
       // ⚠️ تنظیم نام repo و مسیر فایل
       const REPO = 'your-username/your-repo-name'; // 🔴 تغییر دهید
-      const PATH = '/frontend/data/Projects.json'; // مسیر در GitHub
+      const PATH = '/ClassChain/frontend/data/Projects.json'; // مسیر در GitHub
 
       try {
           // دریافت SHA فایل فعلی
