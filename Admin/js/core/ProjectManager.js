@@ -7,6 +7,25 @@ export class ProjectManager {
   }
 
   async loadProjects() {
+    const paths = [
+        '../../frontend/data/Projects.json',
+        '/frontend/data/Projects.json',
+        'frontend/data/Projects.json'
+    ]; 
+    for (const path of paths) {
+        try {
+            const response = await fetch(path);
+            if (response.ok) {
+                this.jsonPath = path;
+                this.projects = await response.json();
+                console.log(`✅ بارگذاری شد از: ${path}`);
+                return this.projects;
+            }
+        } catch (e) {
+            console.warn(`❌ مسیر ${path} کار نکرد`);
+        }
+    }
+    throw new Error('هیچ مسیری برای Projects.json کار نکرد');
             try {
             console.log(`🔄 در حال بارگذاری پروژه‌ها از: ${this.jsonPath}`);
             
