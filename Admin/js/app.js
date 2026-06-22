@@ -4,7 +4,9 @@ import { NetworkManager } from './core/NetworkManager.js';
 import { ContractManager } from './core/ContractManager.js';
 import { ProjectManager } from './core/ProjectManager.js';
 
-// نمونه‌سازی
+// ============================================
+// نمونه‌سازی از کلاس‌ها
+// ============================================
 const networkManager = new NetworkManager();
 const contractManager = new ContractManager(networkManager);
 const projectManager = new ProjectManager();
@@ -13,372 +15,505 @@ const projectManager = new ProjectManager();
 let currentProjectId = '';
 let selectedNetwork = 'polygon_amoy';
 
-// ============ UI Functions ============
+// ============================================
+// توابع اصلی
+// ============================================
 
+// رندر کردن تب‌های شبکه
 function renderNetworkTabs() {
-  const container = document.querySelector('.network-tabs');
-  container.innerHTML = '';
+    const container = document.querySelector('.network-tabs');
+    if (!container) {
+        console.error('عنصر network-tabs یافت نشد');
+        return;
+    }
+    
+    container.innerHTML = '';
 
-  ACTIVE_NETWORKS.forEach(network => {
-    const tab = document.createElement('button');
-    tab.className = `network-tab ${network.id === selectedNetwork ? 'active' : ''}`;
-    tab.dataset.network = network.id;
-    tab.innerHTML = `
-      <span class="network-icon">${network.icon}</span>
-      <span class="network-name">${network.name}</span>
-      <span class="network-badge" style="background:${network.color}">${network.isTestnet ? 'تست' : 'مایننت'}</span>
-    `;
-    tab.onclick = () => selectNetwork(network.id);
-    container.appendChild(tab);
-  });
+    ACTIVE_NETWORKS.forEach(network => {
+        const tab = document.createElement('button');
+        tab.className = `network-tab ${network.id === selectedNetwork ? 'active' : ''}`;
+        tab.dataset.network = network.id;
+        tab.innerHTML = `
+            <span class="network-icon">${network.icon || '🌐'}</span>
+            <span class="network-name">${network.name}</span>
+            <span class="network-badge" style="background:${network.color || '#666'}">${network.isTestnet ? 'تست' : 'مایننت'}</span>
+        `;
+        tab.onclick = () => selectNetwork(network.id);
+        container.appendChild(tab);
+    });
 }
 
+// انتخاب شبکه
 function selectNetwork(networkId) {
-  selectedNetwork = networkId;
-  renderNetworkTabs();
-  
-  // به‌روزرسانی وضعیت اتصال
-  updateConnectionStatus();
-  
-  // بارگذاری مجدد جدول
-  loadProjectsTable();
+    selectedNetwork = networkId;
+    renderNetworkTabs();
+    updateConnectionStatus();
+    
+    // بارگذاری مجدد جدول
+    if (typeof loadProjectsTable === 'function') {
+        loadProjectsTable();
+    }
 }
 
+// اتصال به شبکه
 async function connectToNetwork() {
-  const networkId = selectedNetwork;
-  const statusEl = document.getElementById('connectionStatus');
-  const btnEl = document.getElementById('connectBtn');
+    const networkId = selectedNetwork;
+    const statusEl = document.getElementById('connectionStatus');
+    const btnEl = document.getElementById('connectBtn');
 
-  try {
-    btnEl.disabled = true;
-    btnEl.textContent = '⏳ در حال اتصال...';
-    statusEl.textContent = 'در حال اتصال...';
+    if (!statusEl || !btnEl) {
+        console.error('عناصر اتصال یافت نشدند');
+        return;
+    }
 
-    await networkManager.connectNetwork(networkId);
-    await contractManager.initFactory();
+    try {
+        btnEl.disabled = true;
+        btnEl.textContent = '⏳ در حال اتصال...';
+        statusEl.textContent = 'در حال اتصال...';
+        statusEl.style.color = '#f39c12';
 
-    statusEl.innerHTML = `
-      <span style="color: #27ae60;">✅ متصل شد</span>
-      <br>
-      <small>شبکه: ${NETWORKS[networkId].name}</small>
-      <br>
-      <small>آدرس: ${networkManager.getConnection().account.slice(0, 6)}...${networkManager.getConnection().account.slice(-4)}</small>
-    `;
-    btnEl.textContent = '✅ متصل';
-    btnEl.style.background = '#27ae60';
+        // اتصال به شبکه
+        await networkManager.connectNetwork(networkId);
+        await contractManager.initFactory();
 
-  } catch (error) {
-    statusEl.innerHTML = `<span style="color: #e74c3c;">❌ ${error.message}</span>`;
-    btnEl.textContent = '🔄 اتصال مجدد';
-    btnEl.disabled = false;
-  }
+        const connection = networkManager.getConnection();
+        const network = NETWORKS[networkId];
+
+        statusEl.innerHTML = `
+            <span style="color: #27ae60;">✅ متصل شد</span>
+            <br>
+            <small>شبکه: ${network.name}</small>
+            <br>
+            <small>آدرس: ${connection.account.slice(0, 6)}...${connection.account.slice(-4)}</small>
+        `;
+        statusEl.style.color = '#27ae60';
+        btnEl.textContent = '✅ متصل';
+        btnEl.style.background = '#27ae60';
+        btnEl.disabled = false;
+
+        // بارگذاری مجدد جدول
+        if (typeof loadProjectsTable === 'function') {
+            await loadProjectsTable();
+        }
+
+    } catch (error) {
+        console.error('خطا در اتصال:', error);
+        statusEl.innerHTML = `<span style="color: #e74c3c;">❌ ${error.message || 'خطا در اتصال'}</span>`;
+        statusEl.style.color = '#e74c3c';
+        btnEl.textContent = '🔄 اتصال مجدد';
+        btnEl.disabled = false;
+        btnEl.style.background = '#3498db';
+    }
 }
 
+// بروزرسانی وضعیت اتصال
 function updateConnectionStatus() {
-  const statusEl = document.getElementById('connectionStatus');
-  if (networkManager.isConnected) {
-    const network = networkManager.getCurrentNetwork();
-    const account = networkManager.getConnection().account;
-    statusEl.innerHTML = `
-      <span style="color: #27ae60;">✅ متصل به ${network.name}</span>
-      <br>
-      <small>${account.slice(0, 6)}...${account.slice(-4)}</small>
-    `;
-  } else {
-    statusEl.innerHTML = `<span style="color: #95a5a6;">⏳ متصل نیستید</span>`;
-  }
+    const statusEl = document.getElementById('connectionStatus');
+    if (!statusEl) return;
+
+    if (networkManager.isConnected) {
+        const network = networkManager.getCurrentNetwork();
+        const connection = networkManager.getConnection();
+        statusEl.innerHTML = `
+            <span style="color: #27ae60;">✅ متصل به ${network.name}</span>
+            <br>
+            <small>${connection.account.slice(0, 6)}...${connection.account.slice(-4)}</small>
+        `;
+        statusEl.style.color = '#27ae60';
+    } else {
+        statusEl.innerHTML = `<span style="color: #95a5a6;">⏳ متصل نیستید</span>`;
+        statusEl.style.color = '#95a5a6';
+    }
 }
 
-// ============ Create Fund ============
+// ============================================
+// توابع ساخت خزانه
+// ============================================
 
 async function createFund() {
-  const projectId = document.getElementById('projectId').value.trim();
-  const ownershipType = document.querySelector('.ownership-tab.active')?.dataset.type || 'single';
-
-  if (!projectId) {
-    return showError('لطفاً ProjectID را وارد کنید');
-  }
-
-  // بررسی وجود پروژه در JSON
-  try {
-    const project = await projectManager.getProjectById(projectId);
-    if (!project) {
-      return showError(`پروژه ${projectId} در سیستم یافت نشد`);
-    }
-  } catch (error) {
-    return showError('خطا در بررسی پروژه: ' + error.message);
-  }
-
-  // بررسی اتصال
-  if (!networkManager.isConnected) {
-    return showError('لطفاً ابتدا به شبکه متصل شوید');
-  }
-
-  // دریافت اطلاعات مالکیت
-  let owners = [];
-  let requiredSigs = 1;
-
-  if (ownershipType === 'single') {
-    const owner = document.getElementById('singleOwnerAddress').value.trim();
-    if (!isValidAddress(owner, selectedNetwork)) {
-      return showError('آدرس مالک معتبر نیست');
-    }
-    owners = [owner];
-  } else {
-    const ownerInputs = document.querySelectorAll('#ownersContainer .owner-input');
-    owners = Array.from(ownerInputs)
-      .map(input => input.value.trim())
-      .filter(addr => isValidAddress(addr, selectedNetwork));
-    
-    if (owners.length === 0) {
-      return showError('حداقل یک مالک معتبر وارد کنید');
+    const projectId = document.getElementById('projectId')?.value?.trim();
+    if (!projectId) {
+        showError('لطفاً ProjectID را وارد کنید');
+        return;
     }
 
-    requiredSigs = parseInt(document.getElementById('requiredSigs').value) || 2;
-    if (requiredSigs > owners.length || requiredSigs < 1) {
-      return showError('تعداد امضا نامعتبر است');
+    // بررسی اتصال
+    if (!networkManager.isConnected) {
+        showError('لطفاً ابتدا به شبکه متصل شوید');
+        return;
     }
-  }
 
-  // نمایش لودینگ
-  const btn = document.querySelector('.btn-create');
-  const originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '⏳ در حال ساخت...';
+    // تشخیص نوع مالکیت
+    const activeTab = document.querySelector('.ownership-tab.active');
+    const ownershipType = activeTab?.dataset?.type || 'single';
 
-  try {
-    // ساخت خزانه
-    let tx;
+    // دریافت اطلاعات مالک
+    let owners = [];
+    let requiredSigs = 1;
+
     if (ownershipType === 'single') {
-      tx = await contractManager.createSingleOwnerFund(projectId, owners[0]);
+        const owner = document.getElementById('singleOwnerAddress')?.value?.trim();
+        if (!owner || !isValidAddress(owner)) {
+            showError('آدرس مالک معتبر نیست');
+            return;
+        }
+        owners = [owner];
     } else {
-      tx = await contractManager.createMultisigFund(projectId, owners, requiredSigs);
+        const ownerInputs = document.querySelectorAll('#ownersContainer .owner-input');
+        owners = Array.from(ownerInputs)
+            .map(input => input.value.trim())
+            .filter(addr => addr && isValidAddress(addr));
+        
+        if (owners.length === 0) {
+            showError('حداقل یک مالک معتبر وارد کنید');
+            return;
+        }
+
+        const sigsInput = document.getElementById('requiredSigs');
+        requiredSigs = parseInt(sigsInput?.value) || 2;
+        if (requiredSigs > owners.length || requiredSigs < 1) {
+            showError('تعداد امضا نامعتبر است');
+            return;
+        }
     }
 
-    // استخراج اطلاعات
-    const event = tx.events?.FundCreated?.returnValues || tx.logs?.[0]?.data;
-    const fundAddress = event?.fundAddress || event?.fundAddress;
-    const ownerOrMultisig = event?.ownerOrMultisig || event?.ownerOrMultisig;
-    const isMultisig = event?.isMultisig || false;
+    // نمایش لودینگ
+    const btn = document.querySelector('.btn-create');
+    if (!btn) return;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ در حال ساخت...';
 
-    // به‌روزرسانی JSON
-    const fundData = {
-      address: fundAddress,
-      multisigAddress: isMultisig ? ownerOrMultisig : null,
-      owners: owners,
-      requiredSignatures: requiredSigs
-    };
+    try {
+        // ساخت خزانه
+        let tx;
+        if (ownershipType === 'single') {
+            tx = await contractManager.createSingleOwnerFund(projectId, owners[0]);
+        } else {
+            tx = await contractManager.createMultisigFund(projectId, owners, requiredSigs);
+        }
 
-    await projectManager.updateProjectFunds(projectId, selectedNetwork, fundData);
-    const updatedJson = await projectManager.saveProjects();
+        // استخراج اطلاعات از رویداد
+        const event = tx.events?.FundCreated?.returnValues || {};
+        const fundAddress = event.fundAddress || event[1];
+        const ownerOrMultisig = event.ownerOrMultisig || event[2];
+        const isMultisig = event.isMultisig || false;
 
-    // نمایش نتیجه
-    showSuccess(projectId, fundAddress, ownerOrMultisig, isMultisig, updatedJson);
+        if (!fundAddress) {
+            throw new Error('آدرس خزانه دریافت نشد');
+        }
 
-    // بارگذاری مجدد جدول
-    await loadProjectsTable();
+        // به‌روزرسانی JSON
+        const fundData = {
+            address: fundAddress,
+            multisigAddress: isMultisig ? ownerOrMultisig : null,
+            owners: owners,
+            requiredSignatures: requiredSigs
+        };
 
-  } catch (error) {
-    console.error(error);
-    showError('خطا در ساخت خزانه: ' + error.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = originalText;
-  }
+        await projectManager.updateProjectFunds(projectId, selectedNetwork, fundData);
+        const updatedJson = await projectManager.saveProjects();
+
+        // نمایش نتیجه
+        showSuccess(projectId, fundAddress, ownerOrMultisig, isMultisig, updatedJson);
+
+        // بارگذاری مجدد جدول
+        if (typeof loadProjectsTable === 'function') {
+            await loadProjectsTable();
+        }
+
+    } catch (error) {
+        console.error('خطا:', error);
+        showError('خطا در ساخت خزانه: ' + (error.message || 'نامشخص'));
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
 }
 
-// ============ Helper Functions ============
+// ============================================
+// توابع کمکی
+// ============================================
 
-function isValidAddress(address, networkId) {
-  const network = NETWORKS[networkId];
-  if (!network) return false;
-  
-  if (network.type === 'EVM') {
-    return /^0x[a-fA-F0-9]{40}$/i.test(address);
-  } else if (network.type === 'TVM') {
-    return /^T[a-zA-Z0-9]{33}$/.test(address);
-  }
-  return false;
+function isValidAddress(address) {
+    if (!address) return false;
+    const network = NETWORKS[selectedNetwork];
+    if (!network) return false;
+    
+    if (network.type === 'EVM') {
+        return /^0x[a-fA-F0-9]{40}$/i.test(address);
+    } else if (network.type === 'TVM') {
+        return /^T[a-zA-Z0-9]{33}$/.test(address);
+    }
+    return false;
 }
 
 function showError(message) {
-  const result = document.getElementById('createResult');
-  result.style.display = 'block';
-  result.style.background = '#fde8e8';
-  result.style.border = '2px solid #e74c3c';
-  result.innerHTML = `<span style="color: #e74c3c;">❌ ${message}</span>`;
+    const result = document.getElementById('createResult');
+    if (!result) return;
+    result.style.display = 'block';
+    result.style.background = '#fde8e8';
+    result.style.border = '2px solid #e74c3c';
+    result.style.padding = '20px';
+    result.style.borderRadius = '10px';
+    result.innerHTML = `<span style="color: #e74c3c;">❌ ${message}</span>`;
 }
 
 function showSuccess(projectId, fundAddress, ownerAddress, isMultisig, json) {
-  const result = document.getElementById('createResult');
-  result.style.display = 'block';
-  result.style.background = '#e8f5e9';
-  result.style.border = '2px solid #27ae60';
-  
-  const network = NETWORKS[selectedNetwork];
-  
-  result.innerHTML = `
-    <h3 style="color: #27ae60;">✅ خزانه با موفقیت ساخته شد!</h3>
-    <p><strong>پروژه:</strong> ${projectId}</p>
-    <p><strong>شبکه:</strong> ${network.icon} ${network.name}</p>
-    <p><strong>آدرس خزانه:</strong> 
-      <a href="${network.explorerUrl}/address/${fundAddress}" target="_blank">${fundAddress}</a>
-    </p>
-    ${isMultisig ? `<p><strong>آدرس Multisig:</strong> <a href="${network.explorerUrl}/address/${ownerAddress}" target="_blank">${ownerAddress}</a></p>` : ''}
-    <p><strong>JSON به‌روز شده:</strong></p>
-    <textarea id="jsonOutput" style="width:100%;height:300px;font-family:monospace;font-size:12px;">${json}</textarea>
-    <div style="margin-top:10px;">
-      <button onclick="copyJSON()">📋 کپی JSON</button>
-      <button onclick="downloadJSON()">💾 دانلود JSON</button>
-      <button onclick="pushToGitHub()">🚀 آپلود به GitHub</button>
-    </div>
-  `;
+    const result = document.getElementById('createResult');
+    if (!result) return;
+    result.style.display = 'block';
+    result.style.background = '#e8f5e9';
+    result.style.border = '2px solid #27ae60';
+    result.style.padding = '20px';
+    result.style.borderRadius = '10px';
+    
+    const network = NETWORKS[selectedNetwork];
+    
+    result.innerHTML = `
+        <h3 style="color: #27ae60; margin-top: 0;">✅ خزانه با موفقیت ساخته شد!</h3>
+        <p><strong>پروژه:</strong> ${projectId}</p>
+        <p><strong>شبکه:</strong> ${network?.icon || '🌐'} ${network?.name || 'نامشخص'}</p>
+        <p><strong>آدرس خزانه:</strong> 
+            <a href="${network?.explorerUrl || '#'}/address/${fundAddress}" target="_blank" style="color: #3498db;">${fundAddress}</a>
+        </p>
+        ${isMultisig ? `<p><strong>آدرس Multisig:</strong> <a href="${network?.explorerUrl || '#'}/address/${ownerAddress}" target="_blank" style="color: #3498db;">${ownerAddress}</a></p>` : ''}
+        <p><strong>JSON به‌روز شده:</strong></p>
+        <textarea id="jsonOutput" style="width:100%;height:250px;font-family:monospace;font-size:12px;direction:ltr;padding:10px;border:1px solid #ddd;border-radius:6px;">${json}</textarea>
+        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button onclick="window.copyJSON()" style="padding:8px 16px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer;">📋 کپی JSON</button>
+            <button onclick="window.downloadJSON()" style="padding:8px 16px;background:#27ae60;color:white;border:none;border-radius:6px;cursor:pointer;">💾 دانلود JSON</button>
+            <button onclick="window.pushToGitHub()" style="padding:8px 16px;background:#6c5ce7;color:white;border:none;border-radius:6px;cursor:pointer;">🚀 آپلود به GitHub</button>
+        </div>
+    `;
 }
 
-// ============ Table Functions ============
+// ============================================
+// توابع بارگذاری جدول
+// ============================================
 
 async function loadProjectsTable() {
-  try {
-    const projects = await projectManager.loadProjects();
-    const tbody = document.querySelector('#projectsTable tbody');
-    tbody.innerHTML = '';
-
-    // فیلتر بر اساس شبکه
-    const networkFilter = document.getElementById('networkFilter')?.value || 'all';
-
-    projects.features.forEach(f => {
-      const attr = f.attributes;
-      
-      // فیلتر
-      if (networkFilter !== 'all') {
-        const funds = attr.funds || {};
-        if (!funds[networkFilter] || !funds[networkFilter].address) {
-          return;
-        }
-      }
-
-      const row = document.createElement('tr');
-      
-      // ستون ProjectID
-      const idCell = document.createElement('td');
-      idCell.textContent = attr.ProjectID;
-      row.appendChild(idCell);
-
-      // ستون نام پروژه
-      const nameCell = document.createElement('td');
-      nameCell.textContent = attr['نام پروژه'] || 'نامشخص';
-      row.appendChild(nameCell);
-
-      // ستون هدف
-      const targetCell = document.createElement('td');
-      targetCell.textContent = attr['targetAmount(USDT)']?.toLocaleString() || '0';
-      row.appendChild(targetCell);
-
-      // ستون جمع‌آوری شده
-      const raisedCell = document.createElement('td');
-      raisedCell.textContent = attr.raisedAmount?.toLocaleString() || '0';
-      row.appendChild(raisedCell);
-
-      // ستون‌های شبکه‌ها
-      ACTIVE_NETWORKS.forEach(network => {
-        const cell = document.createElement('td');
-        const funds = attr.funds || {};
-        const fund = funds[network.id];
+    try {
+        await projectManager.loadProjects();
+        const projects = projectManager.projects;
+        const tbody = document.querySelector('#projectsTable tbody');
+        if (!tbody) return;
         
-        if (fund && fund.address) {
-          cell.innerHTML = `
-            <span style="color: #27ae60;">✅</span>
-            <br>
-            <small>${fund.address.slice(0, 6)}...${fund.address.slice(-4)}</small>
-          `;
-        } else {
-          cell.innerHTML = `<span style="color: #95a5a6;">❌</span>`;
+        tbody.innerHTML = '';
+
+        const networkFilter = document.getElementById('networkFilter')?.value || 'all';
+
+        projects.features.forEach(f => {
+            const attr = f.attributes;
+            
+            // فیلتر بر اساس شبکه
+            if (networkFilter !== 'all') {
+                const funds = attr.funds || {};
+                if (!funds[networkFilter] || !funds[networkFilter].address) {
+                    return;
+                }
+            }
+
+            const row = document.createElement('tr');
+            
+            // ProjectID
+            const idCell = document.createElement('td');
+            idCell.textContent = attr.ProjectID || '---';
+            row.appendChild(idCell);
+
+            // نام پروژه
+            const nameCell = document.createElement('td');
+            nameCell.textContent = attr['نام پروژه'] || 'نامشخص';
+            row.appendChild(nameCell);
+
+            // هدف
+            const targetCell = document.createElement('td');
+            targetCell.textContent = attr['targetAmount(USDT)']?.toLocaleString() || '0';
+            row.appendChild(targetCell);
+
+            // جمع‌آوری شده
+            const raisedCell = document.createElement('td');
+            raisedCell.textContent = attr.raisedAmount?.toLocaleString() || '0';
+            row.appendChild(raisedCell);
+
+            // ستون‌های شبکه‌ها
+            ACTIVE_NETWORKS.forEach(network => {
+                const cell = document.createElement('td');
+                const funds = attr.funds || {};
+                const fund = funds[network.id];
+                
+                if (fund && fund.address) {
+                    cell.innerHTML = `
+                        <span style="color: #27ae60;">✅</span>
+                        <br>
+                        <small style="font-size:10px;">${fund.address.slice(0, 6)}...${fund.address.slice(-4)}</small>
+                    `;
+                } else {
+                    cell.innerHTML = `<span style="color: #95a5a6;">❌</span>`;
+                }
+                cell.style.fontSize = '12px';
+                row.appendChild(cell);
+            });
+
+            // وضعیت
+            const statusCell = document.createElement('td');
+            const hasAnyFund = Object.values(attr.funds || {}).some(f => f && f.address);
+            statusCell.innerHTML = hasAnyFund ? 
+                '<span style="color:#27ae60;">✅ فعال</span>' : 
+                '<span style="color:#f39c12;">⏳ در انتظار</span>';
+            row.appendChild(statusCell);
+
+            // عملیات
+            const actionCell = document.createElement('td');
+            const id = attr.ProjectID || '';
+            actionCell.innerHTML = `
+                <button onclick="window.fillProjectId('${id}')" style="padding:4px 10px;font-size:11px;background:#3498db;color:white;border:none;border-radius:4px;cursor:pointer;">
+                    📝 انتخاب
+                </button>
+            `;
+            row.appendChild(actionCell);
+
+            tbody.appendChild(row);
+        });
+
+    } catch (error) {
+        console.error('خطا در بارگذاری جدول:', error);
+        const tbody = document.querySelector('#projectsTable tbody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#e74c3c;">خطا در بارگذاری داده‌ها</td></tr>`;
         }
-        cell.style.fontSize = '12px';
-        row.appendChild(cell);
-      });
-
-      // ستون وضعیت
-      const statusCell = document.createElement('td');
-      const hasAnyFund = Object.values(attr.funds || {}).some(f => f && f.address);
-      statusCell.innerHTML = hasAnyFund ? 
-        '<span style="color:#27ae60;">✅ فعال</span>' : 
-        '<span style="color:#f39c12;">⏳ در انتظار</span>';
-      row.appendChild(statusCell);
-
-      // ستون عملیات
-      const actionCell = document.createElement('td');
-      actionCell.innerHTML = `
-        <button onclick="fillProjectId('${attr.ProjectID}')" style="padding:4px 8px;font-size:11px;">
-          📝 انتخاب
-        </button>
-      `;
-      row.appendChild(actionCell);
-
-      tbody.appendChild(row);
-    });
-
-  } catch (error) {
-    console.error('خطا در بارگذاری جدول:', error);
-  }
+    }
 }
 
-// ============ Event Listeners ============
+// ============================================
+// توابع Global (برای استفاده در onclick)
+// ============================================
 
-document.addEventListener('DOMContentLoaded', () => {
-  // رندر شبکه‌ها
-  renderNetworkTabs();
-  
-  // رویدادهای ساخت خزانه
-  document.querySelector('.btn-create')?.addEventListener('click', createFund);
-  
-  // بارگذاری اولیه جدول
-  loadProjectsTable();
-
-  // نمایش/مخفی کردن فیلدهای مالکیت
-  document.querySelectorAll('.ownership-tab').forEach(tab => {
-    tab.addEventListener('click', function() {
-      document.querySelectorAll('.ownership-tab').forEach(t => t.classList.remove('active'));
-      this.classList.add('active');
-      
-      const type = this.dataset.type;
-      document.getElementById('singleOwnerFields').style.display = type === 'single' ? 'block' : 'none';
-      document.getElementById('multisigFields').style.display = type === 'multisig' ? 'block' : 'none';
-    });
-  });
-
-  // دکمه اتصال
-  document.getElementById('connectBtn')?.addEventListener('click', connectToNetwork);
-});
-
-// Global functions for inline onclick
 window.selectNetwork = selectNetwork;
-window.loadProjectsTable = loadProjectsTable;
+window.connectToNetwork = connectToNetwork;
 window.createFund = createFund;
+window.loadProjectsTable = loadProjectsTable;
 window.fillProjectId = (id) => {
-  document.getElementById('projectId').value = id;
+    const input = document.getElementById('projectId');
+    if (input) input.value = id;
 };
 window.copyJSON = () => {
-  const textarea = document.getElementById('jsonOutput');
-  navigator.clipboard.writeText(textarea.value);
-  alert('✅ JSON کپی شد!');
+    const textarea = document.getElementById('jsonOutput');
+    if (!textarea) return;
+    navigator.clipboard.writeText(textarea.value).then(() => {
+        alert('✅ JSON کپی شد!');
+    }).catch(() => {
+        // Fallback
+        textarea.select();
+        document.execCommand('copy');
+        alert('✅ JSON کپی شد!');
+    });
 };
 window.downloadJSON = () => {
-  const textarea = document.getElementById('jsonOutput');
-  const blob = new Blob([textarea.value], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'Projects.json';
-  a.click();
-  URL.revokeObjectURL(url);
+    const textarea = document.getElementById('jsonOutput');
+    if (!textarea) return;
+    const blob = new Blob([textarea.value], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Projects.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 };
 window.pushToGitHub = async () => {
-  const textarea = document.getElementById('jsonOutput');
-  try {
-    await projectManager.pushToGitHub(textarea.value);
-    alert('✅ فایل با موفقیت به GitHub آپلود شد!');
-  } catch (error) {
-    alert('❌ خطا در آپلود: ' + error.message);
-  }
+    const textarea = document.getElementById('jsonOutput');
+    if (!textarea) return;
+    try {
+        await projectManager.pushToGitHub(textarea.value);
+        alert('✅ فایل با موفقیت به GitHub آپلود شد!');
+    } catch (error) {
+        alert('❌ خطا در آپلود: ' + (error.message || 'نامشخص'));
+    }
 };
+
+// ============================================
+// رویدادهای DOM
+// ============================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('📱 Admin Panel راه‌اندازی شد');
+    
+    // رندر تب‌های شبکه
+    renderNetworkTabs();
+    
+    // رویدادهای ساخت خزانه
+    const createBtn = document.querySelector('.btn-create');
+    if (createBtn) {
+        createBtn.addEventListener('click', createFund);
+    }
+
+    // رویدادهای تب‌های مالکیت
+    document.querySelectorAll('.ownership-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.ownership-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            
+            const type = this.dataset.type;
+            const singleDiv = document.getElementById('singleOwnerFields');
+            const multiDiv = document.getElementById('multisigFields');
+            
+            if (singleDiv) singleDiv.style.display = type === 'single' ? 'block' : 'none';
+            if (multiDiv) multiDiv.style.display = type === 'multisig' ? 'block' : 'none';
+        });
+    });
+
+    // دکمه اتصال
+    const connectBtn = document.getElementById('connectBtn');
+    if (connectBtn) {
+        connectBtn.addEventListener('click', connectToNetwork);
+    }
+
+    // بارگذاری اولیه جدول
+    loadProjectsTable();
+
+    // تنظیم فیلتر شبکه
+    const networkFilter = document.getElementById('networkFilter');
+    if (networkFilter) {
+        networkFilter.addEventListener('change', loadProjectsTable);
+        // پر کردن گزینه‌های فیلتر
+        ACTIVE_NETWORKS.forEach(n => {
+            const option = document.createElement('option');
+            option.value = n.id;
+            option.textContent = n.name;
+            networkFilter.appendChild(option);
+        });
+    }
+
+    // افزودن owner (برای Multisig)
+    const addOwnerBtn = document.querySelector('.btn-add');
+    if (addOwnerBtn) {
+        addOwnerBtn.addEventListener('click', () => {
+            const container = document.getElementById('ownersContainer');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = 'owner-item';
+            div.innerHTML = `
+                <input type="text" class="owner-input" placeholder="آدرس مالک جدید">
+                <button onclick="this.parentElement.remove()" class="btn-remove" style="background:#e74c3c;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">❌</button>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    // ذخیره توکن GitHub
+    const saveTokenBtn = document.querySelector('[onclick="saveGitHubToken()"]');
+    if (saveTokenBtn) {
+        saveTokenBtn.addEventListener('click', () => {
+            const input = document.getElementById('githubToken');
+            if (input && input.value) {
+                localStorage.setItem('github_token', input.value);
+                alert('✅ توکن ذخیره شد!');
+                input.value = '';
+            }
+        });
+    }
+});
+
+console.log('✅ app.js بارگذاری شد');
