@@ -132,7 +132,7 @@ export class ProjectManager {
       }
       // ⚠️ تنظیم نام repo و مسیر فایل
       const REPO = 'your-username/your-repo-name'; // 🔴 تغییر دهید
-      const PATH = 'frontend/data/Projects.json'; // مسیر در GitHub
+      const PATH = '/frontend/data/Projects.json'; // مسیر در GitHub
 
       try {
           // دریافت SHA فایل فعلی
