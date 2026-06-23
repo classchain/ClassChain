@@ -5,7 +5,7 @@ export class ProjectManager {
         this.projects = null;
         
         // تشخیص محیط (محلی یا GitHub Pages)
-        const isGitHubPages = window.location.hostname.includes('github.io');
+        const isGitHubPages = window.location.hostname.includes('classchain.github.io');
         const repoName = '/ClassChain';
         
         if (isGitHubPages) {
