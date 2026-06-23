@@ -269,6 +269,8 @@ async function checkProject() {
         }
 
         const attr = project.attributes;
+        const allFunds = projectManager.getAllFunds(project);
+        const multisig = projectManager.getMultisigAddress(project);
         
         // ساخت HTML نمایش اطلاعات
         let html = `
@@ -298,40 +300,52 @@ async function checkProject() {
         `;
 
         // نمایش وضعیت خزانه‌ها در شبکه‌های مختلف
-        const funds = attr.funds || {};
-        const hasFund = Object.values(funds).some(f => f && f.address);
-        
-        if (hasFund) {
+
+        // نمایش خزانه‌های موجود - با استفاده از تابع جدید
+        const fundKeys = Object.keys(allFunds).filter(k => k !== '_multisig');
+        if (fundKeys.length > 0) {
             html += `
                 <tr>
                     <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;" colspan="2">
-                        <span style="color:#27ae60;">✅ خزانه‌های موجود:</span>
+                        <span style="color:#27ae60;">✅ خزانه‌های موجود (${fundKeys.length}):</span>
                     </td>
                 </tr>
             `;
-            ACTIVE_NETWORKS.forEach(network => {
-                const fund = funds[network.id];
-                if (fund && fund.address) {
-                    html += `
-                        <tr>
-                            <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;padding-right:20px;">
-                                ${network.icon} ${network.name}:
-                            </td>
-                            <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:12px;direction:ltr;">
-                                <a href="${network.explorerUrl}/address/${fund.address}" target="_blank" style="color:#3498db;">
-                                    ${fund.address.slice(0, 8)}...${fund.address.slice(-6)}
-                                </a>
-                                ${fund.multisigAddress ? `🔑 MultiSig: ${fund.multisigAddress.slice(0, 6)}...` : ''}
-                            </td>
-                        </tr>
-                    `;
-                }
+            fundKeys.forEach(networkId => {
+                const fund = allFunds[networkId];
+                const network = NETWORKS[networkId];
+                html += `
+                    <tr>
+                        <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;padding-right:20px;">
+                            ${network?.icon || '🌐'} ${network?.name || networkId}:
+                        </td>
+                        <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:12px;direction:ltr;">
+                            <a href="${network?.explorerUrl || '#'}/address/${fund.address}" target="_blank" style="color:#3498db;">
+                                ${fund.address.slice(0, 8)}...${fund.address.slice(-6)}
+                            </a>
+                            ${fund.multisigAddress ? `🔑 MultiSig` : ''}
+                            ${fund.source ? `<br><small style="color:#999;">(${fund.source})</small>` : ''}
+                        </td>
+                    </tr>
+                `;
             });
         } else {
             html += `
                 <tr>
                     <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;" colspan="2">
                         <span style="color:#f39c12;">⏳ این پروژه هنوز خزانه‌ای ندارد</span>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // نمایش Multisig اگر وجود دارد
+        if (multisig) {
+            html += `
+                <tr>
+                    <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">🔑 Multisig:</td>
+                    <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:12px;direction:ltr;">
+                        ${multisig}
                     </td>
                 </tr>
             `;
@@ -451,7 +465,7 @@ async function loadProjectsTable() {
             // فیلتر بر اساس شبکه
             if (networkFilter !== 'all') {
                 const funds = attr.funds || {};
-                if (!funds[networkFilter] || !funds[networkFilter].address) {
+                if (!projectManager.hasFund(f, networkFilter)) {
                     return;
                 }
             }
@@ -481,14 +495,15 @@ async function loadProjectsTable() {
             // ستون‌های شبکه‌ها
             ACTIVE_NETWORKS.forEach(network => {
                 const cell = document.createElement('td');
-                const funds = attr.funds || {};
-                const fund = funds[network.id];
+                const address = projectManager.getFundAddress(f, network.id);
                 
-                if (fund && fund.address) {
+                if (address) {
+                    const multisig = projectManager.getMultisigAddress(f);
                     cell.innerHTML = `
                         <span style="color: #27ae60;">✅</span>
                         <br>
-                        <small style="font-size:10px;">${fund.address.slice(0, 6)}...${fund.address.slice(-4)}</small>
+                        <small style="font-size:10px;">${address.slice(0, 6)}...${address.slice(-4)}</small>
+                        ${multisig ? `<br><small style="font-size:9px;color:#666;">🔑 MultiSig</small>` : ''}
                     `;
                 } else {
                     cell.innerHTML = `<span style="color: #95a5a6;">❌</span>`;
@@ -499,7 +514,8 @@ async function loadProjectsTable() {
 
             // وضعیت
             const statusCell = document.createElement('td');
-            const hasAnyFund = Object.values(attr.funds || {}).some(f => f && f.address);
+            const allFunds = projectManager.getAllFunds(f);
+            const hasAnyFund = Object.keys(allFunds).length > 0;
             statusCell.innerHTML = hasAnyFund ? 
                 '<span style="color:#27ae60;">✅ فعال</span>' : 
                 '<span style="color:#f39c12;">⏳ در انتظار</span>';
