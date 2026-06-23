@@ -5,15 +5,15 @@ export class ProjectManager {
         this.projects = null;
         
         // تشخیص محیط (محلی یا GitHub Pages)
-        const isGitHubPages = window.location.hostname.includes('classchain.github.io');
+        const isGitHubPages = window.location.hostname.includes('github.io');
         const repoName = '/ClassChain';
         
         if (isGitHubPages) {
             this.jsonPath = `${repoName}/frontend/data/Projects.json`;
             this.basePath = `${repoName}/frontend/data/`;
         } else {
-            this.jsonPath = '../../frontend/data/Projects.json';
-            this.basePath = '../../frontend/data/';
+            this.jsonPath = '/ClassChain/frontend/data/Projects.json';
+            this.basePath = '/ClassChain/frontend/data/';
         }
         
         // مسیرهای جایگزین
