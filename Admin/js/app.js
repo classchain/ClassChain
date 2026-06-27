@@ -271,7 +271,10 @@ async function checkProject() {
         const attr = project.attributes;
         const allFunds = projectManager.getAllFunds(project);
         const multisig = projectManager.getMultisigAddress(project);
-        
+        // ============================================
+        // تشخیص اینکه آیا پروژه در شبکه فعلی خزانه دارد
+        // ============================================
+        const hasFundOnCurrentNetwork = projectManager.hasFund(project, selectedNetwork);
         // ساخت HTML نمایش اطلاعات
         let html = `
             <div style="padding:10px 0;">
@@ -314,17 +317,18 @@ async function checkProject() {
             fundKeys.forEach(networkId => {
                 const fund = allFunds[networkId];
                 const network = NETWORKS[networkId];
+                const isCurrentNetwork = networkId === selectedNetwork;
                 html += `
-                    <tr>
+                    <tr style="${isCurrentNetwork ? 'background:#e8f5e9;' : ''}">
                         <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;padding-right:20px;">
-                            ${network?.icon || '🌐'} ${network?.name || networkId}:
+                            ${network?.icon || '🌐'} ${network?.name || networkId}
+                            ${isCurrentNetwork ? '<span style="color:#27ae60;font-size:11px;"> (شبکه فعلی)</span>' : ''}
                         </td>
                         <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:12px;direction:ltr;">
                             <a href="${network?.explorerUrl || '#'}/address/${fund.address}" target="_blank" style="color:#3498db;">
                                 ${fund.address.slice(0, 8)}...${fund.address.slice(-6)}
                             </a>
                             ${fund.multisigAddress ? `🔑 MultiSig` : ''}
-                            ${fund.source ? `<br><small style="color:#999;">(${fund.source})</small>` : ''}
                         </td>
                     </tr>
                 `;
@@ -339,31 +343,43 @@ async function checkProject() {
             `;
         }
 
-        // نمایش Multisig اگر وجود دارد
-        if (multisig) {
-            html += `
-                <tr>
-                    <td style="padding:8px 12px;font-weight:bold;border-bottom:1px solid #eee;">🔑 Multisig:</td>
-                    <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:12px;direction:ltr;">
-                        ${multisig}
-                    </td>
-                </tr>
-            `;
-        }
-
         html += `
                 </table>
                 <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
                     <button onclick="window.fillProjectId('${attr.ProjectID}')" style="padding:8px 16px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer;">
                         📝 پر کردن فیلدها
                     </button>
-                    <button onclick="window.scrollToCreate()" style="padding:8px 16px;background:#27ae60;color:white;border:none;border-radius:6px;cursor:pointer;">
-                        🚀 ساخت خزانه
+        `;
+
+        // ============================================
+        // دکمه ساخت خزانه - فعال یا غیرفعال
+        // ============================================
+        if (hasFundOnCurrentNetwork) {
+            // اگر خزانه در شبکه فعلی وجود دارد، دکمه غیرفعال
+            const network = NETWORKS[selectedNetwork];
+            html += `
+                    <button style="padding:8px 16px;background:#95a5a6;color:white;border:none;border-radius:6px;cursor:not-allowed;" disabled>
+                        ✅ خزانه در ${network?.name || 'این شبکه'} وجود دارد
                     </button>
+            `;
+        } else {
+            // اگر خزانه در شبکه فعلی وجود ندارد، دکمه فعال
+            html += `
+                    <button onclick="window.createFundFromCheck()" style="padding:8px 16px;background:#27ae60;color:white;border:none;border-radius:6px;cursor:pointer;">
+                        🚀 ساخت خزانه در شبکه ${NETWORKS[selectedNetwork]?.name || 'فعلی'}
+                    </button>
+            `;
+        }
+
+        html += `
+                </div>
+                <div style="margin-top:10px;padding:10px;background:#f8f9fa;border-radius:6px;font-size:12px;color:#666;">
+                    💡 شبکه فعلی: ${NETWORKS[selectedNetwork]?.icon || '🌐'} ${NETWORKS[selectedNetwork]?.name || 'نامشخص'}
+                    ${hasFundOnCurrentNetwork ? ' ✅ خزانه دارد' : ' ⏳ خزانه ندارد'}
                 </div>
             </div>
         `;
-
+            
         // نمایش نتیجه
         if (resultDiv) {
             resultDiv.style.display = 'block';
@@ -385,6 +401,136 @@ async function checkProject() {
 // ============================================
 // توابع کمکی
 // ============================================
+
+// ============================================
+// ساخت خزانه از طریق دکمه بررسی
+// ============================================
+async function createFundFromCheck() {
+    // دریافت ProjectID از فیلد
+    const projectIdInput = document.getElementById('projectId');
+    const projectId = projectIdInput?.value?.trim();
+    
+    if (!projectId) {
+        showError('لطفاً ProjectID را وارد کنید');
+        return;
+    }
+
+    // بررسی اتصال به شبکه
+    if (!networkManager.isConnected) {
+        showError('❌ لطفاً ابتدا به شبکه متصل شوید');
+        return;
+    }
+
+    // بررسی اینکه آیا پروژه در شبکه فعلی خزانه دارد
+    try {
+        await projectManager.loadProjects();
+        const project = await projectManager.getProjectById(projectId);
+        
+        if (!project) {
+            showError(`پروژه ${projectId} یافت نشد`);
+            return;
+        }
+
+        if (projectManager.hasFund(project, selectedNetwork)) {
+            showError(`❌ پروژه ${projectId} در شبکه ${NETWORKS[selectedNetwork]?.name} قبلاً خزانه دارد`);
+            return;
+        }
+    } catch (error) {
+        showError('خطا در بررسی پروژه: ' + error.message);
+        return;
+    }
+
+    // تشخیص نوع مالکیت از تب فعال
+    const activeTab = document.querySelector('.ownership-tab.active');
+    const ownershipType = activeTab?.dataset?.type || 'single';
+
+    // دریافت اطلاعات مالک
+    let owners = [];
+    let requiredSigs = 1;
+
+    if (ownershipType === 'single') {
+        const owner = document.getElementById('singleOwnerAddress')?.value?.trim();
+        if (!owner || !isValidAddress(owner)) {
+            showError('❌ آدرس مالک معتبر نیست');
+            return;
+        }
+        owners = [owner];
+    } else {
+        const ownerInputs = document.querySelectorAll('#ownersContainer .owner-input');
+        owners = Array.from(ownerInputs)
+            .map(input => input.value.trim())
+            .filter(addr => addr && isValidAddress(addr));
+        
+        if (owners.length === 0) {
+            showError('❌ حداقل یک مالک معتبر وارد کنید');
+            return;
+        }
+
+        const sigsInput = document.getElementById('requiredSigs');
+        requiredSigs = parseInt(sigsInput?.value) || 2;
+        if (requiredSigs > owners.length || requiredSigs < 1) {
+            showError('❌ تعداد امضا نامعتبر است');
+            return;
+        }
+    }
+
+    // نمایش لودینگ
+    const btn = document.querySelector('.btn-create') || document.activeElement;
+    if (btn) {
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '⏳ در حال ساخت...';
+    }
+
+    try {
+        // ساخت خزانه
+        let tx;
+        if (ownershipType === 'single') {
+            tx = await contractManager.createSingleOwnerFund(projectId, owners[0]);
+        } else {
+            tx = await contractManager.createMultisigFund(projectId, owners, requiredSigs);
+        }
+
+        // استخراج اطلاعات از رویداد
+        const event = tx.events?.FundCreated?.returnValues || {};
+        const fundAddress = event.fundAddress || event[1];
+        const ownerOrMultisig = event.ownerOrMultisig || event[2];
+        const isMultisig = event.isMultisig || false;
+
+        if (!fundAddress) {
+            throw new Error('آدرس خزانه دریافت نشد');
+        }
+
+        // به‌روزرسانی JSON
+        const fundData = {
+            address: fundAddress,
+            multisigAddress: isMultisig ? ownerOrMultisig : null,
+            owners: owners,
+            requiredSignatures: requiredSigs
+        };
+
+        await projectManager.updateProjectFunds(projectId, selectedNetwork, fundData);
+        const updatedJson = await projectManager.saveProjects();
+
+        // نمایش نتیجه
+        showSuccess(projectId, fundAddress, ownerOrMultisig, isMultisig, updatedJson);
+
+        // بارگذاری مجدد جدول و بررسی مجدد
+        await loadProjectsTable();
+        
+        // بررسی مجدد پروژه برای نمایش وضعیت جدید
+        await checkProject();
+
+    } catch (error) {
+        console.error('خطا:', error);
+        showError('خطا در ساخت خزانه: ' + (error.message || 'نامشخص'));
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🚀 ساخت خزانه';
+        }
+    }
+}
 
 function isValidAddress(address) {
     if (!address) return false;
@@ -546,13 +692,13 @@ async function loadProjectsTable() {
 // ============================================
 // توابع Global (برای استفاده در onclick)
 // ============================================
-
 window.checkProject = checkProject;
 window.scrollToCreate = scrollToCreate;
 window.selectNetwork = selectNetwork;
 window.connectToNetwork = connectToNetwork;
 window.createFund = createFund;
 window.loadProjectsTable = loadProjectsTable;
+window.createFundFromCheck = createFundFromCheck;
 window.fillProjectId = (id) => {
     const input = document.getElementById('projectId');
     if (input) input.value = id;
