@@ -129,7 +129,6 @@ function updateConnectionStatus() {
 // ============================================
 // توابع ساخت خزانه
 // ============================================
-
 async function createFund() {
     const projectId = document.getElementById('projectId')?.value?.trim();
     if (!projectId) {
@@ -193,14 +192,106 @@ async function createFund() {
             tx = await contractManager.createMultisigFund(projectId, owners, requiredSigs);
         }
 
-        // استخراج اطلاعات از رویداد
-        const event = tx.events?.FundCreated?.returnValues || {};
-        const fundAddress = event.fundAddress || event[1];
-        const ownerOrMultisig = event.ownerOrMultisig || event[2];
-        const isMultisig = event.isMultisig || false;
+        // ============================================
+        // 🔍 استخراج آدرس خزانه از تراکنش
+        // ============================================
+        console.log('📦 تراکنش کامل:', tx);
+        
+        let fundAddress = null;
+        let ownerOrMultisig = null;
+        let isMultisig = false;
 
+        // 1️⃣ روش اول: از رویدادها
+        if (tx.events) {
+            // رویداد FundCreated
+            const fundCreated = tx.events.FundCreated;
+            if (fundCreated) {
+                const returnValues = fundCreated.returnValues || fundCreated.args || {};
+                fundAddress = returnValues.fundAddress || returnValues[1];
+                ownerOrMultisig = returnValues.ownerOrMultisig || returnValues[2];
+                isMultisig = returnValues.isMultisig || false;
+                console.log('✅ از رویداد FundCreated:', { fundAddress, ownerOrMultisig, isMultisig });
+            }
+            
+            // اگر رویداد FundCreated نبود، همه رویدادها را بررسی کن
+            if (!fundAddress) {
+                for (const eventName in tx.events) {
+                    const event = tx.events[eventName];
+                    const args = event.returnValues || event.args || {};
+                    console.log(`🔍 بررسی رویداد ${eventName}:`, args);
+                    
+                    // بررسی فیلدهای احتمالی
+                    if (args.fundAddress || args.fund) {
+                        fundAddress = args.fundAddress || args.fund;
+                        ownerOrMultisig = args.ownerOrMultisig || args.owner || args[1];
+                        isMultisig = args.isMultisig || false;
+                        console.log(`✅ از رویداد ${eventName}:`, { fundAddress, ownerOrMultisig, isMultisig });
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 2️⃣ روش دوم: از Logs
+        if (!fundAddress && tx.logs) {
+            for (const log of tx.logs) {
+                try {
+                    // decode log if possible
+                    if (log.topics && log.topics.length > 0) {
+                        // بررسی event signature
+                        const eventSignature = log.topics[0];
+                        console.log(`🔍 بررسی log با signature: ${eventSignature}`);
+                    }
+                } catch (e) {
+                    console.warn('خطا در decode log:', e);
+                }
+            }
+        }
+
+        // 3️⃣ روش سوم: از receipt
+        if (!fundAddress && tx.receipt) {
+            console.log('📋 Receipt:', tx.receipt);
+            // اگر contractAddress در receipt باشد
+            if (tx.receipt.contractAddress) {
+                fundAddress = tx.receipt.contractAddress;
+                console.log('✅ از receipt.contractAddress:', fundAddress);
+            }
+        }
+
+        // 4️⃣ روش چهارم: از result (برای برخی نسخه‌های web3)
+        if (!fundAddress && tx.result) {
+            console.log('📋 Result:', tx.result);
+            if (Array.isArray(tx.result) && tx.result.length > 0) {
+                fundAddress = tx.result[0];
+                console.log('✅ از result[0]:', fundAddress);
+            }
+        }
+
+        // 5️⃣ روش پنجم: اگر هنوز آدرس پیدا نشد، از توابع قرارداد بخوان
         if (!fundAddress) {
-            throw new Error('آدرس خزانه دریافت نشد');
+            try {
+                const contractAddress = await contractManager.getFundAddress(projectId);
+                if (contractAddress && contractAddress !== '0x0000000000000000000000000000000000000000') {
+                    fundAddress = contractAddress;
+                    console.log('✅ از getFundAddress:', fundAddress);
+                }
+            } catch (e) {
+                console.warn('خطا در getFundAddress:', e);
+            }
+        }
+
+        // ============================================
+        // ✅ بررسی نهایی
+        // ============================================
+        if (!fundAddress) {
+            console.error('❌ آدرس خزانه پیدا نشد!');
+            console.error('📦 تراکنش:', tx);
+            throw new Error('آدرس خزانه دریافت نشد. لطفاً تراکنش را در Explorer بررسی کنید.');
+        }
+
+        console.log(`✅ آدرس خزانه: ${fundAddress}`);
+        if (ownerOrMultisig) {
+            console.log(`👤 مالک/Multisig: ${ownerOrMultisig}`);
         }
 
         // به‌روزرسانی JSON
@@ -215,7 +306,7 @@ async function createFund() {
         const updatedJson = await projectManager.saveProjects();
 
         // نمایش نتیجه
-        (projectId, fundAddress, ownerOrMultisig, isMultisig, updatedJson);
+        showSuccess(projectId, fundAddress, ownerOrMultisig, isMultisig, updatedJson);
 
         // بارگذاری مجدد جدول
         if (typeof loadProjectsTable === 'function') {
@@ -223,7 +314,7 @@ async function createFund() {
         }
 
     } catch (error) {
-        console.error('خطا:', error);
+        console.error('❌ خطا:', error);
         showError('خطا در ساخت خزانه: ' + (error.message || 'نامشخص'));
     } finally {
         btn.disabled = false;
@@ -491,12 +582,55 @@ async function createFundFromCheck() {
             tx = await contractManager.createMultisigFund(projectId, owners, requiredSigs);
         }
 
-        // استخراج اطلاعات از رویداد
-        const event = tx.events?.FundCreated?.returnValues || {};
-        const fundAddress = event.fundAddress || event[1];
-        const ownerOrMultisig = event.ownerOrMultisig || event[2];
-        const isMultisig = event.isMultisig || false;
+        // ============================================
+        // 🔍 استخراج آدرس خزانه (همان کد بالا)
+        // ============================================
+        console.log('📦 تراکنش کامل:', tx);
+        
+        let fundAddress = null;
+        let ownerOrMultisig = null;
+        let isMultisig = false;
 
+        // 1️⃣ از رویدادها
+        if (tx.events) {
+            const fundCreated = tx.events.FundCreated;
+            if (fundCreated) {
+                const returnValues = fundCreated.returnValues || fundCreated.args || {};
+                fundAddress = returnValues.fundAddress || returnValues[1];
+                ownerOrMultisig = returnValues.ownerOrMultisig || returnValues[2];
+                isMultisig = returnValues.isMultisig || false;
+            }
+            
+            if (!fundAddress) {
+                for (const eventName in tx.events) {
+                    const event = tx.events[eventName];
+                    const args = event.returnValues || event.args || {};
+                    if (args.fundAddress || args.fund) {
+                        fundAddress = args.fundAddress || args.fund;
+                        ownerOrMultisig = args.ownerOrMultisig || args.owner || args[1];
+                        isMultisig = args.isMultisig || false;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 2️⃣ از receipt
+        if (!fundAddress && tx.receipt?.contractAddress) {
+            fundAddress = tx.receipt.contractAddress;
+        }
+
+        // 3️⃣ از getFundAddress
+        if (!fundAddress) {
+            try {
+                const contractAddress = await contractManager.getFundAddress(projectId);
+                if (contractAddress && contractAddress !== '0x0000000000000000000000000000000000000000') {
+                    fundAddress = contractAddress;
+                }
+            } catch (e) {
+                console.warn('خطا در getFundAddress:', e);
+            }
+        }
         if (!fundAddress) {
             throw new Error('آدرس خزانه دریافت نشد');
         }
