@@ -215,7 +215,7 @@ async function createFund() {
         const updatedJson = await projectManager.saveProjects();
 
         // نمایش نتیجه
-        showSuccess(projectId, fundAddress, ownerOrMultisig, isMultisig, updatedJson);
+        (projectId, fundAddress, ownerOrMultisig, isMultisig, updatedJson);
 
         // بارگذاری مجدد جدول
         if (typeof loadProjectsTable === 'function') {
@@ -575,15 +575,36 @@ function showSuccess(projectId, fundAddress, ownerAddress, isMultisig, json) {
             <a href="${network?.explorerUrl || '#'}/address/${fundAddress}" target="_blank" style="color: #3498db;">${fundAddress}</a>
         </p>
         ${isMultisig ? `<p><strong>آدرس Multisig:</strong> <a href="${network?.explorerUrl || '#'}/address/${ownerAddress}" target="_blank" style="color: #3498db;">${ownerAddress}</a></p>` : ''}
-        <p><strong>JSON به‌روز شده:</strong></p>
-        <textarea id="jsonOutput" style="width:100%;height:250px;font-family:monospace;font-size:12px;direction:ltr;padding:10px;border:1px solid #ddd;border-radius:6px;">${json}</textarea>
-        <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
-            <button onclick="window.copyJSON()" style="padding:8px 16px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer;">📋 کپی JSON</button>
-            <button onclick="window.downloadJSON()" style="padding:8px 16px;background:#27ae60;color:white;border:none;border-radius:6px;cursor:pointer;">💾 دانلود JSON</button>
-            <button onclick="window.pushToGitHub()" style="padding:8px 16px;background:#6c5ce7;color:white;border:none;border-radius:6px;cursor:pointer;">🚀 آپلود به GitHub</button>
+        
+        <hr style="margin: 20px 0; border: 1px solid #ddd;">
+        
+        <h4 style="color: #2c3e50;">📄 JSON به‌روز شده:</h4>
+        <p style="font-size: 13px; color: #666; margin-bottom: 8px;">
+            فایل Projects.json به‌روز شد. آن را کپی کنید یا از گزینه‌های زیر استفاده کنید:
+        </p>
+        <textarea id="jsonOutput" style="width:100%;height:300px;font-family:monospace;font-size:12px;direction:ltr;padding:10px;border:1px solid #ddd;border-radius:6px;background:#f8f9fa;">${json}</textarea>
+        
+        <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
+            <button onclick="window.copyJSON()" style="padding:10px 20px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px;">
+                📋 کپی JSON
+            </button>
+            <button onclick="window.downloadJSON()" style="padding:10px 20px;background:#27ae60;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px;">
+                💾 دانلود فایل
+            </button>
+            <button onclick="window.pushToGitHub()" style="padding:10px 20px;background:#6c5ce7;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px;">
+                🚀 آپلود به GitHub
+            </button>
+            <button onclick="window.openJSON()" style="padding:10px 20px;background:#f39c12;color:white;border:none;border-radius:6px;cursor:pointer;font-size:14px;">
+                👁️ مشاهده در مرورگر
+            </button>
+        </div>
+        
+        <div style="margin-top:15px;padding:12px;background:#fff3cd;border-radius:6px;font-size:13px;color:#856404;">
+            ⚠️ <strong>نکته:</strong> فایل JSON را در مسیر <code style="background:#fff;padding:2px 8px;border-radius:4px;">frontend/data/Projects.json</code> جایگزین کنید.
         </div>
     `;
 }
+
 function scrollToCreate() {
     const section = document.getElementById('section-create');
     if (section) {
@@ -703,39 +724,129 @@ window.fillProjectId = (id) => {
     const input = document.getElementById('projectId');
     if (input) input.value = id;
 };
+
+// ============================================
+// مشاهده JSON در مرورگر
+// ============================================
+window.openJSON = () => {
+    const textarea = document.getElementById('jsonOutput');
+    if (!textarea) return;
+    
+    // ایجاد یک Blob و باز کردن در تب جدید
+    const blob = new Blob([textarea.value], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+// ============================================
+// کپی JSON
+// ============================================
+
 window.copyJSON = () => {
     const textarea = document.getElementById('jsonOutput');
     if (!textarea) return;
-    navigator.clipboard.writeText(textarea.value).then(() => {
-        alert('✅ JSON کپی شد!');
-    }).catch(() => {
-        // Fallback
-        textarea.select();
-        document.execCommand('copy');
-        alert('✅ JSON کپی شد!');
-    });
+    
+    navigator.clipboard.writeText(textarea.value)
+        .then(() => {
+            // نمایش پیام موفقیت
+            showTemporaryMessage('✅ JSON با موفقیت کپی شد!');
+        })
+        .catch(() => {
+            // روش جایگزین
+            textarea.select();
+            document.execCommand('copy');
+            showTemporaryMessage('✅ JSON با موفقیت کپی شد!');
+        });
 };
+
+// تابع کمکی برای نمایش پیام موقت
+function showTemporaryMessage(message) {
+    const result = document.getElementById('createResult');
+    if (!result) return;
+    
+    const msg = document.createElement('p');
+    msg.style.cssText = 'color: #27ae60; margin-top: 10px; font-weight: bold;';
+    msg.textContent = message;
+    result.appendChild(msg);
+    setTimeout(() => msg.remove(), 3000);
+}
+// ============================================
+// دانلود فایل JSON
+// ============================================
+
 window.downloadJSON = () => {
     const textarea = document.getElementById('jsonOutput');
     if (!textarea) return;
+    
     const blob = new Blob([textarea.value], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'Projects.json';
+    a.download = 'Projects.json';  // نام فایل
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    
+    // پیام تأیید
+    const result = document.getElementById('createResult');
+    if (result) {
+        const note = document.createElement('p');
+        note.style.cssText = 'color: #27ae60; margin-top: 10px; font-weight: bold;';
+        note.textContent = '✅ فایل با موفقیت دانلود شد!';
+        result.appendChild(note);
+        setTimeout(() => note.remove(), 3000);
+    }
 };
+// ============================================
+// آپلود به GitHub
+// ============================================
+
 window.pushToGitHub = async () => {
     const textarea = document.getElementById('jsonOutput');
     if (!textarea) return;
+    
+    // بررسی توکن
+    const token = localStorage.getItem('github_token');
+    if (!token) {
+        // نمایش پیام برای وارد کردن توکن
+        const result = document.getElementById('createResult');
+        if (result) {
+            result.innerHTML += `
+                <div style="margin-top:15px;padding:15px;background:#fde8e8;border:2px solid #e74c3c;border-radius:8px;">
+                    <h4 style="color:#e74c3c;">❌ توکن GitHub تنظیم نشده است</h4>
+                    <p style="font-size:13px;">لطفاً توکن خود را در بخش <strong>تنظیمات</strong> وارد کنید.</p>
+                    <button onclick="document.querySelector('[data-section=\\"settings\\"]')?.click();" 
+                            style="padding:8px 16px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer;">
+                        ⚙️ رفتن به تنظیمات
+                    </button>
+                </div>
+            `;
+        }
+        return;
+    }
+    
     try {
+        // نمایش لودینگ
+        const btn = event?.target;
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '⏳ در حال آپلود...';
+        }
+        
         await projectManager.pushToGitHub(textarea.value);
-        alert('✅ فایل با موفقیت به GitHub آپلود شد!');
+        
+        // پیام موفقیت
+        showTemporaryMessage('✅ فایل با موفقیت به GitHub آپلود شد!');
+        
     } catch (error) {
-        alert('❌ خطا در آپلود: ' + (error.message || 'نامشخص'));
+        console.error('❌ خطا در آپلود:', error);
+        showError('❌ خطا در آپلود به GitHub: ' + (error.message || 'نامشخص'));
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '🚀 آپلود به GitHub';
+        }
     }
 };
 
