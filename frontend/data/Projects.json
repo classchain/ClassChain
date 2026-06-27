@@ -450,7 +450,7 @@
         "مسئول پروژه": "عبدالواحد هيبت زائي (3590569001)",
         "شماره تلفن مسئول پروژه": "09907383692",
         "وضعیت راهبری پروژه": "وضعیت اسکلت و سقف پروژه تایید شد",
-        "contractAddress": null,
+        "contractAddress": "0x971eC06E81092D0C58EC5579b18514c72d66eb8f",
         "contractAddressMainnet": null,
         "contractAddressTron": null,
         "contractAddressCLC": null,
@@ -462,7 +462,21 @@
         "contractAddressSolana": null,
         "targetAmount(USDT)": 27500,
         "status": null,
-        "raisedAmount": null
+        "raisedAmount": null,
+        "funds": {
+          "polygon_amoy": {
+            "address": "0x971eC06E81092D0C58EC5579b18514c72d66eb8f",
+            "multisigAddress": null,
+            "owners": [
+              "0x9626438503C8832A65eCc931B124825c417e467e",
+              "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
+            ],
+            "requiredSignatures": 2,
+            "createdAt": "2026-06-27T08:49:54.576Z",
+            "network": "polygon_amoy",
+            "isMultisig": false
+          }
+        }
       },
       "geometry": {
         "x": 61.68207549,
