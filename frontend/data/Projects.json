@@ -226,7 +226,7 @@
         "مسئول پروژه": "وسيم گلزاريان (2899812246)",
         "شماره تلفن مسئول پروژه": "09149473121",
         "وضعیت راهبری پروژه": "وضعیت دیوار اتمام ساختمان پروژه تایید شد",
-        "contractAddress": null,
+        "contractAddress": "0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
         "contractAddressMainnet": null,
         "contractAddressTron": null,
         "contractAddressCLC": null,
@@ -238,7 +238,21 @@
         "contractAddressSolana": null,
         "targetAmount(USDT)": 197090,
         "status": null,
-        "raisedAmount": null
+        "raisedAmount": null,
+        "funds": {
+          "polygon_amoy": {
+            "address": "0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
+            "multisigAddress": null,
+            "owners": [
+              "0x9626438503C8832A65eCc931B124825c417e467e",
+              "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
+            ],
+            "requiredSignatures": 2,
+            "createdAt": "2026-06-27T09:31:49.709Z",
+            "network": "polygon_amoy",
+            "isMultisig": false
+          }
+        }
       },
       "geometry": {
         "x": 45.16335,
