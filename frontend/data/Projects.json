@@ -337,7 +337,7 @@
         "مسئول پروژه": "غلامرضا كرماجاني (1753426103)",
         "شماره تلفن مسئول پروژه": "09172672095",
         "وضعیت راهبری پروژه": "وضعیت اسکلت و سقف پروژه تایید شد",
-        "contractAddress": "0x7D35F4991f5492D046E95069054e89c43E58ef95",
+        "contractAddress": null,
         "contractAddressMainnet": null,
         "contractAddressTron": null,
         "contractAddressCLC": null,
