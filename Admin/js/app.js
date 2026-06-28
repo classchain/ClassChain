@@ -749,13 +749,49 @@ function scrollToCreate() {
 // توابع بارگذاری جدول
 // ============================================
 
+// ============================================
+// توابع بارگذاری جدول
+// ============================================
+
 async function loadProjectsTable() {
     try {
         await projectManager.loadProjects();
         const projects = projectManager.projects;
         const tbody = document.querySelector('#projectsTable tbody');
-        if (!tbody) return;
+        const thead = document.querySelector('#projectsTable thead');
+        if (!tbody || !thead) return;
         
+        // ============================================
+        // 📊 ساخت هدر جدول داینامیک
+        // ============================================
+        // شبکه‌هایی که باید نمایش داده شوند (همه شبکه‌های فعال)
+        const networksToShow = ACTIVE_NETWORKS;
+        
+        // ساخت هدر
+        let headerHTML = `
+            <tr>
+                <th>ProjectID</th>
+                <th>نام پروژه</th>
+                <th>هدف (USDT)</th>
+                <th>جمع‌آوری شده</th>
+        `;
+        
+        // اضافه کردن ستون برای هر شبکه
+        networksToShow.forEach(network => {
+            headerHTML += `<th>${network.icon} ${network.name}</th>`;
+        });
+        
+        headerHTML += `
+                <th>وضعیت کلی</th>
+                <th>عملیات</th>
+            </tr>
+        `;
+        
+        thead.innerHTML = headerHTML;
+        
+        // ============================================
+        // 📋 پر کردن بدنه جدول
+        // ============================================
         tbody.innerHTML = '';
 
         const networkFilter = document.getElementById('networkFilter')?.value || 'all';
@@ -765,7 +801,6 @@ async function loadProjectsTable() {
             
             // فیلتر بر اساس شبکه
             if (networkFilter !== 'all') {
-                const funds = attr.funds || {};
                 if (!projectManager.hasFund(f, networkFilter)) {
                     return;
                 }
@@ -793,47 +828,120 @@ async function loadProjectsTable() {
             raisedCell.textContent = attr.raisedAmount?.toLocaleString() || '0';
             row.appendChild(raisedCell);
 
-            // ستون‌های شبکه‌ها
-            ACTIVE_NETWORKS.forEach(network => {
+            // ============================================
+            // 🔍 ستون‌های شبکه‌ها (داینامیک)
+            // ============================================
+            networksToShow.forEach(network => {
                 const cell = document.createElement('td');
                 const address = projectManager.getFundAddress(f, network.id);
                 
                 if (address) {
                     const multisig = projectManager.getMultisigAddress(f);
+                    // بررسی اینکه آیا این خزانه در شبکه فعلی است یا خیر
+                    const isCurrentNetwork = network.id === selectedNetwork;
+                    
                     cell.innerHTML = `
-                        <span style="color: #27ae60;">✅</span>
-                        <br>
-                        <small style="font-size:10px;">${address.slice(0, 6)}...${address.slice(-4)}</small>
-                        ${multisig ? `<br><small style="font-size:9px;color:#666;">🔑 MultiSig</small>` : ''}
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                            <span style="color: #27ae60; font-size:16px;">✅</span>
+                            <small style="font-size:10px;direction:ltr;${isCurrentNetwork ? 'font-weight:bold;color:#2c3e50;' : 'color:#666;'}">
+                                ${address.slice(0, 6)}...${address.slice(-4)}
+                            </small>
+                            ${multisig ? `<small style="font-size:8px;color:#666;">🔑 MultiSig</small>` : ''}
+                            ${isCurrentNetwork ? `<small style="font-size:8px;color:#27ae60;">← فعلی</small>` : ''}
+                        </div>
                     `;
                 } else {
-                    cell.innerHTML = `<span style="color: #95a5a6;">❌</span>`;
+                    cell.innerHTML = `
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                            <span style="color: #95a5a6; font-size:16px;">❌</span>
+                            <small style="font-size:9px;color:#95a5a6;">ندارد</small>
+                        </div>
+                    `;
                 }
                 cell.style.fontSize = '12px';
+                cell.style.textAlign = 'center';
+                cell.style.minWidth = '80px';
                 row.appendChild(cell);
             });
 
-            // وضعیت
+            // ============================================
+            // 📊 وضعیت کلی
+            // ============================================
             const statusCell = document.createElement('td');
             const allFunds = projectManager.getAllFunds(f);
-            const hasAnyFund = Object.keys(allFunds).length > 0;
-            statusCell.innerHTML = hasAnyFund ? 
-                '<span style="color:#27ae60;">✅ فعال</span>' : 
-                '<span style="color:#f39c12;">⏳ در انتظار</span>';
+            const fundCount = Object.keys(allFunds).filter(k => k !== '_multisig').length;
+            
+            if (fundCount > 0) {
+                // نمایش تعداد خزانه‌ها
+                const networksWithFund = Object.keys(allFunds).filter(k => k !== '_multisig');
+                const networkNames = networksWithFund.map(id => {
+                    const net = NETWORKS[id];
+                    return net?.icon || id;
+                }).join(' ');
+                
+                statusCell.innerHTML = `
+                    <div style="display:flex;flex-direction:column;align-items:center;">
+                        <span style="color:#27ae60;">✅ ${fundCount} خزانه</span>
+                        <small style="font-size:9px;color:#666;">${networkNames}</small>
+                    </div>
+                `;
+            } else {
+                statusCell.innerHTML = `
+                    <div style="display:flex;flex-direction:column;align-items:center;">
+                        <span style="color:#f39c12;">⏳ در انتظار</span>
+                        <small style="font-size:9px;color:#666;">بدون خزانه</small>
+                    </div>
+                `;
+            }
             row.appendChild(statusCell);
 
-            // عملیات
+            // ============================================
+            // 🎯 عملیات
+            // ============================================
             const actionCell = document.createElement('td');
             const id = attr.ProjectID || '';
             actionCell.innerHTML = `
-                <button onclick="window.fillProjectId('${id}')" style="padding:4px 10px;font-size:11px;background:#3498db;color:white;border:none;border-radius:4px;cursor:pointer;">
+                <button onclick="window.fillProjectId('${id}')" 
+                        style="padding:4px 10px;font-size:11px;background:#3498db;color:white;border:none;border-radius:4px;cursor:pointer;">
                     📝 انتخاب
                 </button>
+                <button onclick="window.checkProjectById('${id}')" 
+                        style="padding:4px 10px;font-size:11px;background:#27ae60;color:white;border:none;border-radius:4px;cursor:pointer;margin-top:3px;">
+                    🔍 بررسی
+                </button>
             `;
+            actionCell.style.display = 'flex';
+            actionCell.style.flexDirection = 'column';
+            actionCell.style.gap = '3px';
+            actionCell.style.alignItems = 'center';
             row.appendChild(actionCell);
 
             tbody.appendChild(row);
         });
+
+        // ============================================
+        // 📊 نمایش آمار در پایین جدول
+        // ============================================
+        const totalProjects = projects.features.length;
+        const projectsWithFund = projects.features.filter(f => {
+            const allFunds = projectManager.getAllFunds(f);
+            return Object.keys(allFunds).filter(k => k !== '_multisig').length > 0;
+        }).length;
+        
+        // اضافه کردن ردیف آمار (اختیاری)
+        const footer = document.querySelector('#projectsTable tfoot');
+        if (footer) {
+            const totalCols = 4 + networksToShow.length + 2; // 4 ستون ثابت + شبکه‌ها + وضعیت + عملیات
+            footer.innerHTML = `
+                <tr style="background:#f8f9fa;font-weight:bold;">
+                    <td colspan="${totalCols}" style="text-align:center;padding:10px;">
+                        📊 مجموع پروژه‌ها: ${totalProjects} | 
+                        ✅ دارای خزانه: ${projectsWithFund} | 
+                        ⏳ بدون خزانه: ${totalProjects - projectsWithFund}
+                    </td>
+                </tr>
+            `;
+        }
 
     } catch (error) {
         console.error('خطا در بارگذاری جدول:', error);
@@ -860,6 +968,18 @@ window.fillProjectId = (id) => {
 };
 
 // ============================================
+// بررسی پروژه با ID (برای دکمه جدول)
+// ============================================
+
+window.checkProjectById = (projectId) => {
+    const input = document.getElementById('projectId');
+    if (input) {
+        input.value = projectId;
+    }
+    checkProject();
+};
+
+// ============================================
 // مشاهده JSON در مرورگر
 // ============================================
 window.openJSON = () => {
@@ -872,10 +992,10 @@ window.openJSON = () => {
     window.open(url, '_blank');
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
+
 // ============================================
 // کپی JSON
 // ============================================
-
 window.copyJSON = () => {
     const textarea = document.getElementById('jsonOutput');
     if (!textarea) return;
@@ -904,10 +1024,10 @@ function showTemporaryMessage(message) {
     result.appendChild(msg);
     setTimeout(() => msg.remove(), 3000);
 }
+
 // ============================================
 // دانلود فایل JSON
 // ============================================
-
 window.downloadJSON = () => {
     const textarea = document.getElementById('jsonOutput');
     if (!textarea) return;
