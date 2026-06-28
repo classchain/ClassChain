@@ -26,7 +26,7 @@ export const NETWORKS = {
     color: '#8247E5',
     icon: '🟣',
     isTestnet: false,
-    status: 'pending' // تا زمان Deploy
+    status: 'active' // تا زمان Deploy
   },
   ethereum_sepolia: {
     id: 'ethereum_sepolia',
@@ -54,7 +54,7 @@ export const NETWORKS = {
     color: '#EF0027',
     icon: '🔴',
     isTestnet: true,
-    status: 'pending'
+    status: 'active'
   }
 };
 
