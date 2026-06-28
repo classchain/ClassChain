@@ -59,8 +59,8 @@ export const NETWORKS = {
 };
 
 // شبکه‌های فعال برای نمایش
-export const ACTIVE_NETWORKS = Object.values(NETWORKS).filter(n => n.status === 'active');
-
+//export const ACTIVE_NETWORKS = Object.values(NETWORKS).filter(n => n.status === 'active');
+export const ACTIVE_NETWORKS = Object.values(NETWORKS).filter(n => n.status === 'active' && n.factoryAddress && n.factoryAddress.startsWith('0x'));
 // ABIهای قراردادها
 export const FACTORY_ABI = [
   // ABI کامل SchoolFundFactory
