@@ -340,53 +340,35 @@ tbody tr:hover {
     border-radius: 10px;
 }
 
-/* admin/css/admin.css - اضافه کنید */
-/* ============================================
-   جدول پروژه‌ها
-   ============================================ */
-#projectsTable {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-}
-
-#projectsTable thead th {
-    padding: 12px 16px;
-    text-align: center;
-    background: #f8f9fa;
-    border-bottom: 2px solid #e0e0e0;
-    font-weight: 600;
-    color: #555;
-    position: sticky;
-    top: 0;
-    z-index: 10;
-}
-
-#projectsTable tbody td {
-    padding: 10px 12px;
-    border-bottom: 1px solid #f0f0f0;
-    vertical-align: middle;
-}
-
+/* admin/css/admin.css - اضافه کردن */
+/* هایلایت ردیف هنگام هاور */
 #projectsTable tbody tr {
-    transition: all 0.2s ease;
+    cursor: pointer;
+    transition: background-color 0.2s;
 }
 
 #projectsTable tbody tr:hover {
-    background: #f8f9fa !important;
+    background-color: #f0f7ff !important;
 }
 
+/* هایلایت ردیف انتخاب شده */
 #projectsTable tbody tr.selected {
-    background: #e8f4fd !important;
-    border-right: 4px solid #3498db;
+    background-color: #dbeafe !important;
+    border-left: 4px solid #3498db;
 }
 
-/* ============================================
-   حالت انتخاب شده (برای کلیک)
-   ============================================ */
+#projectsTable tbody tr.selected td:first-child {
+    padding-left: 12px;
+}
 
-#projectsTable tbody tr:active {
-    transform: scale(0.99);
+/* استایل لینک‌های آدرس در جدول */
+#projectsTable tbody td a {
+    transition: color 0.2s;
+}
+
+#projectsTable tbody td a:hover {
+    color: #2980b9 !important;
+    text-decoration: underline !important;
 }
 
 /* ============================================
