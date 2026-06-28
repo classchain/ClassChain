@@ -19,14 +19,14 @@ export const NETWORKS = {
     name: 'Polygon Mainnet',
     chainId: 137,
     rpcUrl: 'https://polygon-rpc.com',
-    factoryAddress: '0x...', // 🔴 نیاز به آدرس
+    factoryAddress: '0x83b1E4D6a3E494cCf86F50ef6934FFA1E23e421f', // 🔴 نیاز به آدرس
     nativeToken: 'MATIC',
     explorerUrl: 'https://polygonscan.com',
     type: 'EVM',
     color: '#8247E5',
     icon: '🟣',
     isTestnet: false,
-    status: 'active' // تا زمان Deploy
+    status: 'pending' // تا زمان Deploy
   },
   ethereum_sepolia: {
     id: 'ethereum_sepolia',
@@ -54,7 +54,7 @@ export const NETWORKS = {
     color: '#EF0027',
     icon: '🔴',
     isTestnet: true,
-    status: 'active'
+    status: 'pending'
   }
 };
 
