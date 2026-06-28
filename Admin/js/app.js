@@ -50,8 +50,8 @@ function selectNetwork(networkId) {
     updateConnectionStatus();
     
     // بارگذاری مجدد جدول
-    if (typeof loadProjectsTable === 'function') {
-        loadProjectsTable();
+    if (typeof  === 'function') {
+        ();
     }
 }
 
@@ -92,8 +92,8 @@ async function connectToNetwork() {
         btnEl.disabled = false;
 
         // بارگذاری مجدد جدول
-        if (typeof loadProjectsTable === 'function') {
-            await loadProjectsTable();
+        if (typeof  === 'function') {
+            await ();
         }
 
     } catch (error) {
@@ -309,8 +309,8 @@ async function createFund() {
         showSuccess(projectId, fundAddress, ownerOrMultisig, isMultisig, updatedJson);
 
         // بارگذاری مجدد جدول
-        if (typeof loadProjectsTable === 'function') {
-            await loadProjectsTable();
+        if (typeof  === 'function') {
+            await ();
         }
 
     } catch (error) {
@@ -650,7 +650,7 @@ async function createFundFromCheck() {
         showSuccess(projectId, fundAddress, ownerOrMultisig, isMultisig, updatedJson);
 
         // بارگذاری مجدد جدول و بررسی مجدد
-        await loadProjectsTable();
+        await ();
         
         // بررسی مجدد پروژه برای نمایش وضعیت جدید
         await checkProject();
@@ -757,19 +757,6 @@ async function loadProjectsTable() {
         const thead = document.querySelector('#projectsTable thead');
         if (!tbody || !thead) return;
 
-        // ============================================
-        // 🔍 دیباگ: بررسی شبکه‌های فعال
-        // ============================================
-        console.log('🌐 شبکه‌های فعال:', ACTIVE_NETWORKS);
-        console.log('📊 تعداد شبکه‌های فعال:', ACTIVE_NETWORKS.length);
-        
-        const networksToShow = ACTIVE_NETWORKS;
-        
-        // اگر تعداد شبکه‌ها کم است، هشدار بده
-        if (networksToShow.length < 2) {
-            console.warn('⚠️ فقط یک شبکه فعال است! لطفاً network.js را بررسی کنید.');
-        }
-        
         // ============================================
         // 📊 ساخت هدر جدول
         // ============================================
