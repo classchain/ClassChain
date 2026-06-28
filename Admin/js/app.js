@@ -1,5 +1,5 @@
 // js/app.js
-import { NETWORKS, ACTIVE_NETWORKS } from './config/networks.js';
+import { NETWORKS, ACTIVE_NETWORKS, CONNECTABLE_NETWORKS } from './config/networks.js';
 import { NetworkManager } from './core/NetworkManager.js';
 import { ContractManager } from './core/ContractManager.js';
 import { ProjectManager } from './core/ProjectManager.js';
@@ -19,7 +19,9 @@ let selectedNetwork = 'polygon_amoy';
 // توابع اصلی
 // ============================================
 
-// رندر کردن تب‌های شبکه
+// ============================================
+// رندر کردن تب‌های شبکه (فقط شبکه‌های قابل اتصال)
+// ============================================
 function renderNetworkTabs() {
     const container = document.querySelector('.network-tabs');
     if (!container) {
@@ -29,7 +31,8 @@ function renderNetworkTabs() {
     
     container.innerHTML = '';
 
-    ACTIVE_NETWORKS.forEach(network => {
+    // فقط شبکه‌های قابل اتصال را نمایش بده
+    CONNECTABLE_NETWORKS.forEach(network => {
         const tab = document.createElement('button');
         tab.className = `network-tab ${network.id === selectedNetwork ? 'active' : ''}`;
         tab.dataset.network = network.id;
@@ -761,7 +764,7 @@ async function loadProjectsTable() {
         // 📊 ساخت هدر جدول
         // ============================================
         const networksToShow = ACTIVE_NETWORKS;
-        
+        console.log('🌐 شبکه‌های قابل نمایش:', networksToShow.map(n => n.name));
         let headerHTML = `
             <tr>
                 <th style="width:100px;">ProjectID</th>
