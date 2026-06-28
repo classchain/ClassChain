@@ -340,6 +340,150 @@ tbody tr:hover {
     border-radius: 10px;
 }
 
+/* admin/css/admin.css - اضافه کنید */
+/* ============================================
+   جدول پروژه‌ها
+   ============================================ */
+#projectsTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+#projectsTable thead th {
+    padding: 12px 16px;
+    text-align: center;
+    background: #f8f9fa;
+    border-bottom: 2px solid #e0e0e0;
+    font-weight: 600;
+    color: #555;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+#projectsTable tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+
+#projectsTable tbody tr {
+    transition: all 0.2s ease;
+}
+
+#projectsTable tbody tr:hover {
+    background: #f8f9fa !important;
+}
+
+#projectsTable tbody tr.selected {
+    background: #e8f4fd !important;
+    border-right: 4px solid #3498db;
+}
+
+/* ============================================
+   حالت انتخاب شده (برای کلیک)
+   ============================================ */
+
+#projectsTable tbody tr:active {
+    transform: scale(0.99);
+}
+
+/* ============================================
+   آیکون‌های شبکه در جدول
+   ============================================ */
+
+.network-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 0;
+}
+
+.network-status .icon {
+    font-size: 18px;
+}
+
+.network-status .address {
+    font-size: 10px;
+    color: #3498db;
+    text-decoration: none;
+    direction: ltr;
+}
+
+.network-status .address:hover {
+    text-decoration: underline;
+}
+
+.network-status .badge {
+    font-size: 8px;
+    color: #27ae60;
+}
+
+/* ============================================
+   دکمه بررسی
+   ============================================ */
+
+.btn-review {
+    padding: 6px 14px;
+    font-size: 12px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.btn-review:hover {
+    background: #2980b9;
+    transform: scale(1.05);
+}
+
+.btn-review:active {
+    transform: scale(0.95);
+}
+
+/* ============================================
+   فوتر جدول (آمار)
+   ============================================ */
+
+#projectsTable tfoot td {
+    padding: 12px;
+    background: #f8f9fa;
+    font-weight: bold;
+    font-size: 14px;
+    color: #2c3e50;
+    text-align: center;
+    border-top: 2px solid #e0e0e0;
+}
+
+/* ============================================
+   پاسخگو کردن جدول
+   ============================================ */
+
+@media (max-width: 768px) {
+    #projectsTable {
+        font-size: 12px;
+    }
+    
+    #projectsTable thead th,
+    #projectsTable tbody td {
+        padding: 6px 8px;
+    }
+    
+    .network-status .address {
+        font-size: 8px;
+    }
+    
+    .btn-review {
+        padding: 4px 10px;
+        font-size: 10px;
+    }
+}
+
 /* ============ Responsive ============ */
 @media (max-width: 768px) {
     .admin-body {
