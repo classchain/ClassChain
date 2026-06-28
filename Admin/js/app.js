@@ -756,6 +756,19 @@ async function loadProjectsTable() {
         const tbody = document.querySelector('#projectsTable tbody');
         const thead = document.querySelector('#projectsTable thead');
         if (!tbody || !thead) return;
+
+        // ============================================
+        // 🔍 دیباگ: بررسی شبکه‌های فعال
+        // ============================================
+        console.log('🌐 شبکه‌های فعال:', ACTIVE_NETWORKS);
+        console.log('📊 تعداد شبکه‌های فعال:', ACTIVE_NETWORKS.length);
+        
+        const networksToShow = ACTIVE_NETWORKS;
+        
+        // اگر تعداد شبکه‌ها کم است، هشدار بده
+        if (networksToShow.length < 2) {
+            console.warn('⚠️ فقط یک شبکه فعال است! لطفاً network.js را بررسی کنید.');
+        }
         
         // ============================================
         // 📊 ساخت هدر جدول
