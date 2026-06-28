@@ -749,6 +749,7 @@ function scrollToCreate() {
 // ============================================
 // توابع بارگذاری جدول
 // ============================================
+
 async function loadProjectsTable() {
     try {
         await projectManager.loadProjects();
@@ -764,19 +765,19 @@ async function loadProjectsTable() {
         
         let headerHTML = `
             <tr>
-                <th style="width:80px;">ProjectID</th>
-                <th style="text-align:right;">نام پروژه</th>
+                <th style="width:100px;">ProjectID</th>
+                <th style="text-align:right;padding-right:20px;">نام پروژه</th>
                 <th style="width:120px;">هدف (USDT)</th>
         `;
         
         // اضافه کردن ستون برای هر شبکه
         networksToShow.forEach(network => {
-            headerHTML += `<th style="text-align:center;min-width:100px;">${network.icon} ${network.name}</th>`;
+            headerHTML += `<th style="width:100px;text-align:center;">${network.icon} ${network.name}</th>`;
         });
         
         headerHTML += `
                 <th style="width:100px;">وضعیت</th>
-                <th style="width:80px;">عملیات</th>
+                <th style="width:100px;">عملیات</th>
             </tr>
         `;
         
@@ -801,75 +802,47 @@ async function loadProjectsTable() {
 
             const row = document.createElement('tr');
             row.dataset.projectId = attr.ProjectID || '';
-            row.dataset.index = index;
+            row.dataset.rowIndex = index;
             
             // ============================================
-            // 🎨 استایل ردیف
-            // ============================================
-            row.style.cursor = 'pointer';
-            row.style.transition = 'background 0.2s';
-            
-            // ============================================
-            // 🖱️ رویدادهای کلیک و hover
+            // ✨ هایلایت هنگام کلیک روی ردیف
             // ============================================
             row.addEventListener('click', function(e) {
-                // اگر روی دکمه کلیک شده، اجرا نشود
+                // جلوگیری از اجرا وقتی روی دکمه کلیک می‌شود
                 if (e.target.tagName === 'BUTTON') return;
                 
-                // حذف انتخاب از همه ردیف‌ها
+                // حذف کلاس selected از همه ردیف‌ها
                 document.querySelectorAll('#projectsTable tbody tr').forEach(r => {
-                    r.style.background = '';
-                    r.style.borderRight = '';
+                    r.classList.remove('selected');
                 });
                 
-                // انتخاب این ردیف
-                this.style.background = '#e8f4fd';
-                this.style.borderRight = '4px solid #3498db';
+                // اضافه کردن کلاس selected به این ردیف
+                this.classList.add('selected');
                 
-                // پر کردن ProjectID
+                // پر کردن ProjectID در فیلد
                 const projectId = this.dataset.projectId;
                 if (projectId) {
                     document.getElementById('projectId').value = projectId;
                 }
             });
             
-            row.addEventListener('mouseenter', function() {
-                if (!this.style.background || this.style.background === '') {
-                    this.style.background = '#f8f9fa';
-                }
-            });
-            
-            row.addEventListener('mouseleave', function() {
-                if (this.style.background === '#f8f9fa') {
-                    this.style.background = '';
-                }
-            });
-
-            // ============================================
-            // 📊 ستون‌ها
-            // ============================================
-            
             // ProjectID
             const idCell = document.createElement('td');
             idCell.textContent = attr.ProjectID || '---';
-            idCell.style.fontWeight = '600';
-            idCell.style.color = '#2c3e50';
+            idCell.style.fontWeight = 'bold';
             row.appendChild(idCell);
 
             // نام پروژه
             const nameCell = document.createElement('td');
             nameCell.textContent = attr['نام پروژه'] || 'نامشخص';
             nameCell.style.textAlign = 'right';
-            nameCell.style.fontSize = '14px';
+            nameCell.style.paddingRight = '20px';
             row.appendChild(nameCell);
 
             // هدف
             const targetCell = document.createElement('td');
-            const target = attr['targetAmount(USDT)'] || 0;
-            targetCell.textContent = target.toLocaleString();
+            targetCell.textContent = attr['targetAmount(USDT)']?.toLocaleString() || '0';
             targetCell.style.textAlign = 'center';
-            targetCell.style.fontWeight = '500';
-            targetCell.style.color = target > 0 ? '#2c3e50' : '#95a5a6';
             row.appendChild(targetCell);
 
             // ============================================
@@ -880,29 +853,30 @@ async function loadProjectsTable() {
                 const address = projectManager.getFundAddress(f, network.id);
                 
                 if (address) {
+                    const multisig = projectManager.getMultisigAddress(f);
                     const isCurrentNetwork = network.id === selectedNetwork;
+                    
                     cell.innerHTML = `
-                        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;">
-                            <span style="color:#27ae60;font-size:18px;">✅</span>
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                            <span style="color: #27ae60; font-size:18px;">✅</span>
                             <a href="${network.explorerUrl}/address/${address}" 
                                target="_blank" 
                                style="font-size:10px;color:#3498db;text-decoration:none;direction:ltr;${isCurrentNetwork ? 'font-weight:bold;' : ''}"
                                onclick="event.stopPropagation();">
                                 ${address.slice(0, 6)}...${address.slice(-4)}
                             </a>
-                            ${isCurrentNetwork ? `<span style="font-size:8px;color:#27ae60;">● فعلی</span>` : ''}
+                            ${multisig ? `<span style="font-size:8px;color:#6c5ce7;">🔑 MultiSig</span>` : ''}
                         </div>
                     `;
                 } else {
                     cell.innerHTML = `
-                        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;">
-                            <span style="color:#95a5a6;font-size:18px;">○</span>
-                            <span style="font-size:9px;color:#95a5a6;">ندارد</span>
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                            <span style="color: #bdc3c7; font-size:18px;">❌</span>
+                            <span style="font-size:9px;color:#bdc3c7;">ندارد</span>
                         </div>
                     `;
                 }
                 cell.style.textAlign = 'center';
-                cell.style.verticalAlign = 'middle';
                 row.appendChild(cell);
             });
 
@@ -916,23 +890,20 @@ async function loadProjectsTable() {
             if (fundCount > 0) {
                 const networkNames = Object.keys(allFunds)
                     .filter(k => k !== '_multisig')
-                    .map(id => {
-                        const net = NETWORKS[id];
-                        return net?.icon || '🌐';
-                    })
+                    .map(id => NETWORKS[id]?.icon || '')
                     .join(' ');
                 
                 statusCell.innerHTML = `
                     <div style="display:flex;flex-direction:column;align-items:center;">
-                        <span style="color:#27ae60;font-weight:600;font-size:14px;">${fundCount} خزانه</span>
-                        <span style="font-size:11px;color:#666;">${networkNames}</span>
+                        <span style="color:#27ae60;font-weight:bold;">✅ ${fundCount}</span>
+                        <span style="font-size:9px;color:#666;">${networkNames}</span>
                     </div>
                 `;
             } else {
                 statusCell.innerHTML = `
                     <div style="display:flex;flex-direction:column;align-items:center;">
-                        <span style="color:#f39c12;font-weight:600;font-size:14px;">⏳ در انتظار</span>
-                        <span style="font-size:11px;color:#999;">بدون خزانه</span>
+                        <span style="color:#f39c12;">⏳</span>
+                        <span style="font-size:9px;color:#666;">بدون خزانه</span>
                     </div>
                 `;
             }
@@ -940,21 +911,13 @@ async function loadProjectsTable() {
             row.appendChild(statusCell);
 
             // ============================================
-            // 🎯 عملیات - فقط دکمه بررسی
+            // 🎯 عملیات - فقط یک دکمه
             // ============================================
             const actionCell = document.createElement('td');
             const id = attr.ProjectID || '';
             actionCell.innerHTML = `
-                <button onclick="window.checkAndSelectProject('${id}')" 
-                        style="padding:6px 14px;
-                               font-size:12px;
-                               background:#3498db;
-                               color:white;
-                               border:none;
-                               border-radius:6px;
-                               cursor:pointer;
-                               transition:all 0.2s;
-                               font-family:inherit;"
+                <button onclick="window.selectProjectAndCheck('${id}')" 
+                        style="padding:6px 14px;font-size:12px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer;transition:all 0.2s;"
                         onmouseover="this.style.background='#2980b9'"
                         onmouseout="this.style.background='#3498db'">
                     🔍 بررسی
@@ -967,7 +930,7 @@ async function loadProjectsTable() {
         });
 
         // ============================================
-        // 📊 نمایش آمار در پایین جدول
+        // 📊 آمار در پایین جدول
         // ============================================
         const totalProjects = projects.features.length;
         const projectsWithFund = projects.features.filter(f => {
@@ -980,34 +943,20 @@ async function loadProjectsTable() {
             const totalCols = 3 + networksToShow.length + 2;
             footer.innerHTML = `
                 <tr style="background:#f8f9fa;font-weight:bold;">
-                    <td colspan="${totalCols}" style="text-align:center;padding:12px;font-size:14px;color:#2c3e50;">
-                        📊 مجموع: <span style="color:#2c3e50;">${totalProjects}</span> پروژه &nbsp;|&nbsp; 
-                        ✅ دارای خزانه: <span style="color:#27ae60;">${projectsWithFund}</span> &nbsp;|&nbsp; 
-                        ⏳ بدون خزانه: <span style="color:#f39c12;">${totalProjects - projectsWithFund}</span>
+                    <td colspan="${totalCols}" style="text-align:center;padding:12px;font-size:13px;color:#2c3e50;">
+                        📊 مجموع: ${totalProjects} پروژه | 
+                        ✅ دارای خزانه: ${projectsWithFund} | 
+                        ⏳ بدون خزانه: ${totalProjects - projectsWithFund}
                     </td>
                 </tr>
             `;
-        }
-
-        // ============================================
-        // 🎯 هایلایت ردیف انتخاب شده (اگر ProjectID در فیلد باشد)
-        // ============================================
-        const currentProjectId = document.getElementById('projectId')?.value?.trim();
-        if (currentProjectId) {
-            const rows = document.querySelectorAll('#projectsTable tbody tr');
-            rows.forEach(row => {
-                if (row.dataset.projectId === currentProjectId) {
-                    row.style.background = '#e8f4fd';
-                    row.style.borderRight = '4px solid #3498db';
-                }
-            });
         }
 
     } catch (error) {
         console.error('خطا در بارگذاری جدول:', error);
         const tbody = document.querySelector('#projectsTable tbody');
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#e74c3c;padding:30px;">❌ خطا در بارگذاری داده‌ها</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#e74c3c;padding:20px;">❌ خطا در بارگذاری داده‌ها</td></tr>`;
         }
     }
 }
@@ -1039,9 +988,9 @@ window.checkProjectById = (projectId) => {
 };
 
 // ============================================
-// بررسی و انتخاب پروژه
+// انتخاب پروژه و رفتن به صفحه بررسی
 // ============================================
-window.checkAndSelectProject = (projectId) => {
+window.selectProjectAndCheck = (projectId) => {
     if (!projectId) return;
     
     // 1. پر کردن فیلد ProjectID
@@ -1051,26 +1000,40 @@ window.checkAndSelectProject = (projectId) => {
     }
     
     // 2. هایلایت کردن ردیف مربوطه در جدول
-    const rows = document.querySelectorAll('#projectsTable tbody tr');
-    rows.forEach(row => {
-        row.style.background = '';
-        row.style.borderRight = '';
+    document.querySelectorAll('#projectsTable tbody tr').forEach(row => {
+        row.classList.remove('selected');
         if (row.dataset.projectId === projectId) {
-            row.style.background = '#e8f4fd';
-            row.style.borderRight = '4px solid #3498db';
+            row.classList.add('selected');
+            // اسکرول به ردیف
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     });
     
-    // 3. اسکرول به بخش ساخت خزانه
+    // 3. رفتن به بخش ساخت خزانه
     const section = document.getElementById('section-create');
     if (section) {
+        // نمایش بخش ساخت خزانه
+        document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+        section.style.display = 'block';
+        
+        // فعال کردن لینک سایدبار
+        document.querySelectorAll('.sidebar-nav a').forEach(link => {
+            link.classList.remove('active');
+            if (link.dataset.section === 'create') {
+                link.classList.add('active');
+            }
+        });
+        
+        // اسکرول به بالای بخش
         section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        // 4. اجرای بررسی خودکار
-        setTimeout(() => {
-            checkProject();
-        }, 500);
     }
+    
+    // 4. اجرای بررسی خودکار
+    setTimeout(() => {
+        checkProject();
+    }, 300);
 };
+
 
 // ============================================
 // مشاهده JSON در مرورگر
