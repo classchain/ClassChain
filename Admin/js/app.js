@@ -749,7 +749,6 @@ function scrollToCreate() {
 // ============================================
 // توابع بارگذاری جدول
 // ============================================
-
 async function loadProjectsTable() {
     try {
         await projectManager.loadProjects();
@@ -767,17 +766,16 @@ async function loadProjectsTable() {
             <tr>
                 <th style="width:100px;">ProjectID</th>
                 <th style="text-align:right;padding-right:20px;">نام پروژه</th>
-                <th style="width:120px;">هدف (USDT)</th>
+                <th style="width:120px;text-align:center;">هدف (USDT)</th>
         `;
         
         // اضافه کردن ستون برای هر شبکه
         networksToShow.forEach(network => {
-            headerHTML += `<th style="width:100px;text-align:center;">${network.icon} ${network.name}</th>`;
+            headerHTML += `<th style="width:120px;text-align:center;">${network.icon} ${network.name}</th>`;
         });
         
         headerHTML += `
-                <th style="width:100px;">وضعیت</th>
-                <th style="width:100px;">عملیات</th>
+                <th style="width:100px;text-align:center;">عملیات</th>
             </tr>
         `;
         
@@ -808,45 +806,48 @@ async function loadProjectsTable() {
             // ✨ هایلایت هنگام کلیک روی ردیف
             // ============================================
             row.addEventListener('click', function(e) {
-                // جلوگیری از اجرا وقتی روی دکمه کلیک می‌شود
-                if (e.target.tagName === 'BUTTON') return;
+                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A') return;
                 
-                // حذف کلاس selected از همه ردیف‌ها
                 document.querySelectorAll('#projectsTable tbody tr').forEach(r => {
                     r.classList.remove('selected');
                 });
                 
-                // اضافه کردن کلاس selected به این ردیف
                 this.classList.add('selected');
                 
-                // پر کردن ProjectID در فیلد
                 const projectId = this.dataset.projectId;
                 if (projectId) {
                     document.getElementById('projectId').value = projectId;
                 }
             });
             
-            // ProjectID
+            // ============================================
+            // ستون ProjectID
+            // ============================================
             const idCell = document.createElement('td');
             idCell.textContent = attr.ProjectID || '---';
             idCell.style.fontWeight = 'bold';
+            idCell.style.textAlign = 'center';
             row.appendChild(idCell);
 
-            // نام پروژه
+            // ============================================
+            // ستون نام پروژه
+            // ============================================
             const nameCell = document.createElement('td');
             nameCell.textContent = attr['نام پروژه'] || 'نامشخص';
             nameCell.style.textAlign = 'right';
             nameCell.style.paddingRight = '20px';
             row.appendChild(nameCell);
 
-            // هدف
+            // ============================================
+            // ستون هدف
+            // ============================================
             const targetCell = document.createElement('td');
             targetCell.textContent = attr['targetAmount(USDT)']?.toLocaleString() || '0';
             targetCell.style.textAlign = 'center';
             row.appendChild(targetCell);
 
             // ============================================
-            // 🔍 ستون‌های شبکه‌ها
+            // 🔍 ستون‌های شبکه‌ها - به ازای هر شبکه یک ستون
             // ============================================
             networksToShow.forEach(network => {
                 const cell = document.createElement('td');
@@ -854,14 +855,13 @@ async function loadProjectsTable() {
                 
                 if (address) {
                     const multisig = projectManager.getMultisigAddress(f);
-                    const isCurrentNetwork = network.id === selectedNetwork;
                     
                     cell.innerHTML = `
                         <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
                             <span style="color: #27ae60; font-size:18px;">✅</span>
                             <a href="${network.explorerUrl}/address/${address}" 
                                target="_blank" 
-                               style="font-size:10px;color:#3498db;text-decoration:none;direction:ltr;${isCurrentNetwork ? 'font-weight:bold;' : ''}"
+                               style="font-size:10px;color:#3498db;text-decoration:none;direction:ltr;"
                                onclick="event.stopPropagation();">
                                 ${address.slice(0, 6)}...${address.slice(-4)}
                             </a>
@@ -881,37 +881,7 @@ async function loadProjectsTable() {
             });
 
             // ============================================
-            // 📊 وضعیت کلی
-            // ============================================
-            const statusCell = document.createElement('td');
-            const allFunds = projectManager.getAllFunds(f);
-            const fundCount = Object.keys(allFunds).filter(k => k !== '_multisig').length;
-            
-            if (fundCount > 0) {
-                const networkNames = Object.keys(allFunds)
-                    .filter(k => k !== '_multisig')
-                    .map(id => NETWORKS[id]?.icon || '')
-                    .join(' ');
-                
-                statusCell.innerHTML = `
-                    <div style="display:flex;flex-direction:column;align-items:center;">
-                        <span style="color:#27ae60;font-weight:bold;">✅ ${fundCount}</span>
-                        <span style="font-size:9px;color:#666;">${networkNames}</span>
-                    </div>
-                `;
-            } else {
-                statusCell.innerHTML = `
-                    <div style="display:flex;flex-direction:column;align-items:center;">
-                        <span style="color:#f39c12;">⏳</span>
-                        <span style="font-size:9px;color:#666;">بدون خزانه</span>
-                    </div>
-                `;
-            }
-            statusCell.style.textAlign = 'center';
-            row.appendChild(statusCell);
-
-            // ============================================
-            // 🎯 عملیات - فقط یک دکمه
+            // 🎯 ستون عملیات - فقط یک دکمه
             // ============================================
             const actionCell = document.createElement('td');
             const id = attr.ProjectID || '';
@@ -940,7 +910,7 @@ async function loadProjectsTable() {
         
         const footer = document.querySelector('#projectsTable tfoot');
         if (footer) {
-            const totalCols = 3 + networksToShow.length + 2;
+            const totalCols = 3 + networksToShow.length + 1; // ProjectID + Name + Target + networks + Action
             footer.innerHTML = `
                 <tr style="background:#f8f9fa;font-weight:bold;">
                     <td colspan="${totalCols}" style="text-align:center;padding:12px;font-size:13px;color:#2c3e50;">
@@ -960,6 +930,7 @@ async function loadProjectsTable() {
         }
     }
 }
+
 
 // ============================================
 // توابع Global (برای استفاده در onclick)
