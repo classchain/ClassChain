@@ -5,10 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>پنل مدیریت - ClassChain</title>
-    
+
     <!-- ⚠️ Web3 باید قبل از ماژول‌ها بارگذاری شود -->
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
-    
+
     <link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
@@ -40,7 +40,7 @@
                 <!-- بخش ساخت خزانه -->
                 <section id="section-create" class="section active">
                     <h2>🏗️ ساخت خزانه جدید</h2>
-                    
+
                     <!-- انتخاب شبکه -->
                     <div class="form-group">
                         <label>شبکه مورد نظر:</label>
@@ -111,18 +111,26 @@
                         </div>
                     </div>
 
-                    <!-- admin/index.html - بخش جدول -->
+
                     <div class="table-wrapper" style="overflow-x:auto;background:white;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.05);padding:4px;">
                         <table id="projectsTable" style="width:100%;border-collapse:collapse;font-size:14px;">
                             <thead style="background:#f8f9fa;">
-                                <!-- هدر توسط JS ساخته می‌شود -->
+                                <tr>
+                                    <th style="padding:12px 16px;text-align:center;border-bottom:2px solid #e0e0e0;">ProjectID</th>
+                                    <th style="padding:12px 16px;text-align:center;border-bottom:2px solid #e0e0e0;">نام پروژه</th>
+                                    <th style="padding:12px 16px;text-align:center;border-bottom:2px solid #e0e0e0;">هدف (USDT)</th>
+                                    <th style="padding:12px 16px;text-align:center;border-bottom:2px solid #e0e0e0;">جمع‌آوری شده</th>
+                                    <!-- ستون‌های داینامیک توسط JS اضافه می‌شوند -->
+                                    <th style="padding:12px 16px;text-align:center;border-bottom:2px solid #e0e0e0;">وضعیت</th>
+                                    <th style="padding:12px 16px;text-align:center;border-bottom:2px solid #e0e0e0;">عملیات</th>
+                                </tr>
                             </thead>
-                            <tbody>
-                                <!-- داده‌ها توسط JS پر می‌شود -->
-                            </tbody>
-                            <tfoot>
-                                <!-- آمار توسط JS پر می‌شود -->
-                            </tfoot>
+                            <tbody></tbody>
+
+
+
+
+
                         </table>
                     </div>
                 </section>
@@ -145,7 +153,7 @@
 
     <!-- ⚠️ اسکریپت‌ها در انتهای body -->
     <script type="module" src="js/app.js"></script>
-    
+
     <!-- توابع کمکی برای استفاده در HTML -->
     <script>
         // توابع کمکی که در HTML استفاده می‌شوند
@@ -167,7 +175,7 @@
                     e.preventDefault();
                     document.querySelectorAll('.sidebar-nav a').forEach(l => l.classList.remove('active'));
                     this.classList.add('active');
-                    
+
                     const section = this.dataset.section;
                     document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
                     const target = document.getElementById(`section-${section}`);
