@@ -748,54 +748,35 @@ function scrollToCreate() {
 // ============================================
 // توابع بارگذاری جدول
 // ============================================
-
-
-
-
-
 async function loadProjectsTable() {
     try {
         await projectManager.loadProjects();
         const projects = projectManager.projects;
         const tbody = document.querySelector('#projectsTable tbody');
         if (!tbody) return;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        // ============================================
+        // اضافه کردن هدر شبکه‌ها به صورت داینامیک
+        // ============================================
+        const thead = document.querySelector('#projectsTable thead tr');
+        if (thead) {
+            // حذف ستون‌های قدیمی شبکه (اگر وجود داشته باشند)
+            const existingNetworkHeaders = thead.querySelectorAll('.network-header');
+            existingNetworkHeaders.forEach(el => el.remove());
+    
+            // اضافه کردن هدر برای هر شبکه فعال
+            ACTIVE_NETWORKS.forEach(network => {
+                const th = document.createElement('th');
+                th.className = 'network-header';
+                th.style.cssText = 'padding:8px 4px;text-align:center;border-bottom:2px solid #e0e0e0;font-size:11px;min-width:90px;';
+                th.innerHTML = `
+                    <span style="display:block;font-size:14px;">${network.icon || '🌐'}</span>
+                    <span style="display:block;font-size:10px;color:#555;">${network.name}</span>
+                `;
+                thead.appendChild(th);
+            });
+        }
         tbody.innerHTML = '';
-
         const networkFilter = document.getElementById('networkFilter')?.value || 'all';
-
         projects.features.forEach(f => {
             const attr = f.attributes;
 
@@ -824,126 +805,51 @@ async function loadProjectsTable() {
             targetCell.textContent = attr['targetAmount(USDT)']?.toLocaleString() || '0';
             row.appendChild(targetCell);
 
-            // جمع‌آوری شده
-            const raisedCell = document.createElement('td');
-            raisedCell.textContent = attr.raisedAmount?.toLocaleString() || '0';
-            row.appendChild(raisedCell);
-
             // ستون‌های شبکه‌ها
+// ============================================
+// ستون‌های شبکه‌ها (به جای ستون وضعیت)
+// ============================================
             ACTIVE_NETWORKS.forEach(network => {
-
-
                 const cell = document.createElement('td');
                 const address = projectManager.getFundAddress(f, network.id);
-
+    
                 if (address) {
+                    // اگر آدرس خزانه وجود دارد
                     const multisig = projectManager.getMultisigAddress(f);
-
-
-
                     cell.innerHTML = `
                         <span style="color: #27ae60;">✅</span>
                         <br>
-                        <small style="font-size:10px;">${address.slice(0, 6)}...${address.slice(-4)}</small>
+                        <small style="font-size:10px;font-family:monospace;">${address.slice(0, 8)}...${address.slice(-6)}</small>
                         ${multisig ? `<br><small style="font-size:9px;color:#666;">🔑 MultiSig</small>` : ''}
-
-
-
-
                     `;
+                    cell.style.color = '#27ae60';
                 } else {
-                    cell.innerHTML = `<span style="color: #95a5a6;">❌</span>`;
-
-
-
-
-
+                    // اگر آدرس خزانه وجود ندارد
+                    cell.innerHTML = `
+                        <span style="color: #95a5a6;">⏳</span>
+                        <br>
+                        <small style="font-size:9px;color:#95a5a6;">ساخته نشده</small>
+                    `;
+                    cell.style.color = '#95a5a6';
                 }
+    
                 cell.style.fontSize = '12px';
-
-
+                cell.style.textAlign = 'center';
+                cell.style.padding = '8px 4px';
                 row.appendChild(cell);
             });
 
-            // وضعیت
-
-
-            const statusCell = document.createElement('td');
-            const allFunds = projectManager.getAllFunds(f);
-            const hasAnyFund = Object.keys(allFunds).length > 0;
-            statusCell.innerHTML = hasAnyFund ? 
-                '<span style="color:#27ae60;">✅ فعال</span>' : 
-                '<span style="color:#f39c12;">⏳ در انتظار</span>';
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-            row.appendChild(statusCell);
-
             // عملیات
-
-
             const actionCell = document.createElement('td');
             const id = attr.ProjectID || '';
             actionCell.innerHTML = `
                 <button onclick="window.fillProjectId('${id}')" style="padding:4px 10px;font-size:11px;background:#3498db;color:white;border:none;border-radius:4px;cursor:pointer;">
-
                     📝 انتخاب
                 </button>
-
-
-
-
             `;
-
-
-
-
             row.appendChild(actionCell);
-
             tbody.appendChild(row);
         });
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     } catch (error) {
         console.error('خطا در بارگذاری جدول:', error);
         const tbody = document.querySelector('#projectsTable tbody');
