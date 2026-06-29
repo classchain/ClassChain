@@ -59,13 +59,9 @@ export const NETWORKS = {
 };
 
 // شبکه‌های فعال برای نمایش
-// شبکه‌های قابل اتصال (برای دکمه Connect)
-export const CONNECTABLE_NETWORKS = Object.values(NETWORKS).filter(n => 
-  n.status === 'active' && n.factoryAddress && n.factoryAddress.startsWith('0x')
-);
-// شبکه‌های قابل نمایش در جدول
-export const ACTIVE_NETWORKS = Object.values(NETWORKS).filter(n => n.showInTable === true);// ABIهای قراردادها
+export const ACTIVE_NETWORKS = Object.values(NETWORKS).filter(n => n.status === 'active');
 
+// ABIهای قراردادها
 export const FACTORY_ABI = [
   // ABI کامل SchoolFundFactory
   {
@@ -110,7 +106,7 @@ export function getExplorerUrl(networkId, address) {
 export function isValidAddress(address, networkId) {
   const network = NETWORKS[networkId];
   if (!network) return false;
-  
+
   if (network.type === 'EVM') {
     return /^0x[a-fA-F0-9]{40}$/.test(address);
   } else if (network.type === 'TVM') {
