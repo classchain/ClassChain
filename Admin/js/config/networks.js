@@ -12,53 +12,60 @@ export const NETWORKS = {
     color: '#8247E5',
     icon: '🟣',
     isTestnet: true,
-    status: 'active'
+    status: 'active'  // ✅ فقط این یکی active
   },
-    polygon_mainnet: {
+  polygon_mainnet: {
     id: 'polygon_mainnet',
     name: 'Polygon Mainnet',
     chainId: 137,
     rpcUrl: 'https://polygon-rpc.com',
-    factoryAddress: '0x...', // 🔴 نیاز به آدرس
+    factoryAddress: '', // خالی بگذارید
     nativeToken: 'MATIC',
     explorerUrl: 'https://polygonscan.com',
     type: 'EVM',
     color: '#8247E5',
     icon: '🟣',
     isTestnet: false,
-    status: 'pending' // تا زمان Deploy
+    status: 'pending'  // ❌ غیرفعال
   },
   ethereum_sepolia: {
     id: 'ethereum_sepolia',
     name: 'Ethereum Sepolia',
     chainId: 11155111,
     rpcUrl: 'https://sepolia.infura.io/v3/YOUR_KEY',
-    factoryAddress: '0x...', // آدرس Factory در Sepolia
+    factoryAddress: '', // خالی بگذارید
     nativeToken: 'ETH',
     explorerUrl: 'https://sepolia.etherscan.io',
     type: 'EVM',
     color: '#627EEA',
     icon: '🔷',
     isTestnet: true,
-    status: 'pending' // هنوز Deploy نشده
+    status: 'pending'  // ❌ غیرفعال
   },
   tron_nile: {
     id: 'tron_nile',
     name: 'Tron Nile',
     chainId: 2,
     rpcUrl: 'https://nile.trongrid.io',
-    factoryAddress: 'T...', // آدرس Factory در Nile
+    factoryAddress: '', // خالی بگذارید
     nativeToken: 'TRX',
     explorerUrl: 'https://nile.tronscan.org',
     type: 'TVM',
     color: '#EF0027',
     icon: '🔴',
     isTestnet: true,
-    status: 'pending' // هنوز Deploy نشده
+    status: 'pending'  // ❌ غیرفعال
+  }
 };
 
-// شبکه‌های فعال برای نمایش
-export const ACTIVE_NETWORKS = Object.values(NETWORKS).filter(n => n.status === 'active');
+// ============================================
+// ✅ فقط شبکه‌های active را برمی‌گرداند
+// ============================================
+export const ACTIVE_NETWORKS = Object.values(NETWORKS).filter(n => 
+  n.status === 'active' && n.factoryAddress && n.factoryAddress !== ''
+);
+
+console.log('🌐 شبکه‌های فعال:', ACTIVE_NETWORKS.map(n => n.name));
 
 // ABIهای قراردادها
 export const FACTORY_ABI = [
