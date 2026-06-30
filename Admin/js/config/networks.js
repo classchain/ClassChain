@@ -1,4 +1,5 @@
 // js/config/networks.js
+
 export const NETWORKS = {
   polygon_amoy: {
     id: 'polygon_amoy',
@@ -12,51 +13,51 @@ export const NETWORKS = {
     color: '#8247E5',
     icon: '🟣',
     isTestnet: true,
-    status: 'active'  // ✅ فقط این یکی active
+    status: 'active'
   },
   polygon_mainnet: {
     id: 'polygon_mainnet',
     name: 'Polygon Mainnet',
     chainId: 137,
     rpcUrl: 'https://polygon-rpc.com',
-    factoryAddress: '', // خالی بگذارید
+    factoryAddress: '',
     nativeToken: 'MATIC',
     explorerUrl: 'https://polygonscan.com',
     type: 'EVM',
     color: '#8247E5',
     icon: '🟣',
     isTestnet: false,
-    status: 'pending'  // ❌ غیرفعال
+    status: 'pending'
   },
   ethereum_sepolia: {
     id: 'ethereum_sepolia',
     name: 'Ethereum Sepolia',
     chainId: 11155111,
     rpcUrl: 'https://sepolia.infura.io/v3/YOUR_KEY',
-    factoryAddress: '', // خالی بگذارید
+    factoryAddress: '',
     nativeToken: 'ETH',
     explorerUrl: 'https://sepolia.etherscan.io',
     type: 'EVM',
     color: '#627EEA',
     icon: '🔷',
     isTestnet: true,
-    status: 'pending'  // ❌ غیرفعال
+    status: 'pending'
   },
   tron_nile: {
     id: 'tron_nile',
     name: 'Tron Nile',
     chainId: 2,
     rpcUrl: 'https://nile.trongrid.io',
-    factoryAddress: '', // خالی بگذارید
+    factoryAddress: '',
     nativeToken: 'TRX',
     explorerUrl: 'https://nile.tronscan.org',
     type: 'TVM',
     color: '#EF0027',
     icon: '🔴',
     isTestnet: true,
-    status: 'pending'  // ❌ غیرفعال
+    status: 'pending'
   }
-};
+};  // ← اینجا دقیقاً یک } باید باشد
 
 // ============================================
 // ✅ فقط شبکه‌های active را برمی‌گرداند
@@ -65,22 +66,31 @@ export const ACTIVE_NETWORKS = Object.values(NETWORKS).filter(n =>
   n.status === 'active' && n.factoryAddress && n.factoryAddress !== ''
 );
 
-console.log('🌐 شبکه‌های فعال:', ACTIVE_NETWORKS.map(n => n.name));
-
+// ============================================
 // ABIهای قراردادها
+// ============================================
 export const FACTORY_ABI = [
-  // ABI کامل SchoolFundFactory
   {
-    "inputs": [{"internalType": "string","name": "projectId","type": "string"},{"internalType": "address","name": "singleOwner","type": "address"}],
+    "inputs": [
+      {"internalType": "string","name": "projectId","type": "string"},
+      {"internalType": "address","name": "singleOwner","type": "address"}
+    ],
     "name": "createSingleOwnerFund",
     "outputs": [{"internalType": "address","name": "fundAddress","type": "address"}],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "string","name": "projectId","type": "string"},{"internalType": "address[]","name": "multisigOwners","type": "address[]"},{"internalType": "uint256","name": "requiredConfirmations","type": "uint256"}],
+    "inputs": [
+      {"internalType": "string","name": "projectId","type": "string"},
+      {"internalType": "address[]","name": "multisigOwners","type": "address[]"},
+      {"internalType": "uint256","name": "requiredConfirmations","type": "uint256"}
+    ],
     "name": "createMultisigFund",
-    "outputs": [{"internalType": "address","name": "fundAddress","type": "address"},{"internalType": "address","name": "multisigAddress","type": "address"}],
+    "outputs": [
+      {"internalType": "address","name": "fundAddress","type": "address"},
+      {"internalType": "address","name": "multisigAddress","type": "address"}
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -95,10 +105,11 @@ export const FACTORY_ABI = [
 
 export const TRON_FACTORY_ABI = [
   // ABI مشابه برای Tron
-  // (همان ساختار اما با آدرس‌های Tron)
 ];
 
+// ============================================
 // توابع کمکی
+// ============================================
 export function getNetworkById(id) {
   return NETWORKS[id];
 }
