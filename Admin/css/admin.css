@@ -1,17 +1,4 @@
-/* admin/css/admin.css */
-:root {
-    --bg: #0a0e17;
-    --text: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --primary: #8b5cf6;
-    --primary-hover: #7c3aed;
-    --success: #10b981;
-    --danger: #ef4444;
-    --warning: #f59e0b;
-    --card-bg: rgba(17, 24, 39, 0.8);
-    --border: rgba(139, 92, 246, 0.3);
-    --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-}
+/* css/admin.css */
 
 * {
     margin: 0;
@@ -21,12 +8,11 @@
 
 body {
     font-family: 'Vazirmatn', Tahoma, Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
+    background: #f0f2f5;
+    color: #2c3e50;
+
 }
 
-/* ============ Admin Container ============ */
 .admin-container {
     display: flex;
     flex-direction: column;
@@ -35,13 +21,14 @@ body {
 
 /* ============ Header ============ */
 .admin-header {
-    background: rgba(17, 24, 39, 0.9);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
+    background: #1a1a2e;
+
+    color: white;
     padding: 16px 30px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -53,52 +40,40 @@ body {
     gap: 12px;
     font-size: 20px;
     font-weight: 700;
-    background: linear-gradient(120deg, #4cc9f0, var(--primary));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
 }
 
 .logo-icon {
     font-size: 28px;
-    background: none;
-    -webkit-background-clip: unset;
-    background-clip: unset;
-    color: #4cc9f0;
 }
 
 .header-actions {
     display: flex;
     align-items: center;
     gap: 16px;
-    flex-wrap: wrap;
 }
 
 .status-badge {
     font-size: 13px;
     padding: 6px 14px;
     border-radius: 20px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--text-secondary);
+    background: rgba(255,255,255,0.1);
 }
 
 .btn-connect {
-    background: var(--primary);
+    background: #3498db;
     color: white;
     border: none;
     padding: 8px 20px;
-    border-radius: 12px;
+    border-radius: 8px;
     font-size: 14px;
     cursor: pointer;
     transition: all 0.3s;
-    font-weight: 500;
 }
 
 .btn-connect:hover {
-    background: var(--primary-hover);
+    background: #2980b9;
     transform: scale(1.02);
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+
 }
 
 /* ============ Body ============ */
@@ -110,10 +85,10 @@ body {
 /* ============ Sidebar ============ */
 .sidebar {
     width: 220px;
-    background: rgba(17, 24, 39, 0.8);
-    backdrop-filter: blur(12px);
+    background: white;
+
     padding: 20px 0;
-    border-right: 1px solid var(--border);
+    box-shadow: 2px 0 10px rgba(0,0,0,0.05);
     height: calc(100vh - 80px);
     position: sticky;
     top: 80px;
@@ -122,28 +97,26 @@ body {
 .sidebar-nav {
     display: flex;
     flex-direction: column;
-    gap: 4px;
 }
 
 .sidebar-nav a {
     padding: 14px 24px;
     text-decoration: none;
-    color: var(--text-secondary);
+    color: #555;
     font-size: 15px;
     transition: all 0.3s;
     border-right: 3px solid transparent;
-    font-weight: 500;
 }
 
 .sidebar-nav a:hover {
-    background: rgba(139, 92, 246, 0.1);
-    color: var(--text);
+    background: #f8f9fa;
+    color: #2c3e50;
 }
 
 .sidebar-nav a.active {
-    background: rgba(139, 92, 246, 0.15);
-    color: var(--primary);
-    border-right-color: var(--primary);
+    background: #e8f4fd;
+    color: #3498db;
+    border-right-color: #3498db;
 }
 
 /* ============ Main Content ============ */
@@ -155,71 +128,47 @@ body {
 
 .section {
     display: none;
-    animation: fadeIn 0.3s ease;
 }
 
 .section.active {
     display: block;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
 .section h2 {
     margin-bottom: 24px;
     font-size: 22px;
-    background: linear-gradient(120deg, #4cc9f0, var(--primary));
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    display: inline-block;
+    color: #2c3e50;
 }
 
-/* ============ Cards ============ */
-.form-group,
-.settings-group {
-    background: var(--card-bg);
-    backdrop-filter: blur(12px);
-    border-radius: 16px;
-    padding: 24px;
+/* ============ Form ============ */
+.form-group {
     margin-bottom: 20px;
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow);
+
 }
 
 .form-group label {
     display: block;
     font-weight: 500;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
     font-size: 14px;
-    color: var(--text-secondary);
+    color: #555;
 }
 
-/* ============ Inputs ============ */
 .form-group input,
 .form-group select {
     width: 100%;
-    padding: 12px 16px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    padding: 10px 14px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
     font-size: 14px;
     font-family: inherit;
-    color: var(--text);
-    transition: all 0.3s;
+    transition: border-color 0.3s;
 }
 
 .form-group input:focus,
 .form-group select:focus {
-    border-color: var(--primary);
+    border-color: #3498db;
     outline: none;
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
-}
-
-.form-group input::placeholder {
-    color: var(--text-secondary);
 }
 
 .input-group {
@@ -242,9 +191,9 @@ body {
 .network-tab,
 .ownership-tab {
     padding: 10px 18px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border);
-    border-radius: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
     cursor: pointer;
     transition: all 0.3s;
     font-family: inherit;
@@ -252,40 +201,35 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    color: var(--text-secondary);
 }
 
 .network-tab:hover,
 .ownership-tab:hover {
-    border-color: var(--primary);
-    background: rgba(139, 92, 246, 0.1);
-    color: var(--text);
+    border-color: #3498db;
+    background: #f8f9fa;
 }
 
 .network-tab.active,
 .ownership-tab.active {
-    border-color: var(--primary);
-    background: rgba(139, 92, 246, 0.15);
-    color: var(--primary);
+    border-color: #3498db;
+    background: #e8f4fd;
+
     font-weight: 500;
 }
 
 .network-badge {
-    font-size: 9px;
-    padding: 2px 10px;
-    border-radius: 20px;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 12px;
     color: white;
-    font-weight: 500;
 }
 
 /* ============ Buttons ============ */
 .btn-create,
-.btn-secondary,
-.btn-add,
-.btn-remove {
-    padding: 12px 24px;
+.btn-secondary {
+    padding: 12px 30px;
     border: none;
-    border-radius: 12px;
+    border-radius: 8px;
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
@@ -294,55 +238,60 @@ body {
 }
 
 .btn-create {
-    background: var(--success);
+    background: #27ae60;
     color: white;
     width: 100%;
     margin-top: 10px;
 }
 
 .btn-create:hover {
-    background: #059669;
+    background: #219a52;
     transform: scale(1.01);
-    box-shadow: 0 0 30px rgba(16, 185, 129, 0.3);
+
 }
 
 .btn-create:disabled {
-    background: #475569;
+    background: #95a5a6;
     cursor: not-allowed;
     transform: none;
-    box-shadow: none;
+
 }
 
 .btn-secondary {
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text);
+    background: #ecf0f1;
+    color: #2c3e50;
     padding: 8px 16px;
     font-size: 13px;
-    border: 1px solid var(--border);
 }
 
 .btn-secondary:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: #d5dbdb;
 }
 
 .btn-add {
-    background: var(--primary);
+    background: #3498db;
     color: white;
+    border: none;
     padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
     font-size: 13px;
     margin-top: 8px;
 }
 
 .btn-add:hover {
-    background: var(--primary-hover);
+    background: #2980b9;
+
 }
 
 .btn-remove {
-    background: var(--danger);
+    background: #e74c3c;
     color: white;
+    border: none;
     padding: 4px 10px;
-    border-radius: 8px;
-    font-size: 14px;
+    border-radius: 4px;
+    cursor: pointer;
 }
 
 /* ============ Owner Items ============ */
@@ -360,12 +309,10 @@ body {
 /* ============ Table ============ */
 .table-wrapper {
     overflow-x: auto;
-    background: var(--card-bg);
-    backdrop-filter: blur(12px);
-    border-radius: 16px;
-    border: 1px solid var(--border);
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     padding: 4px;
-    box-shadow: var(--shadow);
 }
 
 table {
@@ -375,51 +322,32 @@ table {
 }
 
 thead {
-    background: rgba(139, 92, 246, 0.1);
+    background: #f8f9fa;
 }
 
 th {
     padding: 14px 16px;
     text-align: center;
     font-weight: 600;
-    color: var(--text-secondary);
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
+    color: #555;
+    border-bottom: 2px solid #e0e0e0;
 }
 
 td {
     padding: 12px 16px;
     text-align: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    color: var(--text);
-}
-
-tbody tr {
-    transition: all 0.2s;
-    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
 }
 
 tbody tr:hover {
-    background: rgba(139, 92, 246, 0.05);
+    background: #f8f9fa;
 }
 
-tbody tr.selected {
-    background: rgba(139, 92, 246, 0.15);
-    border-left: 3px solid var(--primary);
-}
-
-tbody tr.selected td:first-child {
-    padding-left: 13px;
-}
-
-/* ============ Result Box ============ */
+/* ============ Result ============ */
 #createResult {
     margin-top: 20px;
-    padding: 24px;
-    border-radius: 16px;
-    background: var(--card-bg);
-    backdrop-filter: blur(12px);
-    border: 1px solid var(--border);
+    padding: 20px;
+    border-radius: 10px;
 }
 
 /* ============ Responsive ============ */
@@ -433,8 +361,6 @@ tbody tr.selected td:first-child {
         height: auto;
         position: static;
         padding: 10px 0;
-        border-right: none;
-        border-bottom: 1px solid var(--border);
     }
 
     .sidebar-nav {
@@ -452,7 +378,7 @@ tbody tr.selected td:first-child {
     }
 
     .sidebar-nav a.active {
-        border-bottom-color: var(--primary);
+        border-bottom-color: #3498db;
         border-right-color: transparent;
     }
 
@@ -465,17 +391,6 @@ tbody tr.selected td:first-child {
     .header-actions {
         flex-wrap: wrap;
         justify-content: center;
-        width: 100%;
-    }
-
-    .status-badge {
-        font-size: 11px;
-        padding: 4px 10px;
-    }
-
-    .btn-connect {
-        padding: 6px 14px;
-        font-size: 12px;
     }
 
     .network-tabs,
@@ -486,8 +401,43 @@ tbody tr.selected td:first-child {
     .network-tab {
         justify-content: center;
     }
+}
+/* admin/css/admin.css - اضافه کردن به انتهای فایل */
 
-    .main-content {
-        padding: 16px;
-    }
+/* ============ هایلایت ردیف‌های جدول ============ */
+#projectsTable tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#projectsTable tbody tr:hover {
+    background-color: #f0f7ff !important;
+}
+
+#projectsTable tbody tr.selected {
+    background-color: #dbeafe !important;
+    border-left: 4px solid #3498db;
+}
+
+#projectsTable tbody tr.selected td:first-child {
+    padding-left: 12px;
+}
+
+/* استایل لینک‌های آدرس */
+#projectsTable tbody td a {
+    transition: color 0.2s;
+}
+
+#projectsTable tbody td a:hover {
+    color: #2980b9 !important;
+    text-decoration: underline !important;
+}
+
+/* استایل دکمه بررسی */
+#projectsTable tbody td button {
+    transition: all 0.2s ease;
+}
+
+#projectsTable tbody td button:hover {
+    transform: scale(1.05);
 }
