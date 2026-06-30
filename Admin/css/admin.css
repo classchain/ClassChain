@@ -340,150 +340,6 @@ tbody tr:hover {
     border-radius: 10px;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* ============ Responsive ============ */
 @media (max-width: 768px) {
     .admin-body {
@@ -535,4 +391,43 @@ tbody tr:hover {
     .network-tab {
         justify-content: center;
     }
+}
+/* admin/css/admin.css - اضافه کردن به انتهای فایل */
+
+/* ============ هایلایت ردیف‌های جدول ============ */
+#projectsTable tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#projectsTable tbody tr:hover {
+    background-color: #f0f7ff !important;
+}
+
+#projectsTable tbody tr.selected {
+    background-color: #dbeafe !important;
+    border-left: 4px solid #3498db;
+}
+
+#projectsTable tbody tr.selected td:first-child {
+    padding-left: 12px;
+}
+
+/* استایل لینک‌های آدرس */
+#projectsTable tbody td a {
+    transition: color 0.2s;
+}
+
+#projectsTable tbody td a:hover {
+    color: #2980b9 !important;
+    text-decoration: underline !important;
+}
+
+/* استایل دکمه بررسی */
+#projectsTable tbody td button {
+    transition: all 0.2s ease;
+}
+
+#projectsTable tbody td button:hover {
+    transform: scale(1.05);
 }
