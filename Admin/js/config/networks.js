@@ -20,7 +20,7 @@ export const NETWORKS = {
     name: 'Polygon Mainnet',
     chainId: 137,
     rpcUrl: 'https://polygon-rpc.com',
-    factoryAddress: '',
+    factoryAddress: '0x83b1E4D6a3E494cCf86F50ef6934FFA1E23e421f',
     nativeToken: 'MATIC',
     explorerUrl: 'https://polygonscan.com',
     type: 'EVM',
