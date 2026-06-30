@@ -1,4 +1,20 @@
-/* css/admin.css */
+/* ============================================
+   🔮 Admin Panel - تم دارک شیشه‌ای
+   الهام‌گرفته از Dashboard
+   ============================================ */
+
+:root {
+    --bg: #0a0e17;
+    --text: #f1f5f9;
+    --primary: #8b5cf6;
+    --primary-hover: #7c3aed;
+    --success: #10b981;
+    --danger: #ef4444;
+    --card-bg: rgba(17, 24, 39, 0.8);
+    --border: rgba(139, 92, 246, 0.3);
+    --shadow: rgba(139, 92, 246, 0.2);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -7,11 +23,26 @@
 
 body {
     font-family: 'Vazirmatn', Tahoma, Arial, sans-serif;
-    background: #f0f2f5;
-    color: #2c3e50;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
 }
 
+/* ============ Particles Background ============ */
+#particles-js {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* ============ Container ============ */
 .admin-container {
+    position: relative;
+    z-index: 10;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -19,13 +50,14 @@ body {
 
 /* ============ Header ============ */
 .admin-header {
-    background: #1a1a2e;
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
     color: white;
     padding: 16px 30px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
     z-index: 100;
@@ -43,6 +75,13 @@ body {
     font-size: 28px;
 }
 
+.logo-text {
+    background: linear-gradient(120deg, #4cc9f0, #8b5cf6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
 .header-actions {
     display: flex;
     align-items: center;
@@ -53,11 +92,12 @@ body {
     font-size: 13px;
     padding: 6px 14px;
     border-radius: 20px;
-    background: rgba(255,255,255,0.1);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .btn-connect {
-    background: #3498db;
+    background: var(--primary);
     color: white;
     border: none;
     padding: 8px 20px;
@@ -68,8 +108,9 @@ body {
 }
 
 .btn-connect:hover {
-    background: #2980b9;
+    background: var(--primary-hover);
     transform: scale(1.02);
+    box-shadow: 0 0 20px var(--shadow);
 }
 
 /* ============ Body ============ */
@@ -81,9 +122,10 @@ body {
 /* ============ Sidebar ============ */
 .sidebar {
     width: 220px;
-    background: white;
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
     padding: 20px 0;
-    box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+    border-left: 1px solid var(--border);
     height: calc(100vh - 80px);
     position: sticky;
     top: 80px;
@@ -97,21 +139,21 @@ body {
 .sidebar-nav a {
     padding: 14px 24px;
     text-decoration: none;
-    color: #555;
+    color: #94a3b8;
     font-size: 15px;
     transition: all 0.3s;
     border-right: 3px solid transparent;
 }
 
 .sidebar-nav a:hover {
-    background: #f8f9fa;
-    color: #2c3e50;
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--text);
 }
 
 .sidebar-nav a.active {
-    background: #e8f4fd;
-    color: #3498db;
-    border-right-color: #3498db;
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--primary);
+    border-right-color: var(--primary);
 }
 
 /* ============ Main Content ============ */
@@ -132,12 +174,23 @@ body {
 .section h2 {
     margin-bottom: 24px;
     font-size: 22px;
-    color: #2c3e50;
+    background: linear-gradient(120deg, #4cc9f0, #8b5cf6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: inline-block;
 }
 
-/* ============ Form ============ */
-.form-group {
+/* ============ Cards ============ */
+.form-group,
+.settings-group,
+#createResult {
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    padding: 20px;
     margin-bottom: 20px;
+    border: 1px solid var(--border);
 }
 
 .form-group label {
@@ -145,33 +198,28 @@ body {
     font-weight: 500;
     margin-bottom: 6px;
     font-size: 14px;
-    color: #555;
+    color: #cbd5e1;
 }
 
+/* ============ Inputs ============ */
 .form-group input,
 .form-group select {
     width: 100%;
     padding: 10px 14px;
-    border: 2px solid #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     font-size: 14px;
     font-family: inherit;
+    background: rgba(0, 0, 0, 0.3);
+    color: var(--text);
     transition: border-color 0.3s;
 }
 
 .form-group input:focus,
 .form-group select:focus {
-    border-color: #3498db;
+    border-color: var(--primary);
     outline: none;
-}
-
-.input-group {
-    display: flex;
-    gap: 10px;
-}
-
-.input-group input {
-    flex: 1;
+    box-shadow: 0 0 15px var(--shadow);
 }
 
 /* ============ Tabs ============ */
@@ -185,9 +233,9 @@ body {
 .network-tab,
 .ownership-tab {
     padding: 10px 18px;
-    border: 2px solid #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
-    background: white;
+    background: rgba(0, 0, 0, 0.3);
     cursor: pointer;
     transition: all 0.3s;
     font-family: inherit;
@@ -195,18 +243,20 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    color: #cbd5e1;
 }
 
 .network-tab:hover,
 .ownership-tab:hover {
-    border-color: #3498db;
-    background: #f8f9fa;
+    border-color: var(--primary);
+    background: rgba(139, 92, 246, 0.1);
 }
 
 .network-tab.active,
 .ownership-tab.active {
-    border-color: #3498db;
-    background: #e8f4fd;
+    border-color: var(--primary);
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--text);
     font-weight: 500;
 }
 
@@ -231,36 +281,37 @@ body {
 }
 
 .btn-create {
-    background: #27ae60;
+    background: linear-gradient(120deg, #4cc9f0, #8b5cf6);
     color: white;
     width: 100%;
     margin-top: 10px;
 }
 
 .btn-create:hover {
-    background: #219a52;
     transform: scale(1.01);
+    box-shadow: 0 0 30px var(--shadow);
 }
 
 .btn-create:disabled {
-    background: #95a5a6;
+    background: #475569;
     cursor: not-allowed;
     transform: none;
+    box-shadow: none;
 }
 
 .btn-secondary {
-    background: #ecf0f1;
-    color: #2c3e50;
+    background: rgba(255, 255, 255, 0.1);
+    color: #cbd5e1;
     padding: 8px 16px;
     font-size: 13px;
 }
 
 .btn-secondary:hover {
-    background: #d5dbdb;
+    background: rgba(255, 255, 255, 0.2);
 }
 
 .btn-add {
-    background: #3498db;
+    background: var(--primary);
     color: white;
     border: none;
     padding: 8px 16px;
@@ -269,19 +320,26 @@ body {
     font-family: inherit;
     font-size: 13px;
     margin-top: 8px;
+    transition: all 0.3s;
 }
 
 .btn-add:hover {
-    background: #2980b9;
+    background: var(--primary-hover);
+    box-shadow: 0 0 20px var(--shadow);
 }
 
 .btn-remove {
-    background: #e74c3c;
+    background: var(--danger);
     color: white;
     border: none;
     padding: 4px 10px;
     border-radius: 4px;
     cursor: pointer;
+    transition: all 0.3s;
+}
+
+.btn-remove:hover {
+    background: #dc2626;
 }
 
 /* ============ Owner Items ============ */
@@ -299,9 +357,10 @@ body {
 /* ============ Table ============ */
 .table-wrapper {
     overflow-x: auto;
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    background: var(--card-bg);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    border: 1px solid var(--border);
     padding: 4px;
 }
 
@@ -312,32 +371,32 @@ table {
 }
 
 thead {
-    background: #f8f9fa;
+    background: rgba(139, 92, 246, 0.1);
 }
 
 th {
     padding: 14px 16px;
     text-align: center;
     font-weight: 600;
-    color: #555;
-    border-bottom: 2px solid #e0e0e0;
+    color: #94a3b8;
+    border-bottom: 1px solid var(--border);
 }
 
 td {
     padding: 12px 16px;
     text-align: center;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: #cbd5e1;
 }
 
 tbody tr:hover {
-    background: #f8f9fa;
+    background: rgba(139, 92, 246, 0.05);
 }
 
 /* ============ Result ============ */
 #createResult {
     margin-top: 20px;
-    padding: 20px;
-    border-radius: 10px;
+    border-radius: 16px;
 }
 
 /* ============ Responsive ============ */
@@ -351,6 +410,8 @@ tbody tr:hover {
         height: auto;
         position: static;
         padding: 10px 0;
+        border-left: none;
+        border-bottom: 1px solid var(--border);
     }
 
     .sidebar-nav {
@@ -368,7 +429,7 @@ tbody tr:hover {
     }
 
     .sidebar-nav a.active {
-        border-bottom-color: #3498db;
+        border-bottom-color: var(--primary);
         border-right-color: transparent;
     }
 
@@ -391,43 +452,4 @@ tbody tr:hover {
     .network-tab {
         justify-content: center;
     }
-}
-/* admin/css/admin.css - اضافه کردن به انتهای فایل */
-
-/* ============ هایلایت ردیف‌های جدول ============ */
-#projectsTable tbody tr {
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-#projectsTable tbody tr:hover {
-    background-color: #f0f7ff !important;
-}
-
-#projectsTable tbody tr.selected {
-    background-color: #dbeafe !important;
-    border-left: 4px solid #3498db;
-}
-
-#projectsTable tbody tr.selected td:first-child {
-    padding-left: 12px;
-}
-
-/* استایل لینک‌های آدرس */
-#projectsTable tbody td a {
-    transition: color 0.2s;
-}
-
-#projectsTable tbody td a:hover {
-    color: #2980b9 !important;
-    text-decoration: underline !important;
-}
-
-/* استایل دکمه بررسی */
-#projectsTable tbody td button {
-    transition: all 0.2s ease;
-}
-
-#projectsTable tbody td button:hover {
-    transform: scale(1.05);
 }
