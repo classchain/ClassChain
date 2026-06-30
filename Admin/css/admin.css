@@ -22,7 +22,6 @@ body {
 /* ============ Header ============ */
 .admin-header {
     background: #1a1a2e;
-
     color: white;
     padding: 16px 30px;
     display: flex;
@@ -73,7 +72,6 @@ body {
 .btn-connect:hover {
     background: #2980b9;
     transform: scale(1.02);
-
 }
 
 /* ============ Body ============ */
@@ -86,7 +84,6 @@ body {
 .sidebar {
     width: 220px;
     background: white;
-
     padding: 20px 0;
     box-shadow: 2px 0 10px rgba(0,0,0,0.05);
     height: calc(100vh - 80px);
@@ -143,7 +140,6 @@ body {
 /* ============ Form ============ */
 .form-group {
     margin-bottom: 20px;
-
 }
 
 .form-group label {
@@ -213,7 +209,6 @@ body {
 .ownership-tab.active {
     border-color: #3498db;
     background: #e8f4fd;
-
     font-weight: 500;
 }
 
@@ -247,14 +242,12 @@ body {
 .btn-create:hover {
     background: #219a52;
     transform: scale(1.01);
-
 }
 
 .btn-create:disabled {
     background: #95a5a6;
     cursor: not-allowed;
     transform: none;
-
 }
 
 .btn-secondary {
@@ -282,7 +275,6 @@ body {
 
 .btn-add:hover {
     background: #2980b9;
-
 }
 
 .btn-remove {
@@ -350,6 +342,44 @@ tbody tr:hover {
     border-radius: 10px;
 }
 
+/* ============ هایلایت ردیف‌های جدول ============ */
+#projectsTable tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#projectsTable tbody tr:hover {
+    background-color: #f0f7ff !important;
+}
+
+#projectsTable tbody tr.selected {
+    background-color: #dbeafe !important;
+    border-left: 4px solid #3498db;
+}
+
+#projectsTable tbody tr.selected td:first-child {
+    padding-left: 12px;
+}
+
+/* استایل لینک‌های آدرس */
+#projectsTable tbody td a {
+    transition: color 0.2s;
+}
+
+#projectsTable tbody td a:hover {
+    color: #2980b9 !important;
+    text-decoration: underline !important;
+}
+
+/* استایل دکمه بررسی */
+#projectsTable tbody td button {
+    transition: all 0.2s ease;
+}
+
+#projectsTable tbody td button:hover {
+    transform: scale(1.05);
+}
+
 /* ============ Responsive ============ */
 @media (max-width: 768px) {
     .admin-body {
@@ -401,43 +431,4 @@ tbody tr:hover {
     .network-tab {
         justify-content: center;
     }
-}
-/* admin/css/admin.css - اضافه کردن به انتهای فایل */
-
-/* ============ هایلایت ردیف‌های جدول ============ */
-#projectsTable tbody tr {
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-}
-
-#projectsTable tbody tr:hover {
-    background-color: #f0f7ff !important;
-}
-
-#projectsTable tbody tr.selected {
-    background-color: #dbeafe !important;
-    border-left: 4px solid #3498db;
-}
-
-#projectsTable tbody tr.selected td:first-child {
-    padding-left: 12px;
-}
-
-/* استایل لینک‌های آدرس */
-#projectsTable tbody td a {
-    transition: color 0.2s;
-}
-
-#projectsTable tbody td a:hover {
-    color: #2980b9 !important;
-    text-decoration: underline !important;
-}
-
-/* استایل دکمه بررسی */
-#projectsTable tbody td button {
-    transition: all 0.2s ease;
-}
-
-#projectsTable tbody td button:hover {
-    transform: scale(1.05);
 }
