@@ -13,7 +13,7 @@ export const NETWORKS = {
     color: '#8247E5',
     icon: '🟣',
     isTestnet: true,
-    status: 'active'
+    status: 'active'   // ✅ فعال
   },
   polygon_mainnet: {
     id: 'polygon_mainnet',
@@ -48,19 +48,19 @@ export const NETWORKS = {
     name: 'Tron Nile',
     chainId: 2,
     rpcUrl: 'https://nile.trongrid.io',
-    factoryAddress: '',
+    factoryAddress: '0x83b1E4D6a3E494cCf86F50ef6934FFA1E23e421f',  // آدرس Amoy برای تست
     nativeToken: 'TRX',
     explorerUrl: 'https://nile.tronscan.org',
     type: 'TVM',
     color: '#EF0027',
     icon: '🔴',
     isTestnet: true,
-    status: 'pending'
+    status: 'active'   // ✅ فعال (برای تست)
   }
-};  // ← اینجا دقیقاً یک } باید باشد
+};
 
 // ============================================
-// ✅ فقط شبکه‌های active را برمی‌گرداند
+// ✅ شبکه‌های فعال (برای نمایش در جدول و تب‌ها)
 // ============================================
 export const ACTIVE_NETWORKS = Object.values(NETWORKS).filter(n => 
   n.status === 'active' && n.factoryAddress && n.factoryAddress !== ''
