@@ -753,108 +753,179 @@ async function loadProjectsTable() {
         await projectManager.loadProjects();
         const projects = projectManager.projects;
         const tbody = document.querySelector('#projectsTable tbody');
-        if (!tbody) return;
+        const thead = document.querySelector('#projectsTable thead');
+        if (!tbody || !thead) return;
+        
         // ============================================
-        // اضافه کردن هدر شبکه‌ها به صورت داینامیک
+        // 📊 ساخت هدر جدول
         // ============================================
-        const thead = document.querySelector('#projectsTable thead tr');
-        if (thead) {
-            // حذف ستون‌های قدیمی شبکه (اگر وجود داشته باشند)
-            const existingNetworkHeaders = thead.querySelectorAll('.network-header');
-            existingNetworkHeaders.forEach(el => el.remove());
-    
-            // اضافه کردن هدر برای هر شبکه فعال
-            ACTIVE_NETWORKS.forEach(network => {
-                const th = document.createElement('th');
-                th.className = 'network-header';
-                th.style.cssText = 'padding:8px 4px;text-align:center;border-bottom:2px solid #e0e0e0;font-size:11px;min-width:90px;';
-                th.innerHTML = `
-                    <span style="display:block;font-size:14px;">${network.icon || '🌐'}</span>
-                    <span style="display:block;font-size:10px;color:#555;">${network.name}</span>
-                `;
-                thead.appendChild(th);
-            });
-        }
+        const networksToShow = ACTIVE_NETWORKS;
+        
+        let headerHTML = `
+            <tr>
+                <th style="width:100px;text-align:center;">ProjectID</th>
+                <th style="text-align:right;padding-right:20px;">نام پروژه</th>
+                <th style="width:120px;text-align:center;">هدف (USDT)</th>
+        `;
+        
+        // اضافه کردن ستون برای هر شبکه
+        networksToShow.forEach(network => {
+            headerHTML += `<th style="width:120px;text-align:center;">${network.icon} ${network.name}</th>`;
+        });
+        
+        headerHTML += `
+                <th style="width:100px;text-align:center;">عملیات</th>
+            </tr>
+        `;
+        
+        thead.innerHTML = headerHTML;
+        
+        // ============================================
+        // 📋 پر کردن بدنه جدول
+        // ============================================
         tbody.innerHTML = '';
-        const networkFilter = document.getElementById('networkFilter')?.value || 'all';
-        projects.features.forEach(f => {
-            const attr = f.attributes;
 
+        const networkFilter = document.getElementById('networkFilter')?.value || 'all';
+
+        projects.features.forEach((f, index) => {
+            const attr = f.attributes;
+            
             // فیلتر بر اساس شبکه
             if (networkFilter !== 'all') {
-                const funds = attr.funds || {};
                 if (!projectManager.hasFund(f, networkFilter)) {
                     return;
                 }
             }
 
             const row = document.createElement('tr');
-
-            // ProjectID
+            row.dataset.projectId = attr.ProjectID || '';
+            row.dataset.rowIndex = index;
+            
+            // ============================================
+            // ✨ هایلایت هنگام کلیک روی ردیف
+            // ============================================
+            row.addEventListener('click', function(e) {
+                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A') return;
+                
+                document.querySelectorAll('#projectsTable tbody tr').forEach(r => {
+                    r.classList.remove('selected');
+                });
+                
+                this.classList.add('selected');
+                
+                const projectId = this.dataset.projectId;
+                if (projectId) {
+                    document.getElementById('projectId').value = projectId;
+                }
+            });
+            
+            // ============================================
+            // ستون ProjectID
+            // ============================================
             const idCell = document.createElement('td');
             idCell.textContent = attr.ProjectID || '---';
+            idCell.style.fontWeight = 'bold';
+            idCell.style.textAlign = 'center';
             row.appendChild(idCell);
 
-            // نام پروژه
+            // ============================================
+            // ستون نام پروژه
+            // ============================================
             const nameCell = document.createElement('td');
             nameCell.textContent = attr['نام پروژه'] || 'نامشخص';
+            nameCell.style.textAlign = 'right';
+            nameCell.style.paddingRight = '20px';
             row.appendChild(nameCell);
 
-            // هدف
+            // ============================================
+            // ستون هدف
+            // ============================================
             const targetCell = document.createElement('td');
             targetCell.textContent = attr['targetAmount(USDT)']?.toLocaleString() || '0';
+            targetCell.style.textAlign = 'center';
             row.appendChild(targetCell);
 
-            // ستون‌های شبکه‌ها
-// ============================================
-// ستون‌های شبکه‌ها (به جای ستون وضعیت)
-// ============================================
-            ACTIVE_NETWORKS.forEach(network => {
+            // ============================================
+            // 🔍 ستون‌های شبکه‌ها - به ازای هر شبکه یک ستون
+            // ============================================
+            networksToShow.forEach(network => {
                 const cell = document.createElement('td');
                 const address = projectManager.getFundAddress(f, network.id);
-    
+                
                 if (address) {
-                    // اگر آدرس خزانه وجود دارد
                     const multisig = projectManager.getMultisigAddress(f);
+                    
                     cell.innerHTML = `
-                        <span style="color: #27ae60;">✅</span>
-                        <br>
-                        <small style="font-size:10px;font-family:monospace;">${address.slice(0, 8)}...${address.slice(-6)}</small>
-                        ${multisig ? `<br><small style="font-size:9px;color:#666;">🔑 MultiSig</small>` : ''}
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                            <span style="color: #27ae60; font-size:18px;">✅</span>
+                            <a href="${network.explorerUrl}/address/${address}" 
+                               target="_blank" 
+                               style="font-size:10px;color:#3498db;text-decoration:none;direction:ltr;"
+                               onclick="event.stopPropagation();">
+                                ${address.slice(0, 6)}...${address.slice(-4)}
+                            </a>
+                            ${multisig ? `<span style="font-size:8px;color:#6c5ce7;">🔑 MultiSig</span>` : ''}
+                        </div>
                     `;
-                    cell.style.color = '#27ae60';
                 } else {
-                    // اگر آدرس خزانه وجود ندارد
                     cell.innerHTML = `
-                        <span style="color: #95a5a6;">⏳</span>
-                        <br>
-                        <small style="font-size:9px;color:#95a5a6;">ساخته نشده</small>
+                        <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+                            <span style="color: #bdc3c7; font-size:18px;">❌</span>
+                            <span style="font-size:9px;color:#bdc3c7;">ندارد</span>
+                        </div>
                     `;
-                    cell.style.color = '#95a5a6';
                 }
-    
-                cell.style.fontSize = '12px';
                 cell.style.textAlign = 'center';
-                cell.style.padding = '8px 4px';
                 row.appendChild(cell);
             });
 
-            // عملیات
+            // ============================================
+            // 🎯 ستون عملیات - فقط یک دکمه
+            // ============================================
             const actionCell = document.createElement('td');
             const id = attr.ProjectID || '';
             actionCell.innerHTML = `
-                <button onclick="window.fillProjectId('${id}')" style="padding:4px 10px;font-size:11px;background:#3498db;color:white;border:none;border-radius:4px;cursor:pointer;">
-                    📝 انتخاب
+                <button onclick="window.selectProjectAndCheck('${id}')" 
+                        style="padding:6px 14px;font-size:12px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer;transition:all 0.2s;"
+                        onmouseover="this.style.background='#2980b9'"
+                        onmouseout="this.style.background='#3498db'">
+                    🔍 بررسی
                 </button>
             `;
+            actionCell.style.textAlign = 'center';
             row.appendChild(actionCell);
+
             tbody.appendChild(row);
         });
+
+        // ============================================
+        // 📊 آمار در پایین جدول
+        // ============================================
+        const totalProjects = projects.features.length;
+        const projectsWithFund = projects.features.filter(f => {
+            const allFunds = projectManager.getAllFunds(f);
+            return Object.keys(allFunds).filter(k => k !== '_multisig').length > 0;
+        }).length;
+        
+        const footer = document.querySelector('#projectsTable tfoot');
+        if (footer) {
+            const totalCols = 3 + networksToShow.length + 1; // ProjectID + Name + Target + networks + Action
+            footer.innerHTML = `
+                <tr style="background:#f8f9fa;font-weight:bold;">
+                    <td colspan="${totalCols}" style="text-align:center;padding:12px;font-size:13px;color:#2c3e50;">
+                        📊 مجموع: ${totalProjects} پروژه | 
+                        ✅ دارای خزانه: ${projectsWithFund} | 
+                        ⏳ بدون خزانه: ${totalProjects - projectsWithFund}
+                    </td>
+                </tr>
+            `;
+        }
+
     } catch (error) {
         console.error('خطا در بارگذاری جدول:', error);
         const tbody = document.querySelector('#projectsTable tbody');
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#e74c3c;">خطا در بارگذاری داده‌ها</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#e74c3c;padding:20px;">❌ خطا در بارگذاری داده‌ها</td></tr>`;
         }
     }
 }
@@ -873,18 +944,49 @@ window.fillProjectId = (id) => {
     const input = document.getElementById('projectId');
     if (input) input.value = id;
 };
+// ============================================
+// انتخاب پروژه و رفتن به صفحه بررسی
+// ============================================
 
-
-
-
-
-
-
-
-
-
-
-
+window.selectProjectAndCheck = (projectId) => {
+    if (!projectId) return;
+    
+    // 1. پر کردن فیلد ProjectID
+    const input = document.getElementById('projectId');
+    if (input) {
+        input.value = projectId;
+    }
+    
+    // 2. هایلایت کردن ردیف مربوطه در جدول
+    document.querySelectorAll('#projectsTable tbody tr').forEach(row => {
+        row.classList.remove('selected');
+        if (row.dataset.projectId === projectId) {
+            row.classList.add('selected');
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
+    
+    // 3. رفتن به بخش ساخت خزانه
+    const section = document.getElementById('section-create');
+    if (section) {
+        document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+        section.style.display = 'block';
+        
+        document.querySelectorAll('.sidebar-nav a').forEach(link => {
+            link.classList.remove('active');
+            if (link.dataset.section === 'create') {
+                link.classList.add('active');
+            }
+        });
+        
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    
+    // 4. اجرای بررسی خودکار
+    setTimeout(() => {
+        checkProject();
+    }, 300);
+};
 
 // ============================================
 // مشاهده JSON در مرورگر
