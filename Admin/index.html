@@ -8,16 +8,9 @@
 
     <!-- ⚠️ Web3 باید قبل از ماژول‌ها بارگذاری شود -->
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
-    
-    <!-- ✨ Particles.js برای افکت پس‌زمینه -->
-    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
-
     <link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
-    <!-- ✨ کانتینر ذرات (پس‌زمینه) -->
-    <div id="particles-js"></div>
-
     <div class="admin-container">
         <!-- هدر -->
         <header class="admin-header">
@@ -89,15 +82,15 @@
                             <div id="ownersContainer">
                                 <div class="owner-item">
                                     <input type="text" class="owner-input" placeholder="آدرس مالک ۱">
-                                    <button onclick="this.parentElement.remove()" class="btn-remove">❌</button>
+                                    <button onclick="this.parentElement.remove()" class="btn-remove" style="background:#e74c3c;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">❌</button>
                                 </div>
                             </div>
-                            <button class="btn-add">➕ اضافه کردن مالک</button>
+                            <button class="btn-add" style="background:#3498db;color:white;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;margin-top:8px;">➕ اضافه کردن مالک</button>
                         </div>
                     </div>
 
                     <!-- دکمه ساخت -->
-                    <button class="btn-create">
+                    <button class="btn-create" style="width:100%;padding:14px;background:#27ae60;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;margin-top:10px;">
                         🚀 ساخت خزانه
                     </button>
 
@@ -107,19 +100,20 @@
 
                 <!-- بخش پروژه‌ها -->
                 <section id="section-projects" class="section" style="display:none;">
-                    <div class="section-header">
+                    <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
                         <h2>📋 لیست پروژه‌ها</h2>
-                        <div class="filters">
-                            <select id="networkFilter">
+                        <div class="filters" style="display:flex;gap:10px;">
+                            <select id="networkFilter" style="padding:8px 14px;border-radius:6px;border:1px solid #ddd;">
                                 <option value="all">همه شبکه‌ها</option>
                             </select>
-                            <button onclick="window.loadProjectsTable()" class="btn-secondary">🔄 Refresh</button>
+                            <button onclick="window.loadProjectsTable()" class="btn-secondary" style="padding:8px 16px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer;">🔄 Refresh</button>
                         </div>
                     </div>
-                    
-                    <div class="table-wrapper">
-                        <table id="projectsTable">
-                            <thead>
+
+                    <!-- admin/index.html - بخش جدول -->
+                    <div class="table-wrapper" style="overflow-x:auto;background:white;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.05);padding:4px;">
+                        <table id="projectsTable" style="width:100%;border-collapse:collapse;font-size:14px;">
+                            <thead style="background:#f8f9fa;">
                                 <!-- هدر توسط JS ساخته می‌شود -->
                             </thead>
                             <tbody>
@@ -135,12 +129,12 @@
                 <!-- بخش تنظیمات -->
                 <section id="section-settings" class="section" style="display:none;">
                     <h2>⚙️ تنظیمات</h2>
-                    <div class="settings-group">
+                    <div class="settings-group" style="background:white;padding:20px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
                         <h3>🔑 توکن GitHub</h3>
                         <p style="color:#666;font-size:13px;">برای آپلود خودکار JSON به GitHub نیاز است</p>
                         <div style="display:flex;gap:10px;margin-top:10px;">
-                            <input type="password" id="githubToken" placeholder="توکن GitHub را وارد کنید">
-                            <button onclick="saveGitHubToken()">💾 ذخیره</button>
+                            <input type="password" id="githubToken" placeholder="توکن GitHub را وارد کنید" style="flex:1;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;">
+                            <button onclick="saveGitHubToken()" style="padding:10px 20px;background:#6c5ce7;color:white;border:none;border-radius:8px;cursor:pointer;">💾 ذخیره</button>
                         </div>
                     </div>
                 </section>
@@ -179,57 +173,6 @@
                     if (target) target.style.display = 'block';
                 });
             });
-        });
-
-        // ============================================
-        // ✨ راه‌اندازی Particles.js
-        // ============================================
-        particlesJS('particles-js', {
-            particles: {
-                number: { 
-                    value: 80, 
-                    density: { 
-                        enable: true, 
-                        value_area: 800 
-                    } 
-                },
-                color: { 
-                    value: '#8b5cf6' 
-                },
-                shape: { 
-                    type: 'circle' 
-                },
-                opacity: { 
-                    value: 0.3, 
-                    random: true 
-                },
-                size: { 
-                    value: 3, 
-                    random: true 
-                },
-                move: { 
-                    enable: true, 
-                    speed: 2, 
-                    direction: 'none', 
-                    random: true,
-                    straight: false,
-                    out_mode: 'out'
-                }
-            },
-            interactivity: {
-                detect_on: 'canvas',
-                events: {
-                    onhover: { 
-                        enable: true, 
-                        mode: 'repulse' 
-                    },
-                    onclick: { 
-                        enable: true, 
-                        mode: 'push' 
-                    }
-                }
-            },
-            retina_detect: true
         });
     </script>
 </body>
