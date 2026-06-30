@@ -27,7 +27,7 @@ export const NETWORKS = {
     color: '#8247E5',
     icon: '🟣',
     isTestnet: false,
-    status: 'pending'
+    status: 'active'
   },
   ethereum_sepolia: {
     id: 'ethereum_sepolia',
