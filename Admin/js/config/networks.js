@@ -12,7 +12,7 @@ export const NETWORKS = {
     color: '#8247E5',
     icon: '🟣',
     isTestnet: true,
-    status: 'pending'
+    status: 'active'
   },
     polygon_mainnet: {
     id: 'polygon_mainnet',
@@ -47,14 +47,14 @@ export const NETWORKS = {
     name: 'Tron Nile',
     chainId: 2,
     rpcUrl: 'https://nile.trongrid.io',
-    factoryAddress: 'Tx83b1E4D6a3E494cCf86F50ef6934FFA1E23e421f', // آدرس Factory در Nile
+    factoryAddress: 'T...', // آدرس Factory در Nile
     nativeToken: 'TRX',
     explorerUrl: 'https://nile.tronscan.org',
     type: 'TVM',
     color: '#EF0027',
     icon: '🔴',
     isTestnet: true,
-    status: 'active'  // ← فعال شد  }
+    status: 'pending' // هنوز Deploy نشده
 };
 
 // شبکه‌های فعال برای نمایش
