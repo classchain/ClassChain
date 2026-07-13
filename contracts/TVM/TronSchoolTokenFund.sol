@@ -36,9 +36,9 @@ contract TronSchoolTokenFund is Ownable {
 
     // آدرس رسمی USDT TRC-20 روی Tron Mainnet (در فرمت hex)
     //address public constant USDT_TOKEN = 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C;
-    //address public immutable usdtTokenNile = 0xa614f803B6FD780986A42c78Ec9c7f77e6DeD13C; // hex همان Base58 TXYZ... است
-    //address public immutable usdtTokenNile = 0xeca9bc828a3005b9a3b909f2cc5c2a54794de05f;
-    address public immutable usdtTokenNile = 0xECa9bC828A3005B9a3b909f2cc5c2a54794DE05F;
+    // آدرس رسمی USDT TRC-20 روی Tron  Testnet(در فرمت hex)
+	address public constant USDT_TOKEN = 0xECa9bC828A3005B9a3b909f2cc5c2a54794DE05F;
+
     mapping(address => mapping(address => uint256)) public donorContributions;
     mapping(address => uint256) public totalDonorContributions;
 
@@ -54,15 +54,12 @@ contract TronSchoolTokenFund is Ownable {
                 emit TokenAllowanceUpdated(_initialAllowedTokens[i], true);
             }
         }
-        if (!allowedTokens[usdtTokenNile]) {
-            allowedTokens[usdtTokenNile] = true;
-            emit TokenAllowanceUpdated(usdtTokenNile, true);
-        }
+
         // همیشه USDT را مجاز کن
-        //if (!allowedTokens[USDT_TOKEN]) {
-        //    allowedTokens[USDT_TOKEN] = true;
-        //    emit TokenAllowanceUpdated(USDT_TOKEN, true);
-        //}
+        if (!allowedTokens[USDT_TOKEN]) {
+            allowedTokens[USDT_TOKEN] = true;
+            emit TokenAllowanceUpdated(USDT_TOKEN, true);
+        }
     }
 
     // جلوگیری از دریافت TRX مستقیم
