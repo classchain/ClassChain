@@ -5,6 +5,27 @@ import { ContractManager } from './core/ContractManager.js';
 import { ProjectManager } from './core/ProjectManager.js';
 
 // ============================================
+// احراز هویت ادمین (رمز فقط در session نگه داشته میشه)
+// ============================================
+function ensureAdminAuth() {
+  let key = sessionStorage.getItem('classchain_admin_key');
+  if (!key) {
+    key = prompt('🔐 رمز ادمین را وارد کنید:');
+    if (key && key.trim()) {
+      sessionStorage.setItem('classchain_admin_key', key.trim());
+    } else {
+      alert('بدون رمز ادمین، امکان ذخیره خزانه‌ها روی گیت‌هاب نخواهد بود.');
+    }
+  }
+  return sessionStorage.getItem('classchain_admin_key');
+}
+
+// اجرای فوری هنگام بارگذاری صفحه
+ensureAdminAuth();
+
+// در دسترس بودن برای دکمه‌ی احتمالی "تغییر رمز" در آینده
+window.ensureAdminAuth = ensureAdminAuth;
+// ============================================
 // نمونه‌سازی از کلاس‌ها
 // ============================================
 const networkManager = new NetworkManager();
