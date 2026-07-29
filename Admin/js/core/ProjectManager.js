@@ -298,70 +298,130 @@ export class ProjectManager {
   // ============================================
   //          GitHub API integration
   // ============================================
-  async pushToGitHub(jsonContent, message = 'به‌روزرسانی پروژه‌ها') {
-      const GITHUB_TOKEN = localStorage.getItem('github_token');
-      if (!GITHUB_TOKEN) {
-          throw new Error('توکن GitHub تنظیم نشده است');
-      }
-      // ⚠️ تنظیم نام repo و مسیر فایل
+  //async pushToGitHub(jsonContent, message = 'به‌روزرسانی پروژه‌ها') {
+  //    const GITHUB_TOKEN = localStorage.getItem('github_token');
+  //    if (!GITHUB_TOKEN) {
+  //        throw new Error('توکن GitHub تنظیم نشده است');
+  //    }
+  //    // ⚠️ تنظیم نام repo و مسیر فایل
     
-      const REPO = 'classchain/ClassChain';
-      const PATH = 'frontend/data/Projects.json';
+  //    const REPO = 'classchain/ClassChain';
+  //    const PATH = 'frontend/data/Projects.json';
 
-      try {
-          // دریافت SHA فایل فعلی
-          const sha = await this._getFileSha(REPO, PATH, GITHUB_TOKEN);
-          const response = await fetch(
-              `https://api.github.com/repos/${REPO}/contents/${PATH}`,
-              {
-                  method: 'PUT',
-                  headers: {
-                      'Authorization': `token ${GITHUB_TOKEN}`,
-                      'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                      message: message,
-                      content: btoa(unescape(encodeURIComponent(jsonContent))),
-                      sha: sha
-                  })
-              }
-          );
+  //    try {
+  //        // دریافت SHA فایل فعلی
+  //        const sha = await this._getFileSha(REPO, PATH, GITHUB_TOKEN);
+  //        const response = await fetch(
+  //            `https://api.github.com/repos/${REPO}/contents/${PATH}`,
+  //            {
+  //                method: 'PUT',
+  //                headers: {
+  //                    'Authorization': `token ${GITHUB_TOKEN}`,
+  //                    'Content-Type': 'application/json'
+  //                },
+  //                body: JSON.stringify({
+  //                    message: message,
+  //                    content: btoa(unescape(encodeURIComponent(jsonContent))),
+  //                    sha: sha
+  //                })
+  //            }
+  //        );
 
-          if (!response.ok) {
-              const errorData = await response.json();
-              throw new Error(errorData.message || 'خطا در آپلود به GitHub');
-          }
+  //        if (!response.ok) {
+  //            const errorData = await response.json();
+  //            throw new Error(errorData.message || 'خطا در آپلود به GitHub');
+  //        }
 
-          return await response.json();
+  //        return await response.json();
 
-      } catch (error) {
-          console.error('❌ GitHub upload error:', error);
-          throw error;
-      }
+  //    } catch (error) {
+  //        console.error('❌ GitHub upload error:', error);
+  //        throw error;
+  //    }
+  //}
+
+
+  //async _getFileSha(repo, path, token) {
+  //    try {
+  //        const response = await fetch(
+  //            `https://api.github.com/repos/${repo}/contents/${path}`,
+  //            {
+  //                headers: {
+  //                    'Authorization': `token ${token}`
+  //                }
+  //            }
+  //        );
+
+  //        if (response.ok) {
+  //            const data = await response.json();
+  //            return data.sha;
+  //        }
+  //        return null;
+  //    } catch (error) {
+  //        return null;
+  //    }
+  //}
+
+// ============================================
+// GitHub API integration (از طریق Worker امن)
+// ============================================
+
+async pushToGitHub(jsonContent, message = 'به‌روزرسانی پروژه‌ها') {
+  const WORKER_URL = 'https://classchain-github-proxy.classchain.workers.dev';
+  const ADMIN_KEY = localStorage.getItem('classchain_admin_key');
+
+  if (!ADMIN_KEY) {
+    throw new Error('رمز ادمین تنظیم نشده است. لطفاً وارد شوید.');
   }
 
+  const PATH = 'frontend/data/Projects.json';
 
-  async _getFileSha(repo, path, token) {
-      try {
-          const response = await fetch(
-              `https://api.github.com/repos/${repo}/contents/${path}`,
-              {
-                  headers: {
-                      'Authorization': `token ${token}`
-                  }
-              }
-          );
+  try {
+    // دریافت SHA فایل فعلی (از طریق Worker)
+    const sha = await this._getFileSha(WORKER_URL, ADMIN_KEY, PATH);
 
-          if (response.ok) {
-              const data = await response.json();
-              return data.sha;
-          }
-          return null;
-      } catch (error) {
-          return null;
-      }
+    const response = await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: {
+        'X-Admin-Key': ADMIN_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        path: PATH,
+        message: message,
+        content: btoa(unescape(encodeURIComponent(jsonContent))),
+        sha: sha
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || errorData.message || 'خطا در آپلود به GitHub');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('❌ GitHub upload error:', error);
+    throw error;
   }
+}
 
+async _getFileSha(workerUrl, adminKey, path) {
+  try {
+    const response = await fetch(`${workerUrl}?path=${encodeURIComponent(path)}`, {
+      method: 'GET',
+      headers: { 'X-Admin-Key': adminKey }
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.sha;
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
   getProjectsByNetwork(networkId) {
       if (!this.projects) return [];
         
