@@ -84,6 +84,20 @@ contract TronSchoolTokenFund is Ownable {
         emit TokensReceived(token, msg.sender, amount);
     }
 
+    //function withdrawToken(address token, address to, uint256 amount) external onlyOwner {
+    //    require(allowedTokens[token], "Cannot withdraw disallowed token");
+    //    require(to != address(0), "Invalid recipient");
+    //    require(amount > 0, "Amount must be greater than 0");
+
+    //    uint256 balance = ITRC20(token).balanceOf(address(this));
+    //    require(balance >= amount, "Insufficient balance");
+
+    //    bool success = ITRC20(token).transfer(to, amount);
+    //    require(success, "Transfer failed");
+    //    
+    //    emit Withdrawn(token, to, amount);
+    //}
+
     function withdrawToken(address token, address to, uint256 amount) external onlyOwner {
         require(allowedTokens[token], "Cannot withdraw disallowed token");
         require(to != address(0), "Invalid recipient");
@@ -91,9 +105,23 @@ contract TronSchoolTokenFund is Ownable {
 
         uint256 balance = ITRC20(token).balanceOf(address(this));
         require(balance >= amount, "Insufficient balance");
-
-        bool success = ITRC20(token).transfer(to, amount);
-        require(success, "Transfer failed");
+    
+        // فراخوانی با جزئیات بیشتر
+        (bool success, bytes memory returnData) = token.call(
+            abi.encodeWithSelector(ITRC20.transfer.selector, to, amount)
+        );
+    
+        if (!success) {
+            // اگر خطا دلیل داشته باشد، آن را نشان بده
+            if (returnData.length > 0) {
+                assembly {
+                    let returndata_size := mload(returnData)
+                    revert(add(32, returnData), returndata_size)
+                }
+            } else {
+                revert("Transfer failed - no reason provided");
+            }
+        }
 
         emit Withdrawn(token, to, amount);
     }
