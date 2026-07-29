@@ -325,37 +325,84 @@ document.addEventListener('DOMContentLoaded', function() {
                شاخه TRON
                ========================= */
             if (selectedNetwork === 'tron') {
-                if (!isTronReady()) {
-                    alert("لطفاً TronLink را نصب و فعال کنید");
-                    return;
-                }
-                try {
-                    const tronWeb = window.tronWeb;
-                    const userAddr = tronWeb.defaultAddress.base58;
-                    const usdtContract = await tronWeb.contract().at(net.usdtAddress);
-                    const amount = Math.floor(selectedAmount * 1_000_000);
-
-                    const tx = await usdtContract.transfer(currentContract, amount).send();
-
-                    const txHash = document.getElementById('txHash');
-                    if (txHash) {
-                        txHash.innerHTML = 
-                            `تراکنش با موفقیت ارسال شد!<br>
-                            <a href="${net.explorer}/transaction/${tx}" target="_blank">مشاهده در Tronscan</a>`;
-                    }
-
-                    const successMsg = document.getElementById('successMessage');
-                    if (successMsg) successMsg.style.display = 'block';
-                    if (connectBtn) connectBtn.style.display = 'none';
-                    optimisticProgressUpdate(selectedAmount);
-                } catch (err) {
-                    let userMessage = 'خطا در تراکنش:\n';
-                    if (err.code === 4001) userMessage += '❌ شما تراکنش را لغو کردید.';
-                    else if (err.message && err.message.includes('insufficient funds')) userMessage += '❌ موجودی کیف پول کافی نیست.';
-                    else userMessage += err.message || 'خطای نامشخص';
-                    alert(userMessage);
-                }
+              if (!isTronReady()) {
+                alert("لطفاً TronLink را نصب و فعال کنید");
                 return;
+              }
+
+              const fundDepositABI = [{
+                "inputs": [
+                  { "name": "token", "type": "address" },
+                  { "name": "amount", "type": "uint256" }
+                ],
+                "name": "depositToken",
+                "outputs": [],
+                "stateMutability": "nonpayable",
+                "type": "function"
+              }];
+
+              let approveTxHash = null;
+
+              try {
+                const tronWeb = window.tronWeb;
+                const userAddr = tronWeb.defaultAddress.base58;
+                const amount = Math.floor(selectedAmount * 1_000_000); // فرض: ۶ دسیمال تتر ترون
+
+                // ====================== مرحله ۱: Approve ======================
+                const txHash = document.getElementById('txHash');
+                if (txHash) {
+                  txHash.innerHTML = `
+                    <p><strong>مرحله ۱ از ۲:</strong> تأیید برداشت (Approve)</p>
+                    <p>در حال ارسال تراکنش به TronLink...</p>
+                  `;
+                }
+
+                const usdtContract = await tronWeb.contract().at(net.usdtAddress);
+                const approveTx = await usdtContract.approve(currentContract, amount).send();
+                approveTxHash = approveTx;
+
+                if (txHash) {
+                  txHash.innerHTML = `
+                    <p style="color: green;">✅ مرحله ۱ موفق: Approve ثبت شد!</p>
+                    <p><a href="${net.explorer}/transaction/${approveTxHash}" target="_blank">مشاهده Approve</a></p>
+                    <hr>
+                    <p><strong>مرحله ۲ از ۲:</strong> واریز به خزانه (Deposit)</p>
+                    <p>در حال ارسال تراکنش دوم به TronLink...</p>
+                  `;
+                }
+
+                // ====================== مرحله ۲: Deposit ======================
+                const fundContract = await tronWeb.contract(fundDepositABI, currentContract);
+                const tx = await fundContract.depositToken(net.usdtAddress, amount).send();
+
+                if (txHash) {
+                  txHash.innerHTML = `
+                    <p style="color: green; font-size: 1.15em;">🎉 کمک شما با موفقیت ثبت شد! ❤️</p>
+                    <p>مبلغ: <strong>${selectedAmount} USDT</strong></p>
+                    <p><a href="${net.explorer}/transaction/${approveTxHash}" target="_blank">مشاهده Approve</a> |
+                       <a href="${net.explorer}/transaction/${tx}" target="_blank">مشاهده Deposit</a></p>
+                    <p>ممنون از حمایت شما! ❤️</p>
+                  `;
+                }
+
+                const successMsg = document.getElementById('successMessage');
+                if (successMsg) successMsg.style.display = 'block';
+                if (connectBtn) connectBtn.style.display = 'none';
+
+                optimisticProgressUpdate(selectedAmount);
+
+              } catch (err) {
+                let userMessage = 'خطا در تراکنش:\n';
+                if (err.code === 4001) userMessage += '❌ شما تراکنش را لغو کردید.';
+                else if (err.message && err.message.includes('insufficient funds')) userMessage += '❌ موجودی کیف پول کافی نیست.';
+                else userMessage += err.message || 'خطای نامشخص';
+
+                if (approveTxHash) {
+                  userMessage += `\n\n✅ Approve موفق بود:\n${net.explorer}/transaction/${approveTxHash}\n❌ اما مرحله واریز (Deposit) شکست خورد.`;
+                }
+                alert(userMessage);
+              }
+              return;
             }
             
             /* =========================
