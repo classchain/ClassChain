@@ -365,7 +365,7 @@
         "مسئول پروژه": "غلامرضا كرماجاني (1753426103)",
         "شماره تلفن مسئول پروژه": "09172672095",
         "وضعیت راهبری پروژه": "وضعیت اسکلت و سقف پروژه تایید شد",
-        "contractAddress": null,
+        "contractAddress": "0x38eF16Cf51B3128f74b3694dE3E815149EA4ACA3",
         "contractAddressMainnet": null,
         "contractAddressTron": null,
         "contractAddressCLC": null,
@@ -377,7 +377,21 @@
         "contractAddressSolana": null,
         "targetAmount(USDT)": 437500,
         "status": null,
-        "raisedAmount": null
+        "raisedAmount": null,
+        "funds": {
+          "polygon_amoy": {
+            "address": "0x38eF16Cf51B3128f74b3694dE3E815149EA4ACA3",
+            "multisigAddress": null,
+            "owners": [
+              "0x9626438503C8832A65eCc931B124825c417e467e",
+              "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
+            ],
+            "requiredSignatures": 2,
+            "createdAt": "2026-07-29T11:05:01.153Z",
+            "network": "polygon_amoy",
+            "isMultisig": false
+          }
+        }
       },
       "geometry": {
         "x": 50.98526,
