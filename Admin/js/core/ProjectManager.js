@@ -368,7 +368,7 @@ export class ProjectManager {
 
 async pushToGitHub(jsonContent, message = 'به‌روزرسانی پروژه‌ها') {
   const WORKER_URL = 'https://classchain-github-proxy.classchain.workers.dev';
-  const ADMIN_KEY = localStorage.getItem('classchain_admin_key');
+  const ADMIN_KEY = sessionStorage.getItem('classchain_admin_key');
 
   if (!ADMIN_KEY) {
     throw new Error('رمز ادمین تنظیم نشده است. لطفاً وارد شوید.');
