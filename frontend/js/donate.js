@@ -204,11 +204,20 @@ async function loadProject() {
 // ==================== تابع بارگذاری کمک‌کنندگان ====================
 async function loadDonors() {
     console.log('📋 بارگذاری لیست کمک‌کنندگان...');
-    // در آینده از قرارداد می‌خوانیم
     const donorsList = document.getElementById('donorsList');
-    if (donorsList) {
-        donorsList.innerHTML = '<p style="color: #94a3b8; text-align: center;">هنوز کمک‌کننده‌ای ثبت نشده است</p>';
+    if (!donorsList) return;
+
+    // اگر progress از قبل موجودی نشان داده، پیام خالی نگذار
+    const progressText = document.getElementById('progressText')?.innerText || '';
+    const match = progressText.match(/([\d.]+)\s*USDT/);
+    const raised = match ? parseFloat(match[1]) : 0;
+
+    if (raised > 0) {
+        donorsList.innerHTML = '';
+        return;
     }
+
+    donorsList.innerHTML = '<p style="color: #94a3b8; text-align: center;">هنوز کمک‌کننده‌ای ثبت نشده است</p>';
 }
 
 // ==================== تابع پیشرفت ====================
@@ -237,6 +246,13 @@ async function loadProgress(target = 100000) {
     if (text) {
         text.innerText =
             `${totalRaised.toFixed(2)} USDT از ${Number(target).toLocaleString('fa-IR')} USDT جمع شده (${percent.toFixed(1)}%)`;
+    }
+    const donorsList = document.getElementById('donorsList');
+    if (donorsList && totalRaised > 0) {
+        const t = (donorsList.textContent || '').trim();
+        if (t.includes('هنوز کمک') || t.includes('اولین')) {
+            donorsList.innerHTML = '';
+        }
     }
 }
 
