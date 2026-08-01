@@ -213,15 +213,30 @@ async function loadDonors() {
 
 // ==================== تابع پیشرفت ====================
 async function loadProgress(target = 100000) {
-    const totalRaised = 0; // در آینده از on-chain بخوانید
-    const percent = Math.min((totalRaised / target) * 100, 100);
-
     const fill = document.getElementById('progressFill');
-    if (fill) fill.style.width = percent + '%';
-
     const text = document.getElementById('progressText');
+
     if (text) {
-        text.innerText = `${totalRaised.toFixed(2)} USDT از ${target.toLocaleString('fa-IR')} USDT جمع شده (${percent.toFixed(1)}%)`;
+        text.innerText = 'در حال خواندن موجودی از زنجیره...';
+    }
+
+    let totalRaised = 0;
+    try {
+        if (window.ClassChainRaisedReader && projects) {
+            const result = await window.ClassChainRaisedReader.getProjectRaisedUSDT(projects);
+            totalRaised = result.total || 0;
+            console.log('موجودی خزانه‌ها:', result.breakdown);
+        }
+    } catch (e) {
+        console.error('خطا در خواندن raised:', e);
+    }
+
+    const percent = target > 0 ? Math.min((totalRaised / target) * 100, 100) : 0;
+
+    if (fill) fill.style.width = percent + '%';
+    if (text) {
+        text.innerText =
+            `${totalRaised.toFixed(2)} USDT از ${Number(target).toLocaleString('fa-IR')} USDT جمع شده (${percent.toFixed(1)}%)`;
     }
 }
 
@@ -358,7 +373,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (connectBtn) connectBtn.style.display = 'none';
 
                 optimisticProgressUpdate(selectedAmount);
-
+                setTimeout(() => {
+                    const t = projects?.['targetAmount(USDT)'] || 100000;
+                    loadProgress(t);
+                }, 8000);
+                  
               } catch (err) {
                 let userMessage = 'خطا در تراکنش:\n';
                 if (err.code === 4001) userMessage += '❌ شما تراکنش را لغو کردید.';
@@ -505,6 +524,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 optimisticProgressUpdate(selectedAmount);
+                setTimeout(() => {
+                    const t = projects?.['targetAmount(USDT)'] || 100000;
+                    loadProgress(t);
+                }, 8000);
 
             } catch (err) {
                 console.error("خطا در تراکنش:", err);
