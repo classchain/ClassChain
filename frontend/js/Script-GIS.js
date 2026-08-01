@@ -363,27 +363,56 @@ fetch('data/Projects.json')
 
                     let financialInfo = '';
 
-                    if (a.contractAddress && a.contractAddress !== null && a.contractAddress !== "") {
+                    const hasPolygon = a.contractAddress && a.contractAddress !== 'null' && a.contractAddress !== '';
+                    const hasTronField = a.contractAddressTron && a.contractAddressTron !== 'null' && a.contractAddressTron !== '';
+                    const tronFromFunds = a.funds?.tron_nile?.address || a.funds?.tron?.address || null;
+                    const tronAddress = hasTronField ? a.contractAddressTron : tronFromFunds;
+
+                    if (hasPolygon || tronAddress) {
+                        let fundsHtml = '';
+
+                        if (hasPolygon) {
+                            fundsHtml += `
+                                <div class="info-item" style="background:rgba(130,71,229,0.15); padding:12px; border-radius:8px; margin-top:10px;">
+                                    <span class="info-label">🟣 خزانه Polygon Amoy:</span><br>
+                                    <span class="info-value contract-address">
+                                        <a href="https://amoy.polygonscan.com/address/${a.contractAddress}" target="_blank"
+                                           style="color:#8247E5; text-decoration:underline; word-break:break-all;">
+                                            ${a.contractAddress}
+                                        </a>
+                                    </span>
+                                </div>
+                            `;
+                        }
+
+                        if (tronAddress) {
+                            fundsHtml += `
+                                <div class="info-item" style="background:rgba(239,0,39,0.12); padding:12px; border-radius:8px; margin-top:10px;">
+                                    <span class="info-label">🔴 خزانه Tron Nile:</span><br>
+                                    <span class="info-value contract-address">
+                                        <a href="https://nile.tronscan.org/#/address/${tronAddress}" target="_blank"
+                                           style="color:#EF0027; text-decoration:underline; word-break:break-all;">
+                                            ${tronAddress}
+                                        </a>
+                                    </span>
+                                </div>
+                            `;
+                        }
+
                         financialInfo = `
+                            <div style="margin-top:10px;">
+                                <span class="info-label" style="font-weight:bold;">خزانه‌های هوشمند پروژه:</span>
+                                ${fundsHtml}
+                            </div>
 
+                            <div class="info-item" style="margin-top:15px;">
+                                <span class="info-label">برآورد هزینه ساخت:</span>
+                                <span class="info-value">${a['targetAmount(USDT)'] ? Number(a['targetAmount(USDT)']).toLocaleString('fa-IR') + ' USDT' : 'نامشخص'}</span>
+                            </div>
 
-                        <div class="info-item" style="background:rgba(46,204,113,0.2); padding:12px; border-radius:8px; margin-top:15px;">
-                            <span class="info-label">خزانه هوشمند پروژه:</span><br>
-                            <span class="info-value contract-address">
-                                <a href="https://polygonscan.com/address/${a.contractAddress}" target="_blank" style="color:#3498db; text-decoration:underline;">
-                                    ${a.contractAddress}
-                                </a>
-                            </span>
-                        </div>
-
-                        <div class="info-item" style="margin-top:15px;">
-                            <span class="info-label">برآورد هزینه ساخت:</span>
-                            <span class="info-value">${a['targetAmount(USDT)'] ? Number(a['targetAmount(USDT)']).toLocaleString('fa-IR') + ' USDT' : 'نامشخص'}</span>
-                        </div>
-
-                        <div id="donorsList" style="margin-top:15px;">
-                            <span class="info-label">در حال بارگذاری لیست کمک‌کنندگان...</span>
-                        </div>
+                            <div id="donorsList" style="margin-top:15px;">
+                                <span class="info-label">در حال بارگذاری لیست کمک‌کنندگان...</span>
+                            </div>
                         `;
                     } else {
                         financialInfo = '<div class="info-item" style="color:#e67e22; margin-top:15px;">خزانه هوشمند هنوز راه‌اندازی نشده</div>';
@@ -397,9 +426,9 @@ fetch('data/Projects.json')
                                 <div class="info-item"><span class="info-label">کد پروژه:</span><span class="info-value">${a['ProjectID']}</span></div>
                                 <div class="info-item"><span class="info-label">استان:</span><span class="info-value">${a['استان']}</span></div>
                                 <div class="info-item"><span class="info-label">منطقه:</span><span class="info-value">${a['منطقه']}</span></div>
-                                <div class="info-item"><span class="info-label">نوع پروژه:</span><span class="info-value">${a['نوع پروژه (نیاز)']}</span></div>
                                 <div class="info-item"><span class="info-label">تعداد کلاس:</span><span class="info-value">${a['تعداد کلاس'] || '—'}</span></div>
-                                <div class="info-item"><span class="info-label">زیربنا:</span><span class="info-value">${a['زیربنا'] ? Number(a['زیربنا']).toLocaleString('fa-IR') + ' م²' : '—'}</span></div>
+                                <div class="info-item"><span class="info-label">زیربنا:</span><span class="info-value">${a['زیربنا'] || '—'}</span></div>
+                                <div class="info-item"><span class="info-label">ماهیت:</span><span class="info-value">${a['ماهیت پروژه'] || '—'}</span></div>
                                 <div class="info-item"><span class="info-label">وضعیت:</span><span class="info-value">${a['وضعیت راهبری پروژه'] || '—'}</span></div>
                                 <div class="info-item"><span class="info-label">مسئول:</span><span class="info-value">${a['مسئول پروژه'] || '—'}</span></div>
                                 <div class="info-item"><span class="info-label">تلفن:</span><span class="info-value">${a['شماره تلفن مسئول پروژه'] || '—'}</span></div>
@@ -422,24 +451,28 @@ fetch('data/Projects.json')
                             </div>
                         </div>
 
-						<div class="fixed-contribute-button" id="fixedContributeBtn" style="display: none;">
-							<button onclick="redirectToDonate('${a.ProjectID}')">
-								مشارکت در ساخت
-							</button>
-							<p>(انتخاب شبکه و پرداخت با کیف پول)</p>
-						</div>
+                        <div class="fixed-contribute-button" id="fixedContributeBtn" style="display: none;">
+                            <button onclick="redirectToDonate('${a.ProjectID}')">
+                                مشارکت در ساخت
+                            </button>
+                            <p>(انتخاب شبکه و پرداخت با کیف پول)</p>
+                        </div>
                     `);
 
-                    if (a.contractAddress && a.contractAddress !== null && a.contractAddress !== "") {
-                        currentContractAddress = a.contractAddress;
-                        loadDonors(a.contractAddress);
-                        document.getElementById('fixedContributeBtn').style.display = 'block';
+                    if (hasPolygon || tronAddress) {
+                        currentContractAddress = hasPolygon ? a.contractAddress : tronAddress;
+                        if (hasPolygon) {
+                            loadDonors(a.contractAddress);
+                        }
+                        const btn = document.getElementById('fixedContributeBtn');
+                        if (btn) btn.style.display = 'block';
                     } else {
                         currentContractAddress = null;
-                        document.getElementById('fixedContributeBtn').style.display = 'none';
+                        const btn = document.getElementById('fixedContributeBtn');
+                        if (btn) btn.style.display = 'none';
                     }
 
-                    map.setView([y, x], 14, { animate: true });
+					map.setView([y, x], 14, { animate: true });
                 });
 
                 markersCluster.addLayer(marker);
