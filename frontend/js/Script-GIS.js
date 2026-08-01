@@ -410,9 +410,10 @@ fetch('data/Projects.json')
                                 <span class="info-value">${a['targetAmount(USDT)'] ? Number(a['targetAmount(USDT)']).toLocaleString('fa-IR') + ' USDT' : 'نامشخص'}</span>
                             </div>
 
-                            <div id="donorsList" style="margin-top:15px;">
-                                <span class="info-label">در حال بارگذاری لیست کمک‌کنندگان...</span>
-                            </div>
+							<div id="raisedSummary" style="margin-top:15px;">
+    							<span class="info-label">در حال خواندن مجموع کمک‌ها...</span>
+							</div>
+							<div id="donorsList" style="margin-top:15px;"></div>
                         `;
                     } else {
                         financialInfo = '<div class="info-item" style="color:#e67e22; margin-top:15px;">خزانه هوشمند هنوز راه‌اندازی نشده</div>';
@@ -459,18 +460,23 @@ fetch('data/Projects.json')
                         </div>
                     `);
 
-                    if (hasPolygon || tronAddress) {
-                        currentContractAddress = hasPolygon ? a.contractAddress : tronAddress;
-                        if (hasPolygon) {
-                            loadDonors(a.contractAddress);
-                        }
-                        const btn = document.getElementById('fixedContributeBtn');
-                        if (btn) btn.style.display = 'block';
-                    } else {
-                        currentContractAddress = null;
-                        const btn = document.getElementById('fixedContributeBtn');
-                        if (btn) btn.style.display = 'none';
-                    }
+					if (hasPolygon || tronAddress) {
+    					currentContractAddress = hasPolygon ? a.contractAddress : tronAddress;
+    					const btn = document.getElementById('fixedContributeBtn');
+    					if (btn) btn.style.display = 'block';
+
+    					// مجموع کمک‌ها از همه شبکه‌ها
+    					loadRaisedSummary(a);
+
+    					// لیست donor فعلاً فقط از Amoy (مثل قبل) — اختیاری
+    					if (hasPolygon) {
+        					loadDonors(a.contractAddress);
+    					}
+					} else {
+    					currentContractAddress = null;
+    					const btn = document.getElementById('fixedContributeBtn');
+    					if (btn) btn.style.display = 'none';
+					}
 
 					map.setView([y, x], 14, { animate: true });
                 });
@@ -630,6 +636,42 @@ async function loadDonors(contractAddress) {
     }
 }
 
+async function loadRaisedSummary(projectAttributes) {
+    const el = document.getElementById('raisedSummary');
+    if (!el) return;
+
+    el.innerHTML = '<span class="info-label">در حال خواندن مجموع کمک‌ها از زنجیره...</span>';
+
+    try {
+        if (!window.ClassChainRaisedReader) {
+            el.innerHTML = '<span class="info-label" style="color:#e67e22;">ماژول خواندن موجودی لود نشده</span>';
+            return;
+        }
+
+        const { total, breakdown } = await window.ClassChainRaisedReader.getProjectRaisedUSDT(projectAttributes);
+        const target = Number(projectAttributes['targetAmount(USDT)'] || 0);
+        const percent = target > 0 ? Math.min((total / target) * 100, 100) : 0;
+
+        let detail = '';
+        breakdown.forEach((b) => {
+            if (b.amount > 0) {
+                detail += `<div style="font-size:12px;color:#bdc3c7;margin-top:4px;">${b.network}: ${b.amount.toFixed(2)} USDT</div>`;
+            }
+        });
+
+        el.innerHTML = `
+            <div class="info-item" style="background:rgba(46,204,113,0.15);padding:12px;border-radius:8px;">
+                <span class="info-label">مجموع کمک‌ها (همه شبکه‌ها):</span>
+                <span class="info-value" style="font-weight:bold;color:#2ecc71;">${total.toFixed(2)} USDT</span>
+                ${target ? `<div style="font-size:12px;margin-top:6px;">هدف: ${target.toLocaleString('fa-IR')} USDT — ${percent.toFixed(1)}٪</div>` : ''}
+                ${detail}
+            </div>
+        `;
+    } catch (e) {
+        console.error(e);
+        el.innerHTML = '<span class="info-label" style="color:#e74c3c;">خطا در خواندن موجودی</span>';
+    }
+}
 // در نهایت:
 function zoomToIran() {
     map.flyTo([32.4279, 53.6880], 6, { animate: true, duration: 1.5 });
