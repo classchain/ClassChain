@@ -95,16 +95,7 @@
     }
     return 0;
   }
-    try {
-      const web3 = new Web3(rpcUrl);
-      const token = new web3.eth.Contract(ERC20_BALANCE_ABI, usdtAddress);
-      const raw = await token.methods.balanceOf(fundAddress).call();
-      return toReadable(raw, decimals);
-    } catch (e) {
-      console.warn('خطا در خواندن موجودی EVM:', fundAddress, e.message || e);
-      return 0;
-    }
-  }
+
 
   /**
    * خواندن balanceOf TRC20 از طریق TronGrid (بدون نیاز به TronLink)
