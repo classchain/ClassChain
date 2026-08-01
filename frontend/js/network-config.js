@@ -84,10 +84,10 @@
             buttonLabel: 'اتصال TronLink و پرداخت',
             icon: 'https://cryptologos.cc/logos/tron-trx-logo.png',
             addressField: 'contractAddressTron',
-            usdtAddress: '0xECa9bC828A3005B9a3b909f2cc5c2a54794DE05F',
+            usdtAddress: 'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf',
             tokenDecimals: 6,
             chainId: null,
-            explorer: 'https://tronscan.org',
+            explorer: 'https://nile.tronscan.org',
             enabled: true
         },
         arbitrum: {
