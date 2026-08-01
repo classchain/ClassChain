@@ -341,7 +341,7 @@
         "وضعیت راهبری پروژه": "وضعیت اسکلت و سقف پروژه تایید شد",
         "contractAddress": null,
         "contractAddressMainnet": null,
-        "contractAddressTron": null,
+        "contractAddressTron": "41cdc24051cc2fa3584eae743931001d1f2f4e08ee",
         "contractAddressCLC": null,
         "contractAddressEthereum": null,
         "contractAddressBSC": null,
@@ -351,7 +351,21 @@
         "contractAddressSolana": null,
         "targetAmount(USDT)": 208350,
         "status": null,
-        "raisedAmount": null
+        "raisedAmount": null,
+        "funds": {
+          "tron_nile": {
+            "address": "41cdc24051cc2fa3584eae743931001d1f2f4e08ee",
+            "multisigAddress": null,
+            "owners": [
+              "0xf2e5d4ed663f8e7bbc22db204658a3ed1b1e8d82",
+              "0xe5201b41bbecdfd92d944862ad014a433c47252c"
+            ],
+            "requiredSignatures": 2,
+            "createdAt": "2026-08-01T07:51:55.803Z",
+            "network": "tron_nile",
+            "isMultisig": false
+          }
+        }
       },
       "geometry": {
         "x": 50.94104,
