@@ -392,7 +392,7 @@
         "وضعیت راهبری پروژه": "وضعیت اسکلت و سقف پروژه تایید شد",
         "contractAddress": "0x38eF16Cf51B3128f74b3694dE3E815149EA4ACA3",
         "contractAddressMainnet": null,
-        "contractAddressTron": null,
+        "contractAddressTron": "TJEbRn3Gch6i8VjUCahDejG8V83oXrExc5",
         "contractAddressCLC": null,
         "contractAddressEthereum": null,
         "contractAddressBSC": null,
@@ -414,6 +414,18 @@
             "requiredSignatures": 2,
             "createdAt": "2026-07-29T11:05:01.153Z",
             "network": "polygon_amoy",
+            "isMultisig": false
+          },
+          "tron_nile": {
+            "address": "TJEbRn3Gch6i8VjUCahDejG8V83oXrExc5",
+            "multisigAddress": null,
+            "owners": [
+              "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1",
+              "TWriCnUmTXBBZNoGRgS9m8iqJMs3efrYHd"
+            ],
+            "requiredSignatures": 2,
+            "createdAt": "2026-08-01T09:20:25.648Z",
+            "network": "tron_nile",
             "isMultisig": false
           }
         }
