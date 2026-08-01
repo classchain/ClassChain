@@ -48,14 +48,15 @@ export const NETWORKS = {
     name: 'Tron Nile',
     chainId: 2,
     rpcUrl: 'https://nile.trongrid.io',
-    factoryAddress: '0x83b1E4D6a3E494cCf86F50ef6934FFA1E23e421f',  // آدرس Amoy برای تست
+    factoryAddress: 'TSMHCv1iojP42jCLbbZFqyJ7RDGjijza4A',
+    defaultUsdtAddress: '0xECa9bC828A3005B9a3b909f2cc5c2a54794DE05F',
     nativeToken: 'TRX',
     explorerUrl: 'https://nile.tronscan.org',
     type: 'TVM',
     color: '#EF0027',
     icon: '🔴',
     isTestnet: true,
-    status: 'active'   // ✅ فعال (برای تست)
+    status: 'active'   // ✅ واقعاً فعال — قرارداد روی Nile دیپلوی شده
   }
 };
 
@@ -104,7 +105,107 @@ export const FACTORY_ABI = [
 ];
 
 export const TRON_FACTORY_ABI = [
-  // ABI مشابه برای Tron
+  {
+    "inputs": [
+      {"internalType": "address[]","name": "_defaultAllowedTokens","type": "address[]"}
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "string", "name": "projectId", "type": "string"},
+      {"indexed": true, "internalType": "address", "name": "fundAddress", "type": "address"},
+      {"indexed": true, "internalType": "address", "name": "ownerOrMultisig", "type": "address"},
+      {"indexed": false, "internalType": "bool", "name": "isMultisig", "type": "bool"},
+      {"indexed": false, "internalType": "uint256", "name": "requiredConfirmations", "type": "uint256"}
+    ],
+    "name": "FundCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {"indexed": true, "internalType": "address", "name": "previousOwner", "type": "address"},
+      {"indexed": true, "internalType": "address", "name": "newOwner", "type": "address"}
+    ],
+    "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {"internalType": "string","name": "projectId","type": "string"},
+      {"internalType": "address","name": "singleOwner","type": "address"}
+    ],
+    "name": "createSingleOwnerFund",
+    "outputs": [{"internalType": "address","name": "fundAddress","type": "address"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "string","name": "projectId","type": "string"},
+      {"internalType": "address[]","name": "multisigOwners","type": "address[]"},
+      {"internalType": "uint256","name": "requiredConfirmations","type": "uint256"}
+    ],
+    "name": "createMultisigFund",
+    "outputs": [
+      {"internalType": "address","name": "fundAddress","type": "address"},
+      {"internalType": "address","name": "multisigAddress","type": "address"}
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "string","name": "projectId","type": "string"}],
+    "name": "getFundAddress",
+    "outputs": [{"internalType": "address","name": "","type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "string","name": "","type": "string"}],
+    "name": "projectFunds",
+    "outputs": [{"internalType": "address","name": "","type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256","name": "","type": "uint256"}],
+    "name": "defaultAllowedTokens",
+    "outputs": [{"internalType": "address","name": "","type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "USDT_TOKEN",
+    "outputs": [{"internalType": "address","name": "","type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address[]","name": "newTokens","type": "address[]"}],
+    "name": "updateDefaultAllowedTokens",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "owner",
+    "outputs": [{"internalType": "address","name": "","type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address","name": "newOwner","type": "address"}],
+    "name": "transferOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
 ];
 
 // ============================================
