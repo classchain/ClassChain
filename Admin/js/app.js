@@ -4,6 +4,50 @@ import { NetworkManager } from './core/NetworkManager.js';
 import { ContractManager } from './core/ContractManager.js';
 import { ProjectManager } from './core/ProjectManager.js';
 
+
+// ============================================
+// نرمال‌سازی آدرس Tron به Base58 (T...)
+// ورودی می‌تواند Base58، hex با 41، یا 0x باشد
+// ============================================
+function toTronBase58(address) {
+  if (!address || typeof address !== 'string') return address;
+  const trimmed = address.trim();
+  if (/^T[a-zA-Z0-9]{33}$/.test(trimmed)) return trimmed;
+
+  try {
+    const tronWeb = window.tronWeb;
+    if (!tronWeb || !tronWeb.address || typeof tronWeb.address.fromHex !== 'function') {
+      console.warn('TronWeb برای تبدیل آدرس در دسترس نیست');
+      return trimmed;
+    }
+
+    let hex = trimmed;
+    if (hex.startsWith('0x') || hex.startsWith('0X')) {
+      // 0x + 20 bytes → 41 + 20 bytes
+      hex = '41' + hex.slice(2).toLowerCase();
+    } else if (!hex.toLowerCase().startsWith('41') && /^[a-fA-F0-9]{40}$/.test(hex)) {
+      hex = '41' + hex.toLowerCase();
+    }
+
+    return tronWeb.address.fromHex(hex);
+  } catch (e) {
+    console.warn('خطا در تبدیل آدرس به Base58:', trimmed, e);
+    return trimmed;
+  }
+}
+
+function normalizeAddressesForNetwork(fundAddress, ownerOrMultisig, owners) {
+  if (!networkManager.isTVM()) {
+    return { fundAddress, ownerOrMultisig, owners };
+  }
+  return {
+    fundAddress: toTronBase58(fundAddress),
+    ownerOrMultisig: ownerOrMultisig ? toTronBase58(ownerOrMultisig) : ownerOrMultisig,
+    owners: (owners || []).map(a => toTronBase58(a))
+  };
+}
+
+
 // ============================================
 // احراز هویت ادمین (رمز فقط در session نگه داشته میشه)
 // ============================================
@@ -310,9 +354,19 @@ async function createFund() {
             throw new Error('آدرس خزانه دریافت نشد. لطفاً تراکنش را در Explorer بررسی کنید.');
         }
 
-        console.log(`✅ آدرس خزانه: ${fundAddress}`);
+        // اگر کاربر Multisig انتخاب کرده، حتماً isMultisig را true کن
+        if (ownershipType === 'multisig') {
+            isMultisig = true;
+        }
+
+        // نرمال‌سازی آدرس‌های Tron به Base58
+        ({ fundAddress, ownerOrMultisig, owners } = normalizeAddressesForNetwork(
+            fundAddress, ownerOrMultisig, owners
+        ));
+
+        console.log(`✅ آدرس خزانه (نرمال‌شده): ${fundAddress}`);
         if (ownerOrMultisig) {
-            console.log(`👤 مالک/Multisig: ${ownerOrMultisig}`);
+            console.log(`👤 مالک/Multisig (نرمال‌شده): ${ownerOrMultisig}`);
         }
 
         // به‌روزرسانی JSON
@@ -654,6 +708,21 @@ async function createFundFromCheck() {
         }
         if (!fundAddress) {
             throw new Error('آدرس خزانه دریافت نشد');
+        }
+
+        // اگر کاربر Multisig انتخاب کرده، حتماً isMultisig را true کن
+        if (ownershipType === 'multisig') {
+            isMultisig = true;
+        }
+
+        // نرمال‌سازی آدرس‌های Tron به Base58
+        ({ fundAddress, ownerOrMultisig, owners } = normalizeAddressesForNetwork(
+            fundAddress, ownerOrMultisig, owners
+        ));
+
+        console.log(`✅ آدرس خزانه (نرمال‌شده): ${fundAddress}`);
+        if (ownerOrMultisig) {
+            console.log(`👤 مالک/Multisig (نرمال‌شده): ${ownerOrMultisig}`);
         }
 
         // به‌روزرسانی JSON
