@@ -629,8 +629,19 @@ async function loadDonors(contractAddress) {
 
             document.querySelector('#donorsList').innerHTML += donorsHtml;
         } else {
-            document.querySelector('#donorsList').innerHTML = '<p style="opacity:0.7;">شما اولین مشارکت کننده این مدرسه باشید</p>';
-        }
+			// فقط اگر هنوز موجودی on-chain هم صفر بود این پیام را نشان بده
+    		// (loadRaisedSummary اگر موجودی داشت، این را پاک می‌کند)
+    		const raisedEl = document.getElementById('raisedSummary');
+    		const raisedText = raisedEl ? raisedEl.textContent : '';
+    		const hasRaised = /[1-9]\d*(\.\d+)?\s*USDT/.test(raisedText) && !raisedText.includes('0.00 USDT');
+
+    		if (!hasRaised) {
+        		document.querySelector('#donorsList').innerHTML =
+            		'<p style="opacity:0.7;">شما اولین مشارکت کننده این مدرسه باشید</p>';
+    		} else {
+        		document.querySelector('#donorsList').innerHTML = '';
+    		}		
+		}
     } catch (err) {
         document.querySelector('#donorsList').innerHTML = '<p style="color:#e74c3c;">خطا در بارگذاری کمک‌ها</p>';
     }
@@ -652,21 +663,52 @@ async function loadRaisedSummary(projectAttributes) {
         const target = Number(projectAttributes['targetAmount(USDT)'] || 0);
         const percent = target > 0 ? Math.min((total / target) * 100, 100) : 0;
 
-        let detail = '';
+        // هر شبکه در یک ردیف جدا (زیر هم)
+        let detailRows = '';
         breakdown.forEach((b) => {
             if (b.amount > 0) {
-                detail += `<div style="font-size:12px;color:#bdc3c7;margin-top:4px;">${b.network}: ${b.amount.toFixed(2)} USDT</div>`;
+                detailRows += `
+                    <div style="
+                        display:flex;
+                        justify-content:space-between;
+                        align-items:center;
+                        font-size:12px;
+                        color:#ecf0f1;
+                        margin-top:8px;
+                        padding:8px 10px;
+                        background:rgba(255,255,255,0.06);
+                        border-radius:6px;
+                        gap:10px;
+                    ">
+                        <span style="opacity:0.9;">${b.network}</span>
+                        <span style="font-weight:600; white-space:nowrap;">${b.amount.toFixed(2)} USDT</span>
+                    </div>
+                `;
             }
         });
 
         el.innerHTML = `
             <div class="info-item" style="background:rgba(46,204,113,0.15);padding:12px;border-radius:8px;">
-                <span class="info-label">مجموع کمک‌ها (همه شبکه‌ها):</span>
-                <span class="info-value" style="font-weight:bold;color:#2ecc71;">${total.toFixed(2)} USDT</span>
-                ${target ? `<div style="font-size:12px;margin-top:6px;">هدف: ${target.toLocaleString('fa-IR')} USDT — ${percent.toFixed(1)}٪</div>` : ''}
-                ${detail}
+                <div style="margin-bottom:4px;">
+                    <span class="info-label" style="display:block; margin-bottom:6px;">مجموع کمک‌ها (همه شبکه‌ها)</span>
+                    <span class="info-value" style="font-weight:bold;color:#2ecc71;font-size:1.15em;display:block;">
+                        ${total.toFixed(2)} USDT
+                    </span>
+                </div>
+                ${target ? `<div style="font-size:12px;margin-top:8px;opacity:0.85;">هدف: ${target.toLocaleString('fa-IR')} USDT — ${percent.toFixed(1)}٪</div>` : ''}
+                ${detailRows ? `<div style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:4px;">${detailRows}</div>` : ''}
             </div>
         `;
+
+        // اگر موجودی > 0 باشد، پیام «اولین مشارکت‌کننده» را نشان نده
+        const donorsEl = document.getElementById('donorsList');
+        if (donorsEl && total > 0) {
+            const text = (donorsEl.textContent || '').trim();
+            if (text.includes('اولین مشارکت') || text.includes('هنوز کمک')) {
+                donorsEl.innerHTML = '';
+            }
+        }
+
     } catch (e) {
         console.error(e);
         el.innerHTML = '<span class="info-label" style="color:#e74c3c;">خطا در خواندن موجودی</span>';
