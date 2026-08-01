@@ -20,7 +20,11 @@
       id: 'amoy',
       type: 'EVM',
       name: 'Polygon Amoy',
-      rpc: 'https://rpc-amoy.polygon.technology',
+      rpc: 'https://80002.rpc.thirdweb.com',
+      rpcFallbacks: [
+        'https://polygon-amoy.gateway.tenderly.co',
+        'https://rpc-amoy.polygon.technology'
+      ],
       usdt: '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582',
       decimals: 6,
       // فیلدهای آدرس خزانه در Projects.json
@@ -70,11 +74,27 @@
     return Array.from(set);
   }
 
-  async function readEvmBalance(fundAddress, usdtAddress, rpcUrl, decimals) {
+  async function readEvmBalance(fundAddress, usdtAddress, rpcUrl, decimals, fallbacks = []) {
     if (typeof Web3 === 'undefined') {
       console.warn('Web3 در صفحه لود نشده');
       return 0;
     }
+    const urls = [rpcUrl, ...(fallbacks || [])];
+    for (const url of urls) {
+      try {
+        const web3 = new Web3(url);
+        const token = new web3.eth.Contract(ERC20_BALANCE_ABI, usdtAddress);
+        const raw = await Promise.race([
+          token.methods.balanceOf(fundAddress).call(),
+          new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 12000))
+        ]);
+        return toReadable(raw, decimals);
+      } catch (e) {
+        console.warn('RPC fail:', url, e.message || e);
+      }
+    }
+    return 0;
+  }
     try {
       const web3 = new Web3(rpcUrl);
       const token = new web3.eth.Contract(ERC20_BALANCE_ABI, usdtAddress);
@@ -181,7 +201,13 @@
           (async () => {
             let amount = 0;
             if (netCfg.type === 'EVM') {
-              amount = await readEvmBalance(addr, netCfg.usdt, netCfg.rpc, netCfg.decimals);
+            amount = await readEvmBalance(
+              addr,
+              netCfg.usdt,
+              netCfg.rpc,
+              netCfg.decimals,
+              netCfg.rpcFallbacks || []
+            );
             } else if (netCfg.type === 'TVM') {
               amount = await readTronBalance(addr, netCfg.usdt, netCfg.fullHost, netCfg.decimals);
             }
