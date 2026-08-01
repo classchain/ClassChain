@@ -232,3 +232,34 @@ export function isValidAddress(address, networkId) {
   }
   return false;
 }
+
+export function toTronBase58(address) {
+  if (!address || typeof address !== 'string') return address;
+
+  // اگر قبلاً Base58 است
+  if (/^T[a-zA-Z0-9]{33}$/.test(address)) {
+    return address;
+  }
+
+  try {
+    // TronWeb باید در دسترس باشد (از window.tronWeb)
+    const tronWeb = window.tronWeb;
+    if (!tronWeb || !tronWeb.address) {
+      console.warn('TronWeb در دسترس نیست برای تبدیل آدرس');
+      return address;
+    }
+
+    let hex = address;
+
+    // اگر با 0x شروع شود → به فرمت Tron hex تبدیل کن (41 + 20 بایت)
+    if (hex.startsWith('0x') || hex.startsWith('0X')) {
+      hex = '41' + hex.slice(2).toLowerCase();
+    }
+
+    // اگر طول درست hex نباشد، سعی کن مستقیم fromHex کنی
+    return tronWeb.address.fromHex(hex);
+  } catch (e) {
+    console.warn('خطا در تبدیل آدرس به Base58:', address, e);
+    return address;
+  }
+}
