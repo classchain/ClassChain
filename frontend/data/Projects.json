@@ -279,7 +279,7 @@
         "وضعیت راهبری پروژه": "وضعیت سفت کاری پروژه تایید شد",
         "contractAddress": "0xe8d63212326a7a57A87AE1B032b4b4a4313137d5",
         "contractAddressMainnet": null,
-        "contractAddressTron": "4138a92592c5ceb874d5988ee5375981adac5d5657",
+        "contractAddressTron": "TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp",
         "contractAddressCLC": null,
         "contractAddressEthereum": null,
         "contractAddressBSC": null,
@@ -304,7 +304,7 @@
             "isMultisig": false
           },
           "tron_nile": {
-            "address": "4138a92592c5ceb874d5988ee5375981adac5d5657",
+            "address": "TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp",
             "multisigAddress": null,
             "owners": [
               "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1"
@@ -341,7 +341,7 @@
         "وضعیت راهبری پروژه": "وضعیت اسکلت و سقف پروژه تایید شد",
         "contractAddress": null,
         "contractAddressMainnet": null,
-        "contractAddressTron": "41cdc24051cc2fa3584eae743931001d1f2f4e08ee",
+        "contractAddressTron": "TUjAECQt5DMDsnQHJ7htumigtQXZKxbaLK",
         "contractAddressCLC": null,
         "contractAddressEthereum": null,
         "contractAddressBSC": null,
