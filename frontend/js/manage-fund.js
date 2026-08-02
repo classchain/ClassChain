@@ -91,16 +91,15 @@ async function loadTotalRaised() {
     }
 }
 
+// ---------- اصلاح populateNetworkSelect ----------
 function populateNetworkSelect() {
     const config = window.ClassChainNetworkConfig;
     if (!config) return;
 
     const select = document.getElementById('networkSelect');
-    select.innerHTML = '<option value="">— انتخاب شبکه —</option>';
+    select.innerHTML = '<option value="">— ابتدا شبکه را انتخاب کنید —</option>';
 
-    // شبکه‌هایی که این پروژه در آن‌ها آدرس خزانه دارد
     const allNets = Object.values(config.NETWORKS);
-    let firstValid = null;
 
     allNets.forEach(net => {
         let hasAddress = false;
@@ -112,7 +111,6 @@ function populateNetworkSelect() {
                 if (projectData.funds[k]?.address) hasAddress = true;
             });
         }
-
         if (!hasAddress) return;
 
         const opt = document.createElement('option');
@@ -120,23 +118,19 @@ function populateNetworkSelect() {
         opt.textContent = `${net.name}${net.status === 'active' ? '' : ' (در انتظار)'}`;
         opt.disabled = net.status !== 'active';
         select.appendChild(opt);
-
-        if (!firstValid && net.status === 'active') firstValid = net.id;
     });
 
     select.addEventListener('change', onNetworkChange);
 
-    if (firstValid) {
-        select.value = firstValid;
-        onNetworkChange();
-    }
+    // ❌ دیگر شبکه را خودکار انتخاب نکن
+    // ❌ هیچ connect خودکاری انجام نشود
 }
 
+// ---------- اصلاح onNetworkChange ----------
 function onNetworkChange() {
     selectedNetworkId = document.getElementById('networkSelect').value;
     selectedNetCfg = window.ClassChainNetworkConfig?.getNetwork(selectedNetworkId) || null;
 
-    // ریست وضعیت
     connection = null;
     fundAddress = null;
     multisigAddress = null;
@@ -154,8 +148,8 @@ function onNetworkChange() {
     }
 
     btn.style.display = 'inline-block';
-    btn.textContent = `اتصال ${selectedNetCfg.walletName || 'کیف پول'} (${selectedNetCfg.name})`;
-    btn.onclick = connectSelectedNetwork;
+    btn.textContent = `اتصال ${selectedNetCfg.walletName} (${selectedNetCfg.name})`;
+    btn.onclick = connectSelectedNetwork;   // فقط با کلیک کاربر
 }
 
 async function connectSelectedNetwork() {
@@ -251,22 +245,40 @@ async function loadFundDataForSelectedNetwork() {
     }
 }
 
+// ---------- جایگزین تابع loadEvmFundData (بخش موجودی) ----------
 async function loadEvmFundData() {
     const web3 = connection.web3;
     const userAddress = connection.account;
     const usdt = selectedNetCfg.usdtAddress;
     const decimals = selectedNetCfg.tokenDecimals || 6;
 
-    const fundContract = new web3.eth.Contract(fundABI, fundAddress);
-
-    // موجودی
-    let balance = 0;
+    // ✅ موجودی را از RPC عمومی بخوان (نه از MetaMask)
+    let balanceFormatted = '0.0000';
     try {
-        balance = await fundContract.methods.balanceOf(usdt).call();
+        // روش ۱: از raised-reader (مطمئن‌ترین)
+        if (window.ClassChainRaisedReader) {
+            const result = await window.ClassChainRaisedReader.getProjectRaisedUSDT(projectData);
+            const item = (result.breakdown || []).find(b =>
+                b.networkId === selectedNetCfg.id ||
+                (b.address && fundAddress && b.address.toLowerCase() === fundAddress.toLowerCase())
+            );
+            if (item && item.amount != null) {
+                balanceFormatted = Number(item.amount).toFixed(4);
+            }
+        }
+
+        // روش ۲: اگر raised-reader چیزی نداد، مستقیم با RPC شبکه
+        if (balanceFormatted === '0.0000' && selectedNetCfg.rpc) {
+            const readWeb3 = new Web3(selectedNetCfg.rpc);
+            const token = new readWeb3.eth.Contract([
+                { constant: true, inputs: [{ name: 'account', type: 'address' }], name: 'balanceOf', outputs: [{ name: '', type: 'uint256' }], type: 'function' }
+            ], usdt);
+            const raw = await token.methods.balanceOf(fundAddress).call();
+            balanceFormatted = (Number(raw) / (10 ** decimals)).toFixed(4);
+        }
     } catch (e) {
-        console.warn('خطا در خواندن موجودی', e);
+        console.warn('خطا در خواندن موجودی:', e);
     }
-    const balanceFormatted = (Number(balance) / (10 ** decimals)).toFixed(4);
     document.getElementById('fundBalance').textContent = balanceFormatted + ' USDT';
 
     // مالکیت
@@ -456,22 +468,25 @@ async function submitWithdrawEvm(web3, userAddress, usdt, decimals) {
 // ==================== Tron (پایه) ====================
 async function loadTronFundData() {
     const userAddress = connection.account;
-    const tronWeb = connection.tronWeb;
-    const usdt = selectedNetCfg.usdtAddress;
     const decimals = selectedNetCfg.tokenDecimals || 6;
 
-    // موجودی از raised-reader یا مستقیم
-    let balanceFormatted = '0';
+    // ✅ موجودی از raised-reader
+    let balanceFormatted = '0.0000';
     try {
         if (window.ClassChainRaisedReader) {
             const result = await window.ClassChainRaisedReader.getProjectRaisedUSDT(projectData);
             const item = (result.breakdown || []).find(b =>
-                b.networkId === selectedNetCfg.id || b.address === fundAddress
+                b.networkId === selectedNetCfg.id ||          // 'tron'
+                b.networkId === 'tron_nile' ||
+                (b.address && fundAddress &&
+                    String(b.address).toLowerCase() === String(fundAddress).toLowerCase())
             );
-            if (item) balanceFormatted = item.amount.toFixed(4);
+            if (item && item.amount != null) {
+                balanceFormatted = Number(item.amount).toFixed(4);
+            }
         }
     } catch (e) {
-        console.warn(e);
+        console.warn('خطا در خواندن موجودی Tron:', e);
     }
     document.getElementById('fundBalance').textContent = balanceFormatted + ' USDT';
 
