@@ -1,5 +1,6 @@
 /**
- * ClassChain — خواندن مجموع کمک‌ها (موجودی USDT خزانه‌ها) از همه شبکه‌ها
+ * ClassChain — خواندن مجموع کمک‌ها (موجودی USDT خزانه‌ها) از همه شبکه‌های فعال
+ * وابستگی: باید بعد از network-config.js لود شود
  * استفاده: window.ClassChainRaisedReader.getProjectRaisedUSDT(projectAttributes)
  */
 (function () {
@@ -12,40 +13,6 @@
       type: 'function'
     }
   ];
-
-  // RPC و USDT برای شبکه‌های فعال فعلی
-  // در صورت اضافه شدن شبکه، همین‌جا یک ردیف اضافه کن
-  const READ_NETWORKS = {
-    amoy: {
-      id: 'amoy',
-      type: 'EVM',
-      name: 'Polygon Amoy',
-      rpc: 'https://80002.rpc.thirdweb.com',
-      rpcFallbacks: [
-        'https://polygon-amoy.gateway.tenderly.co',
-        'https://rpc-amoy.polygon.technology'
-      ],
-      usdt: '0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582',
-      decimals: 6,
-      // فیلدهای آدرس خزانه در Projects.json
-      addressFields: ['contractAddress'],
-      fundsKeys: ['polygon_amoy', 'amoy']
-    },
-    tron_nile: {
-      id: 'tron_nile',
-      type: 'TVM',
-      name: 'Tron Nile',
-      // FullNode Nile
-      fullHost: 'https://nile.trongrid.io',
-      // USDT Nile — Base58 (مهم: نه 0x)
-      usdt: 'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf',
-      decimals: 6,
-      addressFields: ['contractAddressTron'],
-      fundsKeys: ['tron_nile', 'tron']
-    }
-    // مثال برای بعد:
-    // polygon: { type:'EVM', rpc:'https://polygon-rpc.com', usdt:'0xc2132D05D31c914a87C6611C10748AEb04B58e8F', decimals:6, addressFields:['contractAddressMainnet'], fundsKeys:['polygon'] }
-  };
 
   function toReadable(amountRaw, decimals) {
     if (!amountRaw && amountRaw !== 0) return 0;
@@ -96,13 +63,8 @@
     return 0;
   }
 
-
-  /**
-   * خواندن balanceOf TRC20 از طریق TronGrid (بدون نیاز به TronLink)
-   */
   async function readTronBalance(fundAddress, usdtAddress, fullHost, decimals) {
     try {
-      // پارامتر address برای balanceOf → 32 بایت
       const param = encodeTronAddressParam(fundAddress);
       if (!param) return 0;
 
@@ -131,12 +93,10 @@
     }
   }
 
-  // تبدیل آدرس Base58/hex ترون به 32 بایت hex برای پارامتر تابع
   function encodeTronAddressParam(address) {
     try {
       let hex = '';
       if (/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(address)) {
-        // decode Base58Check بدون وابستگی به TronWeb
         hex = base58ToHexAddress(address);
       } else if (address.startsWith('41') && address.length === 42) {
         hex = address.toLowerCase();
@@ -146,8 +106,7 @@
         console.warn('فرمت آدرس ترون نامعتبر:', address);
         return null;
       }
-      // 20 بایت آخر (بدون 41) → pad به 32 بایت
-      const body = hex.slice(2); // 40 hex chars
+      const body = hex.slice(2);
       return body.padStart(64, '0');
     } catch (e) {
       console.warn('encodeTronAddressParam:', e);
@@ -164,45 +123,59 @@
       num = num * 58n + BigInt(idx);
     }
     let hex = num.toString(16);
-    // leading zeros in base58
     for (const c of base58) {
       if (c === '1') hex = '00' + hex;
       else break;
     }
     if (hex.length % 2) hex = '0' + hex;
-    // 21 byte address + 4 byte checksum → برداشتن checksum
     if (hex.length >= 50) hex = hex.slice(0, -8);
     return hex.toLowerCase();
   }
 
   /**
    * @param {object} project - attributes یک پروژه از Projects.json
-   * @returns {Promise<{ total: number, breakdown: Array<{network, address, amount}> }>}
+   * @returns {Promise<{ total: number, breakdown: Array<{network, networkId, address, amount}> }>}
    */
   async function getProjectRaisedUSDT(project) {
     if (!project) return { total: 0, breakdown: [] };
 
-    const tasks = [];
-    const breakdown = [];
+    const config = window.ClassChainNetworkConfig;
+    if (!config || typeof config.getReadNetworks !== 'function') {
+      console.error('ClassChainNetworkConfig لود نشده است. network-config.js را قبل از raised-reader.js قرار دهید.');
+      return { total: 0, breakdown: [] };
+    }
 
-    for (const netCfg of Object.values(READ_NETWORKS)) {
+    const readNetworks = config.getReadNetworks();
+    const tasks = [];
+
+    for (const netCfg of readNetworks) {
       const addresses = collectFundAddresses(project, netCfg);
       for (const addr of addresses) {
         tasks.push(
           (async () => {
             let amount = 0;
             if (netCfg.type === 'EVM') {
-            amount = await readEvmBalance(
-              addr,
-              netCfg.usdt,
-              netCfg.rpc,
-              netCfg.decimals,
-              netCfg.rpcFallbacks || []
-            );
+              amount = await readEvmBalance(
+                addr,
+                netCfg.usdtAddress,
+                netCfg.rpc,
+                netCfg.tokenDecimals,
+                netCfg.rpcFallbacks || []
+              );
             } else if (netCfg.type === 'TVM') {
-              amount = await readTronBalance(addr, netCfg.usdt, netCfg.fullHost, netCfg.decimals);
+              amount = await readTronBalance(
+                addr,
+                netCfg.usdtAddress,
+                netCfg.fullHost,
+                netCfg.tokenDecimals
+              );
             }
-            return { network: netCfg.name, networkId: netCfg.id, address: addr, amount };
+            return {
+              network: netCfg.name,
+              networkId: netCfg.id,
+              address: addr,
+              amount
+            };
           })()
         );
       }
@@ -210,6 +183,7 @@
 
     const results = await Promise.all(tasks);
     let total = 0;
+    const breakdown = [];
     results.forEach((r) => {
       total += r.amount;
       breakdown.push(r);
@@ -219,7 +193,6 @@
   }
 
   window.ClassChainRaisedReader = {
-    getProjectRaisedUSDT,
-    READ_NETWORKS
+    getProjectRaisedUSDT
   };
 })();
