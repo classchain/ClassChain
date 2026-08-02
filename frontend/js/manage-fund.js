@@ -576,8 +576,8 @@ async function submitWithdrawTron() {
     try {
         setStatus('در حال ارسال تراکنش برداشت به TronLink...', 'warning');
 
-        const fundContract = await tronWeb.contract().at(fundAddress);
-
+        const fundContract = await tronWeb.contract(fundWithdrawABI, fundAddress);
+        
         // فراخوانی withdrawToken(token, to, amount)
         const tx = await fundContract.withdrawToken(usdt, toAddress, amount).send({
             feeLimit: 100_000_000, // 100 TRX
