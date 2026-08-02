@@ -18,17 +18,19 @@
         <h1>پروژه‌های من</h1>
 
         <div id="connectSection" class="card">
-            <p style="margin-bottom: 1.2rem; opacity: 0.9;">برای دیدن پروژه‌هایی که مالک خزانه آن‌ها هستید، کیف پول خود را وصل کنید:</p>
-            
+            <p style="margin-bottom: 1.2rem; opacity: 0.9;">
+                برای دیدن پروژه‌هایی که مالک خزانه آن‌ها هستید، کیف پول خود را وصل کنید:
+            </p>
+
             <div class="wallet-buttons">
-                <button class="btn-metamask" onclick="connectMetaMask()">
+                <button type="button" class="btn-metamask" id="btnMetaMask">
                     🦊 اتصال MetaMask
                 </button>
-                <button class="btn-tronlink" onclick="connectTronLink()">
+                <button type="button" class="btn-tronlink" id="btnTronLink">
                     🔴 اتصال TronLink
                 </button>
             </div>
-            
+
             <p id="accountDisplay"></p>
         </div>
 
@@ -43,9 +45,9 @@
         </div>
     </div>
 
+    <!-- ترتیب مهم است -->
     <script src="js/network-config.js"></script>
     <script src="js/raised-reader.js"></script>
-    <script src="js/wallet-manager.js"></script>
     <script src="js/dashboard.js"></script>
 </body>
 </html>
