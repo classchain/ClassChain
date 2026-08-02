@@ -1,32 +1,40 @@
-let web3;
-let userAddress;
-let fundContract;
-let multisigContract;
 let projectData = {};
-let fundAddress;
+let projectId = null;
+let selectedNetworkId = null;
+let selectedNetCfg = null;
+let connection = null;          // خروجی WalletManager
+let fundAddress = null;
 let multisigAddress = null;
-
-const USDC_ADDRESS = "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582";
+let isOwner = false;
 
 const fundABI = [
-    {"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
-    {"inputs":[{"internalType":"address","name":"token","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"withdrawToken","outputs":[],"stateMutability":"nonpayable","type":"function"}
+    { "inputs": [{ "internalType": "address", "name": "token", "type": "address" }], "name": "balanceOf", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [], "name": "owner", "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [{ "internalType": "address", "name": "token", "type": "address" }, { "internalType": "address", "name": "to", "type": "address" }, { "internalType": "uint256", "name": "amount", "type": "uint256" }], "name": "withdrawToken", "outputs": [], "stateMutability": "nonpayable", "type": "function" }
 ];
 
 const multisigABI = [
-    {"inputs":[],"name":"getOwners","outputs":[{"internalType":"address[]","name":"","type":"address[]"}],"stateMutability":"view","type":"function"},
-    {"inputs":[],"name":"numConfirmationsRequired","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[{"internalType":"uint256","name":"_txIndex","type":"uint256"}],"name":"getTransaction","outputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"},{"internalType":"bytes","name":"data","type":"bytes"},{"internalType":"bool","name":"executed","type":"bool"},{"internalType":"uint256","name":"numConfirmations","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[],"name":"getTransactionCount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
-    {"inputs":[{"internalType":"address","name":"_to","type":"address"},{"internalType":"uint256","name":"_value","type":"uint256"},{"internalType":"bytes","name":"_data","type":"bytes"}],"name":"submitTransaction","outputs":[{"internalType":"uint256","name":"txIndex","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},
-    {"inputs":[{"internalType":"uint256","name":"_txIndex","type":"uint256"}],"name":"confirmTransaction","outputs":[],"stateMutability":"nonpayable","type":"function"},
-    {"inputs":[{"internalType":"uint256","name":"_txIndex","type":"uint256"}],"name":"executeTransaction","outputs":[],"stateMutability":"nonpayable","type":"function"}
+    { "inputs": [], "name": "getOwners", "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [], "name": "numConfirmationsRequired", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [{ "internalType": "uint256", "name": "_txIndex", "type": "uint256" }], "name": "getTransaction", "outputs": [
+        { "internalType": "address", "name": "to", "type": "address" },
+        { "internalType": "uint256", "name": "value", "type": "uint256" },
+        { "internalType": "bytes", "name": "data", "type": "bytes" },
+        { "internalType": "bool", "name": "executed", "type": "bool" },
+        { "internalType": "uint256", "name": "numConfirmations", "type": "uint256" }
+    ], "stateMutability": "view", "type": "function" },
+    { "inputs": [], "name": "getTransactionCount", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [{ "internalType": "address", "name": "_to", "type": "address" }, { "internalType": "uint256", "name": "_value", "type": "uint256" }, { "internalType": "bytes", "name": "_data", "type": "bytes" }], "name": "submitTransaction", "outputs": [{ "internalType": "uint256", "name": "txIndex", "type": "uint256" }], "stateMutability": "nonpayable", "type": "function" },
+    { "inputs": [{ "internalType": "uint256", "name": "_txIndex", "type": "uint256" }], "name": "confirmTransaction", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+    { "inputs": [{ "internalType": "uint256", "name": "_txIndex", "type": "uint256" }], "name": "executeTransaction", "outputs": [], "stateMutability": "nonpayable", "type": "function" }
 ];
 
-async function loadProject() {
+const walletManager = new (window.ClassChainWalletManager || function(){})();
+
+// ==================== شروع ====================
+async function init() {
     const urlParams = new URLSearchParams(window.location.search);
-    const projectId = urlParams.get('project');
+    projectId = urlParams.get('project');
 
     if (!projectId) {
         document.getElementById('loading').innerHTML = '<p style="color:var(--danger);">آیدی پروژه مشخص نشده است.</p>';
@@ -36,249 +44,512 @@ async function loadProject() {
     try {
         const resp = await fetch('data/Projects.json');
         const data = await resp.json();
-        projectData = data.features.find(f => f.attributes.ProjectID === projectId)?.attributes || {};
+        const feature = (data.features || []).find(f => f.attributes?.ProjectID === projectId);
+        projectData = feature?.attributes || {};
 
-        if (!projectData.contractAddress) {
-            document.getElementById('loading').innerHTML = '<p style="color:var(--danger);">پروژه پیدا نشد یا خزانه ندارد.</p>';
+        if (!projectData || Object.keys(projectData).length === 0) {
+            document.getElementById('loading').innerHTML = '<p style="color:var(--danger);">پروژه پیدا نشد.</p>';
             return;
         }
 
-        fundAddress = projectData.contractAddress;
+        document.getElementById('projectName').textContent =
+            projectData['نام پروژه'] || projectData.نام_پروژه || `پروژه ${projectId}`;
+        document.getElementById('projectIdDisplay').textContent = projectId;
 
-        await connectWallet();
-        await loadFundData();
+        // مجموع کمک‌ها
+        await loadTotalRaised();
 
-        document.getElementById('projectName').textContent = projectData.نام_پروژه || `پروژه ${projectId}`;
+        // پر کردن لیست شبکه‌ها
+        populateNetworkSelect();
 
         document.getElementById('loading').style.display = 'none';
         document.getElementById('main').style.display = 'block';
 
     } catch (err) {
         console.error(err);
-        document.getElementById('loading').innerHTML = '<p style="color:var(--danger);">خطا در بارگذاری پروژه: ' + (err.message || "نامشخص") + '</p>';
+        document.getElementById('loading').innerHTML =
+            '<p style="color:var(--danger);">خطا در بارگذاری پروژه: ' + (err.message || 'نامشخص') + '</p>';
     }
 }
 
-async function connectWallet() {
-    if (typeof window.ethereum === 'undefined') {
-        alert("لطفاً MetaMask نصب کنید");
-        return;
-    }
+async function loadTotalRaised() {
+    try {
+        if (window.ClassChainRaisedReader) {
+            const result = await window.ClassChainRaisedReader.getProjectRaisedUSDT(projectData);
+            document.getElementById('totalRaised').textContent = (result.total || 0).toFixed(2) + ' USDT';
 
-    await window.ethereum.request({ method: 'eth_requestAccounts' });
-    web3 = new Web3(window.ethereum);
-    const accounts = await web3.eth.getAccounts();
-    userAddress = accounts[0];
-
-    const chainId = await web3.eth.getChainId();
-    if (chainId !== 80002) {
-        alert("لطفاً به شبکه Polygon Amoy Testnet سوئیچ کنید");
-        return;
+            const box = document.getElementById('breakdownBox');
+            if (result.breakdown && result.breakdown.length) {
+                const parts = result.breakdown
+                    .filter(b => b.amount > 0)
+                    .map(b => `${b.network}: ${b.amount.toFixed(2)}`);
+                box.textContent = parts.length ? parts.join('  |  ') : '';
+            }
+        }
+    } catch (e) {
+        console.warn('خطا در خواندن مجموع:', e);
     }
 }
 
-async function loadFundData() {
-    fundContract = new web3.eth.Contract(fundABI, fundAddress);
+function populateNetworkSelect() {
+    const config = window.ClassChainNetworkConfig;
+    if (!config) return;
 
-    // موجودی USDC
+    const select = document.getElementById('networkSelect');
+    select.innerHTML = '<option value="">— انتخاب شبکه —</option>';
+
+    // شبکه‌هایی که این پروژه در آن‌ها آدرس خزانه دارد
+    const allNets = Object.values(config.NETWORKS);
+    let firstValid = null;
+
+    allNets.forEach(net => {
+        let hasAddress = false;
+        (net.addressFields || []).forEach(f => {
+            if (projectData[f] && projectData[f] !== 'null') hasAddress = true;
+        });
+        if (projectData.funds) {
+            (net.fundsKeys || []).forEach(k => {
+                if (projectData.funds[k]?.address) hasAddress = true;
+            });
+        }
+
+        if (!hasAddress) return;
+
+        const opt = document.createElement('option');
+        opt.value = net.id;
+        opt.textContent = `${net.name}${net.status === 'active' ? '' : ' (در انتظار)'}`;
+        opt.disabled = net.status !== 'active';
+        select.appendChild(opt);
+
+        if (!firstValid && net.status === 'active') firstValid = net.id;
+    });
+
+    select.addEventListener('change', onNetworkChange);
+
+    if (firstValid) {
+        select.value = firstValid;
+        onNetworkChange();
+    }
+}
+
+function onNetworkChange() {
+    selectedNetworkId = document.getElementById('networkSelect').value;
+    selectedNetCfg = window.ClassChainNetworkConfig?.getNetwork(selectedNetworkId) || null;
+
+    // ریست وضعیت
+    connection = null;
+    fundAddress = null;
+    multisigAddress = null;
+    isOwner = false;
+
+    document.getElementById('fundDetails').style.display = 'none';
+    document.getElementById('noAccessCard').style.display = 'none';
+    document.getElementById('connectedWalletInfo').textContent = '';
+    document.getElementById('status').innerHTML = '';
+
+    const btn = document.getElementById('btnConnectNetwork');
+    if (!selectedNetCfg) {
+        btn.style.display = 'none';
+        return;
+    }
+
+    btn.style.display = 'inline-block';
+    btn.textContent = `اتصال ${selectedNetCfg.walletName || 'کیف پول'} (${selectedNetCfg.name})`;
+    btn.onclick = connectSelectedNetwork;
+}
+
+async function connectSelectedNetwork() {
+    if (!selectedNetCfg) return;
+
+    try {
+        setStatus('در حال اتصال به کیف پول...', 'warning');
+
+        // استفاده از WalletManager اگر موجود باشد
+        if (window.ClassChainWalletManager) {
+            const wm = new window.ClassChainWalletManager();
+            connection = await wm.connect(selectedNetCfg);
+        } else {
+            // fallback ساده
+            if (selectedNetCfg.type === 'EVM') {
+                if (!window.ethereum) throw new Error('MetaMask نصب نیست');
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const web3 = new Web3(window.ethereum);
+                const accounts = await web3.eth.getAccounts();
+                const chainId = Number(await web3.eth.getChainId());
+                if (selectedNetCfg.chainId && chainId !== selectedNetCfg.chainId) {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: '0x' + selectedNetCfg.chainId.toString(16) }]
+                    });
+                }
+                connection = { type: 'EVM', account: accounts[0], web3, network: selectedNetCfg };
+            } else if (selectedNetCfg.type === 'TVM') {
+                if (!window.tronWeb) throw new Error('TronLink نصب نیست');
+                if (typeof window.tronWeb.request === 'function') {
+                    await window.tronWeb.request({ method: 'tron_requestAccounts' });
+                }
+                await new Promise(r => setTimeout(r, 300));
+                const account = window.tronWeb.defaultAddress?.base58;
+                if (!account) throw new Error('حساب TronLink یافت نشد');
+                connection = { type: 'TVM', account, tronWeb: window.tronWeb, network: selectedNetCfg };
+            }
+        }
+
+        document.getElementById('connectedWalletInfo').textContent =
+            `وصل شد: ${connection.account.slice(0, 8)}...${connection.account.slice(-6)}`;
+
+        setStatus('', '');
+        await loadFundDataForSelectedNetwork();
+
+    } catch (err) {
+        console.error(err);
+        setStatus('خطا در اتصال: ' + (err.message || 'نامشخص'), 'error');
+    }
+}
+
+async function loadFundDataForSelectedNetwork() {
+    if (!selectedNetCfg || !connection) return;
+
+    // پیدا کردن آدرس خزانه این شبکه
+    fundAddress = null;
+    if (projectData.funds) {
+        for (const k of (selectedNetCfg.fundsKeys || [])) {
+            if (projectData.funds[k]?.address) {
+                fundAddress = projectData.funds[k].address;
+                multisigAddress = projectData.funds[k].multisigAddress || null;
+                break;
+            }
+        }
+    }
+    if (!fundAddress) {
+        for (const f of (selectedNetCfg.addressFields || [])) {
+            if (projectData[f] && projectData[f] !== 'null') {
+                fundAddress = projectData[f];
+                break;
+            }
+        }
+    }
+
+    if (!fundAddress) {
+        setStatus('آدرس خزانه برای این شبکه پیدا نشد.', 'error');
+        return;
+    }
+
+    document.getElementById('selectedNetworkName').textContent = selectedNetCfg.name;
+    document.getElementById('fundAddress').textContent =
+        fundAddress.slice(0, 10) + '...' + fundAddress.slice(-8);
+
+    // ===== شاخه EVM =====
+    if (selectedNetCfg.type === 'EVM' && connection.type === 'EVM') {
+        await loadEvmFundData();
+    }
+    // ===== شاخه TVM =====
+    else if (selectedNetCfg.type === 'TVM' && connection.type === 'TVM') {
+        await loadTronFundData();
+    } else {
+        setStatus('نوع کیف پول با شبکه انتخاب‌شده سازگار نیست.', 'error');
+    }
+}
+
+async function loadEvmFundData() {
+    const web3 = connection.web3;
+    const userAddress = connection.account;
+    const usdt = selectedNetCfg.usdtAddress;
+    const decimals = selectedNetCfg.tokenDecimals || 6;
+
+    const fundContract = new web3.eth.Contract(fundABI, fundAddress);
+
+    // موجودی
     let balance = 0;
     try {
-        balance = await fundContract.methods.balanceOf(USDC_ADDRESS).call();
+        balance = await fundContract.methods.balanceOf(usdt).call();
     } catch (e) {
-        console.warn("خطا در خواندن موجودی");
+        console.warn('خطا در خواندن موجودی', e);
     }
-    const balanceFormatted = (balance / 1e6).toFixed(4);
-    document.getElementById('fundBalance').textContent = balanceFormatted;
+    const balanceFormatted = (Number(balance) / (10 ** decimals)).toFixed(4);
+    document.getElementById('fundBalance').textContent = balanceFormatted + ' USDT';
 
-    // آدرس خزانه
-    document.getElementById('fundAddress').textContent = fundAddress.slice(0,10) + "..." + fundAddress.slice(-8);
-
-    // تشخیص نوع مالکیت و مالک — شبیه dashboard
-    let ownerAddr = "نامشخص";
-    let required = "1";
+    // مالکیت
+    let ownerAddr = '-';
+    let required = '1';
     let owners = [];
-    let isOwner = false;
+    isOwner = false;
+    multisigAddress = null;
+
     try {
         const owner = await fundContract.methods.owner().call();
-        ownerAddr = owner.slice(0,10) + "..." + owner.slice(-8);
+        ownerAddr = owner.slice(0, 10) + '...' + owner.slice(-8);
 
         if (owner.toLowerCase() === userAddress.toLowerCase()) {
-            // تک‌مالکی
             isOwner = true;
             owners = [userAddress];
-            required = "1 (تک‌مالکی)";
+            required = '1 (تک‌مالکی)';
         } else {
-            // چندمالکی — چک Multisig
-            multisigContract = new web3.eth.Contract(multisigABI, owner);
             try {
+                const multisigContract = new web3.eth.Contract(multisigABI, owner);
                 required = await multisigContract.methods.numConfirmationsRequired().call();
                 owners = await multisigContract.methods.getOwners().call();
                 isOwner = owners.some(o => o.toLowerCase() === userAddress.toLowerCase());
+                multisigAddress = owner;
             } catch (e) {
-                console.warn("خطا در خواندن اطلاعات Multisig", e);
+                console.warn('Multisig نیست', e);
             }
-            multisigAddress = owner;
         }
     } catch (e) {
-        console.warn("خطا در خواندن مالک خزانه", e);
+        console.warn('خطا در خواندن owner', e);
+    }
+
+    // اگر در funds هم owners داشت، ترجیح بده
+    if (projectData.funds) {
+        for (const k of (selectedNetCfg.fundsKeys || [])) {
+            const info = projectData.funds[k];
+            if (info?.owners?.length) {
+                const fromFunds = info.owners.some(o => o.toLowerCase() === userAddress.toLowerCase());
+                if (fromFunds) isOwner = true;
+                if (!owners.length) owners = info.owners;
+                if (info.requiredSignatures) required = info.requiredSignatures;
+                if (info.multisigAddress) multisigAddress = info.multisigAddress;
+            }
+        }
     }
 
     document.getElementById('ownerAddress').textContent = ownerAddr;
     document.getElementById('requiredConfirmations').textContent = required;
 
-    // چک دسترسی کاربر
     if (!isOwner) {
-        document.getElementById('main').innerHTML = `
-            <div class="card">
-                <p style="color:var(--danger); text-align:center;">
-                    شما صاحب این خزانه نیستید یا دسترسی ندارید.
-                </p>
-                <p>مالک فعلی: ${ownerAddr}</p>
-            </div>
-        `;
+        document.getElementById('fundDetails').style.display = 'none';
+        document.getElementById('noAccessCard').style.display = 'block';
         return;
     }
 
-    // لیست صاحبان
+    document.getElementById('noAccessCard').style.display = 'none';
+    document.getElementById('fundDetails').style.display = 'block';
+
+    // لیست مالکان
     const ownersList = document.getElementById('ownersList');
     ownersList.innerHTML = '';
-    owners.forEach(owner => {
+    owners.forEach(o => {
         const item = document.createElement('div');
         item.className = 'info-item';
         item.innerHTML = `
             <div class="info-label">صاحب</div>
-            <div class="info-value">${owner.slice(0,10)}...${owner.slice(-8)}</div>
-            ${owner.toLowerCase() === userAddress.toLowerCase() ? '<small style="color:var(--success);">شما</small>' : ''}
+            <div class="info-value">${o.slice(0, 10)}...${o.slice(-8)}</div>
+            ${o.toLowerCase() === userAddress.toLowerCase() ? '<small style="color:var(--success);">شما</small>' : ''}
         `;
         ownersList.appendChild(item);
     });
 
-    // اگر تک‌مالکی باشه، pending txs رو غیرفعال کن
+    // pending txs
     if (!multisigAddress) {
-        document.querySelector('.card:nth-child(2) h3').textContent = "تراکنش‌های در انتظار (فقط برای Multisig)";
-        document.getElementById('pendingTxs').innerHTML = '<p style="opacity:0.7;">این خزانه تک‌مالکی است و نیازی به تأیید چندگانه ندارد. برای برداشت مستقیم استفاده کنید.</p>';
+        document.getElementById('pendingTxs').innerHTML =
+            '<p style="opacity:0.7;">این خزانه تک‌مالکی است. برداشت مستقیم انجام می‌شود.</p>';
     } else {
-        await loadPendingTransactions();
+        await loadPendingTransactions(web3, userAddress);
     }
+
+    // دکمه برداشت
+    document.getElementById('btnWithdraw').onclick = () => submitWithdrawEvm(web3, userAddress, usdt, decimals);
 }
 
-async function loadPendingTransactions() {
-    const count = await multisigContract.methods.getTransactionCount().call();
+async function loadPendingTransactions(web3, userAddress) {
+    const multisigContract = new web3.eth.Contract(multisigABI, multisigAddress);
     const pendingDiv = document.getElementById('pendingTxs');
 
-    if (count == 0) {
-        pendingDiv.innerHTML = '<p>هیچ تراکنش در انتظاری وجود ندارد.</p>';
-        return;
-    }
+    try {
+        const count = await multisigContract.methods.getTransactionCount().call();
+        if (count == 0) {
+            pendingDiv.innerHTML = '<p>هیچ تراکنش در انتظاری وجود ندارد.</p>';
+            return;
+        }
 
-    pendingDiv.innerHTML = '';
-    for (let i = 0; i < count; i++) {
-        const tx = await multisigContract.methods.getTransaction(i).call();
-        if (tx.executed) continue;
+        pendingDiv.innerHTML = '';
+        const required = await multisigContract.methods.numConfirmationsRequired().call();
 
-        const div = document.createElement('div');
-        div.className = 'pending-tx';
-        div.innerHTML = `
-            <p><strong>تراکنش #${i}</strong></p>
-            <p>مقصد: ${tx.to.slice(0,10)}...${tx.to.slice(-8)}</p>
-            <p>مقدار اتر: ${web3.utils.fromWei(tx.value, 'ether')}</p>
-            <p>تأییدها: ${tx.numConfirmations} / ${await multisigContract.methods.numConfirmationsRequired().call()}</p>
-            <button onclick="confirmTx(${i})" ${tx.numConfirmations > 0 ? 'class="success"' : ''}>تأیید این تراکنش</button>
-        `;
-        pendingDiv.appendChild(div);
+        for (let i = 0; i < count; i++) {
+            const tx = await multisigContract.methods.getTransaction(i).call();
+            if (tx.executed) continue;
+
+            const div = document.createElement('div');
+            div.className = 'pending-tx';
+            div.innerHTML = `
+                <p><strong>تراکنش #${i}</strong></p>
+                <p>مقصد: ${tx.to.slice(0, 10)}...${tx.to.slice(-8)}</p>
+                <p>تأییدها: ${tx.numConfirmations} / ${required}</p>
+                <button onclick="confirmTx(${i})">تأیید این تراکنش</button>
+            `;
+            pendingDiv.appendChild(div);
+        }
+    } catch (e) {
+        pendingDiv.innerHTML = '<p>خطا در خواندن تراکنش‌های در انتظار.</p>';
+        console.warn(e);
     }
 }
 
 async function confirmTx(txIndex) {
+    if (!connection || !multisigAddress) return;
     try {
-        setStatus("در حال ارسال تأیید...", "warning");
-        await multisigContract.methods.confirmTransaction(txIndex).send({ from: userAddress, gas: 300000 });
-        setStatus("تأیید موفق! در حال اجرا...", "success");
-        await loadFundData(); // رفرش اطلاعات
+        setStatus('در حال ارسال تأیید...', 'warning');
+        const multisigContract = new connection.web3.eth.Contract(multisigABI, multisigAddress);
+        await multisigContract.methods.confirmTransaction(txIndex).send({
+            from: connection.account,
+            gas: 300000
+        });
+        setStatus('تأیید موفق!', 'success');
+        await loadFundDataForSelectedNetwork();
     } catch (err) {
-        setStatus("خطا در تأیید: " + (err.message || "نامشخص"), "error");
+        setStatus('خطا در تأیید: ' + (err.message || 'نامشخص'), 'error');
     }
 }
 
-async function submitWithdraw() {
+async function submitWithdrawEvm(web3, userAddress, usdt, decimals) {
     const amountInput = document.getElementById('withdrawAmount').value;
     const toAddress = document.getElementById('withdrawTo').value.trim();
 
     if (!amountInput || !toAddress || !web3.utils.isAddress(toAddress)) {
-        setStatus("مقدار و آدرس معتبر وارد کنید", "error");
+        setStatus('مقدار و آدرس معتبر وارد کنید', 'error');
         return;
     }
 
-    const amount = web3.utils.toBN(Math.round(parseFloat(amountInput) * 1e6));
-
-    // ساخت encoded data برای withdrawToken
-    const withdrawData = web3.eth.abi.encodeFunctionCall({
-        name: 'withdrawToken',
-        type: 'function',
-        inputs: [{type: 'address', name: 'token'}, {type: 'address', name: 'to'}, {type: 'uint256', name: 'amount'}]
-    }, [USDC_ADDRESS, toAddress, amount]);
+    const amount = web3.utils.toBN(Math.round(parseFloat(amountInput) * (10 ** decimals)));
+    const fundContract = new web3.eth.Contract(fundABI, fundAddress);
 
     try {
-        setStatus("در حال ارسال تراکنش...", "warning");
-        let tx;
+        setStatus('در حال ارسال تراکنش...', 'warning');
 
         if (!multisigAddress) {
-            // تک‌مالکی — برداشت مستقیم
-            tx = await fundContract.methods.withdrawToken(USDC_ADDRESS, toAddress, amount).send({ from: userAddress, gas: 300000 });
-            setStatus(`برداشت موفق! <a href="https://amoy.polygonscan.com/tx/${tx.transactionHash}" target="_blank">مشاهده</a>`, "success");
+            // تک‌مالکی
+            const tx = await fundContract.methods.withdrawToken(usdt, toAddress, amount).send({
+                from: userAddress,
+                gas: 300000
+            });
+            setStatus(`برداشت موفق! <a href="${selectedNetCfg.explorer}/tx/${tx.transactionHash}" target="_blank">مشاهده</a>`, 'success');
         } else {
-            // چندمالکی — submitTransaction
-            tx = await multisigContract.methods.submitTransaction(fundAddress, 0, withdrawData).send({ from: userAddress, gas: 400000 });
+            // Multisig
+            const withdrawData = web3.eth.abi.encodeFunctionCall({
+                name: 'withdrawToken',
+                type: 'function',
+                inputs: [
+                    { type: 'address', name: 'token' },
+                    { type: 'address', name: 'to' },
+                    { type: 'uint256', name: 'amount' }
+                ]
+            }, [usdt, toAddress, amount]);
 
-            // چک رویداد از logs (برای حل undefined)
-            let txIndex = 'نامشخص';
-            if (tx.logs && tx.logs.length > 0) {
-                const submitLog = tx.logs.find(log => log.event === 'SubmitTransaction');
-                if (submitLog) {
-                    txIndex = submitLog.returnValues.txIndex;
-                }
-            } else if (tx.events && tx.events.SubmitTransaction) {
-                txIndex = tx.events.SubmitTransaction.returnValues.txIndex;
-            }
+            const multisigContract = new web3.eth.Contract(multisigABI, multisigAddress);
+            const tx = await multisigContract.methods.submitTransaction(fundAddress, 0, withdrawData).send({
+                from: userAddress,
+                gas: 400000
+            });
 
-            setStatus(`درخواست ثبت شد! تراکنش #${txIndex} <a href="https://amoy.polygonscan.com/tx/${tx.transactionHash}" target="_blank">مشاهده</a>`, "success");
-            await loadFundData();
+            setStatus(`درخواست ثبت شد. <a href="${selectedNetCfg.explorer}/tx/${tx.transactionHash}" target="_blank">مشاهده</a>`, 'success');
         }
 
-        await loadFundData(); // رفرش
+        await loadFundDataForSelectedNetwork();
+        await loadTotalRaised();
 
     } catch (err) {
         console.error(err);
-        setStatus("خطا در برداشت: " + (err.message || "نامشخص"), "error");
+        setStatus('خطا در برداشت: ' + (err.message || 'نامشخص'), 'error');
     }
+}
+
+// ==================== Tron (پایه) ====================
+async function loadTronFundData() {
+    const userAddress = connection.account;
+    const tronWeb = connection.tronWeb;
+    const usdt = selectedNetCfg.usdtAddress;
+    const decimals = selectedNetCfg.tokenDecimals || 6;
+
+    // موجودی از raised-reader یا مستقیم
+    let balanceFormatted = '0';
+    try {
+        if (window.ClassChainRaisedReader) {
+            const result = await window.ClassChainRaisedReader.getProjectRaisedUSDT(projectData);
+            const item = (result.breakdown || []).find(b =>
+                b.networkId === selectedNetCfg.id || b.address === fundAddress
+            );
+            if (item) balanceFormatted = item.amount.toFixed(4);
+        }
+    } catch (e) {
+        console.warn(e);
+    }
+    document.getElementById('fundBalance').textContent = balanceFormatted + ' USDT';
+
+    // مالکیت از funds
+    isOwner = false;
+    let owners = [];
+    let required = '1';
+
+    if (projectData.funds) {
+        for (const k of (selectedNetCfg.fundsKeys || [])) {
+            const info = projectData.funds[k];
+            if (!info) continue;
+            owners = info.owners || [];
+            required = info.requiredSignatures || 1;
+            multisigAddress = info.multisigAddress || null;
+            isOwner = owners.some(o => String(o).toLowerCase() === String(userAddress).toLowerCase());
+        }
+    }
+
+    document.getElementById('ownerAddress').textContent = multisigAddress
+        ? (multisigAddress.slice(0, 8) + '...')
+        : (owners[0] ? owners[0].slice(0, 8) + '...' : '-');
+    document.getElementById('requiredConfirmations').textContent = required;
+
+    if (!isOwner) {
+        document.getElementById('fundDetails').style.display = 'none';
+        document.getElementById('noAccessCard').style.display = 'block';
+        return;
+    }
+
+    document.getElementById('noAccessCard').style.display = 'none';
+    document.getElementById('fundDetails').style.display = 'block';
+
+    const ownersList = document.getElementById('ownersList');
+    ownersList.innerHTML = '';
+    owners.forEach(o => {
+        const item = document.createElement('div');
+        item.className = 'info-item';
+        item.innerHTML = `
+            <div class="info-label">صاحب</div>
+            <div class="info-value">${String(o).slice(0, 8)}...${String(o).slice(-6)}</div>
+            ${String(o).toLowerCase() === userAddress.toLowerCase() ? '<small style="color:var(--success);">شما</small>' : ''}
+        `;
+        ownersList.appendChild(item);
+    });
+
+    document.getElementById('pendingTxs').innerHTML =
+        '<p style="opacity:0.7;">مدیریت Multisig ترون در نسخه بعدی کامل می‌شود. فعلاً فقط نمایش موجودی و مالکیت فعال است.</p>';
+
+    document.getElementById('btnWithdraw').onclick = () => {
+        setStatus('برداشت از شبکه Tron به‌زودی فعال می‌شود.', 'warning');
+    };
 }
 
 function setStatus(message, type) {
     const statusDiv = document.getElementById('status');
-    statusDiv.className = `status ${type}`;
-    statusDiv.innerHTML = message; // برای لینک‌ها HTML بگذار
+    if (!statusDiv) return;
+    statusDiv.className = type ? `status ${type}` : '';
+    statusDiv.innerHTML = message || '';
 }
 
-// فعال‌سازی particles
-particlesJS("particles-js", {
-    "particles": {
-        "number": { "value": 100 },
-        "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] },
-        "shape": { "type": "circle" },
-        "opacity": { "value": 0.6, "random": true },
-        "size": { "value": 3, "random": true },
-        "line_linked": {
-            "enable": true,
-            "distance": 140,
-            "color": "#6366f1",
-            "opacity": 0.3,
-            "width": 1
+// particles
+if (typeof particlesJS === 'function') {
+    particlesJS("particles-js", {
+        "particles": {
+            "number": { "value": 80 },
+            "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] },
+            "shape": { "type": "circle" },
+            "opacity": { "value": 0.5, "random": true },
+            "size": { "value": 3, "random": true },
+            "line_linked": { "enable": true, "distance": 140, "color": "#6366f1", "opacity": 0.25, "width": 1 },
+            "move": { "enable": true, "speed": 1.2 }
         },
-        "move": { "enable": true, "speed": 1.5 }
-    },
-    "interactivity": {
-        "events": { "onhover": { "enable": true, "mode": "repulse" } }
-    }
-});
+        "interactivity": {
+            "events": { "onhover": { "enable": true, "mode": "repulse" } }
+        }
+    });
+}
 
-loadProject();
+// شروع
+document.addEventListener('DOMContentLoaded', init);
