@@ -1,6 +1,5 @@
-let userAddress = null;          // آدرس فعلی کیف پول (EVM یا Tron)
-let userAddressType = null;      // 'EVM' | 'TVM'
-let projects = [];
+let userAddress = null;
+let userAddressType = null; // 'EVM' | 'TVM'
 
 const fundABI = [
     { "inputs": [{ "internalType": "address", "name": "token", "type": "address" }], "name": "balanceOf", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
@@ -13,6 +12,7 @@ const multisigABI = [
 
 // ==================== اتصال MetaMask ====================
 async function connectMetaMask() {
+    console.log('کلیک روی MetaMask');
     if (typeof window.ethereum === 'undefined') {
         alert('لطفاً افزونه MetaMask را نصب کنید.');
         return;
@@ -22,6 +22,11 @@ async function connectMetaMask() {
         let accounts = await window.ethereum.request({ method: 'eth_accounts' });
         if (accounts.length === 0) {
             accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        }
+
+        if (!accounts || accounts.length === 0) {
+            alert('هیچ حسابی انتخاب نشد.');
+            return;
         }
 
         userAddress = accounts[0];
@@ -47,6 +52,7 @@ async function connectMetaMask() {
 
 // ==================== اتصال TronLink ====================
 async function connectTronLink() {
+    console.log('کلیک روی TronLink');
     const tronWeb = window.tronWeb;
 
     if (!tronWeb) {
@@ -58,6 +64,9 @@ async function connectTronLink() {
         if (typeof tronWeb.request === 'function') {
             await tronWeb.request({ method: 'tron_requestAccounts' });
         }
+
+        // کمی صبر برای آپدیت شدن defaultAddress
+        await new Promise(r => setTimeout(r, 300));
 
         const account = tronWeb.defaultAddress?.base58;
         if (!account) {
@@ -78,7 +87,7 @@ async function connectTronLink() {
 
     } catch (err) {
         console.error('خطا در اتصال TronLink:', err);
-        if (err.code === 4001 || (err.message && err.message.includes('cancel'))) {
+        if (err.code === 4001 || (err.message && err.message.toLowerCase().includes('cancel'))) {
             alert('اتصال TronLink لغو شد.');
         } else {
             alert('خطا در اتصال TronLink: ' + (err.message || 'مشکل ناشناخته'));
@@ -88,7 +97,7 @@ async function connectTronLink() {
 
 // ==================== چک مالکیت روی یک شبکه ====================
 async function checkOwnershipOnNetwork(project, netCfg, userAddr, addrType) {
-    // ۱. اول از فیلد funds داخل Projects.json استفاده کن (سریع و بدون RPC)
+    // ۱. از فیلد funds داخل Projects.json
     if (project.funds && typeof project.funds === 'object') {
         for (const key of (netCfg.fundsKeys || [])) {
             const fundInfo = project.funds[key];
@@ -110,7 +119,7 @@ async function checkOwnershipOnNetwork(project, netCfg, userAddr, addrType) {
         }
     }
 
-    // ۲. اگر در funds پیدا نشد و شبکه EVM است → از قرارداد بخوان
+    // ۲. برای EVM از قرارداد بخوان
     if (addrType === 'EVM' && netCfg.type === 'EVM' && netCfg.rpc) {
         const addresses = [];
         (netCfg.addressFields || []).forEach(f => {
@@ -132,7 +141,6 @@ async function checkOwnershipOnNetwork(project, netCfg, userAddr, addrType) {
                     return { isOwner: true, fundAddress: fundAddr, multisigAddress: null, source: 'contract' };
                 }
 
-                // چک Multisig
                 try {
                     const multisig = new web3.eth.Contract(multisigABI, owner);
                     const owners = await multisig.methods.getOwners().call();
@@ -144,15 +152,12 @@ async function checkOwnershipOnNetwork(project, netCfg, userAddr, addrType) {
                             source: 'contract-multisig'
                         };
                     }
-                } catch (_) { /* Multisig نیست */ }
+                } catch (_) {}
             } catch (e) {
                 console.warn(`خطا در چک مالکیت ${netCfg.id}:`, e.message);
             }
         }
     }
-
-    // ۳. برای Tron فعلاً فقط از فیلد funds استفاده می‌کنیم
-    // (در آینده می‌توان owner() قرارداد Tron را هم اضافه کرد)
 
     return { isOwner: false };
 }
@@ -167,7 +172,9 @@ async function loadProjects() {
         const data = await resp.json();
 
         const config = window.ClassChainNetworkConfig;
-        if (!config) throw new Error('network-config.js لود نشده است');
+        if (!config) {
+            throw new Error('network-config.js لود نشده است');
+        }
 
         const activeNetworks = config.getActiveNetworks();
         const myProjects = [];
@@ -179,7 +186,6 @@ async function loadProjects() {
             const attr = feature.attributes;
             if (!attr) continue;
 
-            // فقط پروژه‌هایی که حداقل یک آدرس خزانه دارند
             const hasAnyFund = activeNetworks.some(net => {
                 const addrs = (net.addressFields || []).some(f => attr[f] && attr[f] !== 'null');
                 const hasFunds = attr.funds && Object.keys(attr.funds).length > 0;
@@ -189,9 +195,12 @@ async function loadProjects() {
 
             checkedCount++;
 
-            // چک مالکیت روی همه شبکه‌های فعال
             const ownedNetworks = [];
             for (const net of activeNetworks) {
+                // فقط شبکه‌هایی که نوعشان با نوع کیف‌پول کاربر سازگار است را چک کن
+                if (net.type === 'EVM' && userAddressType !== 'EVM') continue;
+                if (net.type === 'TVM' && userAddressType !== 'TVM') continue;
+
                 const ownership = await checkOwnershipOnNetwork(attr, net, userAddress, userAddressType);
                 if (ownership.isOwner) {
                     ownedNetworks.push({
@@ -206,7 +215,6 @@ async function loadProjects() {
 
             if (ownedNetworks.length === 0) continue;
 
-            // خواندن مجموع کمک‌ها از همه شبکه‌ها
             let totalRaised = 0;
             let breakdown = [];
             try {
@@ -262,13 +270,13 @@ function displayProjects(projectsList) {
         return;
     }
 
+    document.getElementById('noAccess').style.display = 'none';
     container.innerHTML = '';
 
     projectsList.forEach(proj => {
         const card = document.createElement('div');
         card.className = 'project-card';
 
-        // ساخت متن breakdown
         let breakdownHtml = '';
         if (proj.breakdown && proj.breakdown.length > 0) {
             const parts = proj.breakdown
@@ -279,10 +287,7 @@ function displayProjects(projectsList) {
             }
         }
 
-        // شبکه‌هایی که کاربر مالک آن‌هاست
-        const networksLabel = proj.ownedNetworks
-            .map(n => n.networkName)
-            .join('، ');
+        const networksLabel = proj.ownedNetworks.map(n => n.networkName).join('، ');
 
         card.innerHTML = `
             <div class="project-title">${proj.name}</div>
@@ -296,18 +301,35 @@ function displayProjects(projectsList) {
     });
 }
 
-// particles
-particlesJS("particles-js", {
-    "particles": {
-        "number": { "value": 100 },
-        "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] },
-        "shape": { "type": "circle" },
-        "opacity": { "value": 0.6, "random": true },
-        "size": { "value": 3, "random": true },
-        "line_linked": { "enable": true, "distance": 140, "color": "#6366f1", "opacity": 0.3, "width": 1 },
-        "move": { "enable": true, "speed": 1.5 }
-    },
-    "interactivity": {
-        "events": { "onhover": { "enable": true, "mode": "repulse" } }
+// ==================== اتصال دکمه‌ها بعد از لود صفحه ====================
+document.addEventListener('DOMContentLoaded', function () {
+    const btnMeta = document.getElementById('btnMetaMask');
+    const btnTron = document.getElementById('btnTronLink');
+
+    if (btnMeta) {
+        btnMeta.addEventListener('click', connectMetaMask);
     }
+    if (btnTron) {
+        btnTron.addEventListener('click', connectTronLink);
+    }
+
+    console.log('Dashboard آماده است. دکمه‌ها متصل شدند.');
 });
+
+// particles
+if (typeof particlesJS === 'function') {
+    particlesJS("particles-js", {
+        "particles": {
+            "number": { "value": 100 },
+            "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] },
+            "shape": { "type": "circle" },
+            "opacity": { "value": 0.6, "random": true },
+            "size": { "value": 3, "random": true },
+            "line_linked": { "enable": true, "distance": 140, "color": "#6366f1", "opacity": 0.3, "width": 1 },
+            "move": { "enable": true, "speed": 1.5 }
+        },
+        "interactivity": {
+            "events": { "onhover": { "enable": true, "mode": "repulse" } }
+        }
+    });
+}
