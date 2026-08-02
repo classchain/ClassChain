@@ -45,7 +45,7 @@
                 'https://rpc-amoy.polygon.technology'
             ],
             enabled: true,
-            status: 'pending'          // هنوز به‌صورت مستقل راه‌اندازی نشده
+            status: 'pending'
         },
 
         polygon: {
@@ -108,7 +108,7 @@
             addressFields: ['contractAddressBSC'],
             fundsKeys: ['bsc', 'bnb'],
             usdtAddress: '0x55d398326f99059ff7754852469993b3197955e7',
-            tokenDecimals: 18,          // USDT روی BSC معمولاً 18 رقم است
+            tokenDecimals: 18,
             chainId: 56,
             explorer: 'https://bscscan.com',
             rpc: 'https://bsc-dataseed.binance.org',
@@ -131,7 +131,7 @@
             addressField: 'contractAddressTron',
             addressFields: ['contractAddressTron'],
             fundsKeys: ['tron_nile', 'tron'],
-            usdtAddress: 'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf',   // USDT Nile (Base58)
+            usdtAddress: 'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf',
             tokenDecimals: 6,
             chainId: null,
             explorer: 'https://nile.tronscan.org',
@@ -241,12 +241,10 @@
         return Object.values(NETWORKS);
     }
 
-    /** شبکه‌های فعال (status === 'active') */
     function getActiveNetworks() {
         return Object.values(NETWORKS).filter(n => n.status === 'active');
     }
 
-    /** شبکه‌هایی که برای خواندن موجودی (RaisedReader) آماده هستند */
     function getReadNetworks() {
         return Object.values(NETWORKS).filter(n =>
             n.status === 'active' &&
@@ -257,7 +255,6 @@
         );
     }
 
-    /** پیدا کردن شبکه بر اساس کلید داخل project.funds */
     function getNetworkByFundsKey(key) {
         if (!key) return null;
         const k = String(key).toLowerCase();
