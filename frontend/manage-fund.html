@@ -5,16 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مدیریت خزانه پروژه - کلاس‌چین</title>
 
-    <!-- فونت‌ها -->
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-
-    <!-- استایل جداگانه -->
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/manage-fund.css">
 
-    <!-- Particles.js -->
     <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
-
-    <!-- Web3 -->
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
 </head>
 <body>
@@ -28,46 +22,82 @@
         </div>
 
         <div id="main" style="display:none;">
+            <!-- اطلاعات کلی پروژه -->
             <div class="card">
                 <h2 id="projectName">نام پروژه</h2>
                 <div class="info-grid">
                     <div class="info-item">
-                        <div class="info-label">موجودی خزانه (USDC)</div>
-                        <div class="info-value" id="fundBalance">0</div>
+                        <div class="info-label">مجموع کمک‌ها (همه شبکه‌ها)</div>
+                        <div class="info-value" id="totalRaised">0 USDT</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">آدرس خزانه</div>
-                        <div class="info-value" id="fundAddress">-</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">مالک (Multisig)</div>
-                        <div class="info-value" id="ownerAddress">-</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">تعداد تأیید لازم</div>
-                        <div class="info-value" id="requiredConfirmations">-</div>
+                        <div class="info-label">آیدی پروژه</div>
+                        <div class="info-value" id="projectIdDisplay">-</div>
                     </div>
                 </div>
-
-                <h3>صاحبان امضا</h3>
-                <div id="ownersList" class="info-grid"></div>
+                <div id="breakdownBox" class="project-info" style="margin-top:0.5rem; opacity:0.85; font-size:0.9rem;"></div>
             </div>
 
+            <!-- انتخاب شبکه -->
             <div class="card">
-                <h3>تراکنش‌های در انتظار اجرا</h3>
-                <div id="pendingTxs"></div>
+                <h3>انتخاب شبکه خزانه</h3>
+                <select id="networkSelect" style="width:100%; padding:1rem; border-radius:12px; background:rgba(255,255,255,0.1); color:white; border:none; font-size:1rem;"></select>
+                <div id="networkConnectArea" style="margin-top:1rem; text-align:center;">
+                    <button type="button" id="btnConnectNetwork" style="display:none;">اتصال کیف پول این شبکه</button>
+                    <p id="connectedWalletInfo" style="margin-top:0.8rem;"></p>
+                </div>
             </div>
 
-            <div class="card">
-                <h3>برداشت جدید از خزانه</h3>
-                <input type="number" id="withdrawAmount" placeholder="مقدار USDC (مثل 1.5)" step="0.01" min="0">
-                <input type="text" id="withdrawTo" placeholder="آدرس مقصد (0x...)">
-                <button onclick="submitWithdraw()">ثبت درخواست برداشت</button>
-                <div id="status"></div>
+            <!-- اطلاعات خزانه شبکه انتخاب‌شده -->
+            <div id="fundDetails" style="display:none;">
+                <div class="card">
+                    <h3>اطلاعات خزانه <span id="selectedNetworkName"></span></h3>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">موجودی این شبکه</div>
+                            <div class="info-value" id="fundBalance">0</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">آدرس خزانه</div>
+                            <div class="info-value" id="fundAddress">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">مالک / Multisig</div>
+                            <div class="info-value" id="ownerAddress">-</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">تعداد تأیید لازم</div>
+                            <div class="info-value" id="requiredConfirmations">-</div>
+                        </div>
+                    </div>
+
+                    <h3>صاحبان امضا</h3>
+                    <div id="ownersList" class="info-grid"></div>
+                </div>
+
+                <div class="card" id="pendingCard">
+                    <h3>تراکنش‌های در انتظار اجرا</h3>
+                    <div id="pendingTxs"></div>
+                </div>
+
+                <div class="card">
+                    <h3>برداشت از خزانه این شبکه</h3>
+                    <input type="number" id="withdrawAmount" placeholder="مقدار USDT" step="0.01" min="0">
+                    <input type="text" id="withdrawTo" placeholder="آدرس مقصد">
+                    <button type="button" id="btnWithdraw">ثبت درخواست برداشت</button>
+                    <div id="status"></div>
+                </div>
+            </div>
+
+            <div id="noAccessCard" class="card" style="display:none;">
+                <p style="color:var(--danger); text-align:center;">شما صاحب این خزانه در شبکه انتخاب‌شده نیستید.</p>
             </div>
         </div>
     </div>
 
+    <script src="js/network-config.js"></script>
+    <script src="js/raised-reader.js"></script>
+    <script src="js/wallet-manager.js"></script>
     <script src="js/manage-fund.js"></script>
 </body>
 </html>
