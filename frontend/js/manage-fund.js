@@ -536,9 +536,80 @@ async function loadTronFundData() {
     document.getElementById('pendingTxs').innerHTML =
         '<p style="opacity:0.7;">مدیریت Multisig ترون در نسخه بعدی کامل می‌شود. فعلاً فقط نمایش موجودی و مالکیت فعال است.</p>';
 
-    document.getElementById('btnWithdraw').onclick = () => {
-        setStatus('برداشت از شبکه Tron به‌زودی فعال می‌شود.', 'warning');
-    };
+    document.getElementById('btnWithdraw').onclick = () => submitWithdrawTron();
+}
+
+async function submitWithdrawTron() {
+    if (!connection || connection.type !== 'TVM' || !selectedNetCfg) {
+        setStatus('ابتدا با TronLink به شبکه Tron وصل شوید.', 'error');
+        return;
+    }
+
+    const amountInput = document.getElementById('withdrawAmount').value;
+    const toAddress = document.getElementById('withdrawTo').value.trim();
+
+    if (!amountInput || parseFloat(amountInput) <= 0) {
+        setStatus('مقدار معتبر وارد کنید.', 'error');
+        return;
+    }
+    if (!toAddress || !toAddress.startsWith('T') || toAddress.length < 30) {
+        setStatus('آدرس مقصد Tron معتبر نیست (باید با T شروع شود).', 'error');
+        return;
+    }
+    if (!fundAddress) {
+        setStatus('آدرس خزانه پیدا نشد.', 'error');
+        return;
+    }
+
+    const tronWeb = connection.tronWeb;
+    const decimals = selectedNetCfg.tokenDecimals || 6;
+    const amount = Math.floor(parseFloat(amountInput) * (10 ** decimals));
+    const usdt = selectedNetCfg.usdtAddress; // Base58 روی Nile
+
+    // اگر Multisig واقعی داشتیم اینجا submitTransaction می‌رفت
+    // فعلاً برای حالت تک‌مالکی / owner مستقیم:
+    if (multisigAddress) {
+        setStatus('برداشت Multisig ترون هنوز پیاده‌سازی نشده. فعلاً فقط خزانه تک‌مالکی پشتیبانی می‌شود.', 'warning');
+        return;
+    }
+
+    try {
+        setStatus('در حال ارسال تراکنش برداشت به TronLink...', 'warning');
+
+        const fundContract = await tronWeb.contract().at(fundAddress);
+
+        // فراخوانی withdrawToken(token, to, amount)
+        const tx = await fundContract.withdrawToken(usdt, toAddress, amount).send({
+            feeLimit: 100_000_000, // 100 TRX
+            callValue: 0,
+            shouldPollResponse: true
+        });
+
+        const txId = typeof tx === 'string' ? tx : (tx?.txid || tx?.transaction?.txID || JSON.stringify(tx));
+
+        setStatus(
+            `برداشت موفق! <a href="${selectedNetCfg.explorer}/#/transaction/${txId}" target="_blank">مشاهده در Tronscan</a>`,
+            'success'
+        );
+
+        // رفرش موجودی
+        await loadFundDataForSelectedNetwork();
+        await loadTotalRaised();
+
+    } catch (err) {
+        console.error('خطا در برداشت Tron:', err);
+
+        let msg = err.message || err.toString() || 'خطای نامشخص';
+        if (msg.includes('cancel') || msg.includes('Cancel') || err.code === 4001) {
+            msg = 'تراکنش توسط شما لغو شد.';
+        } else if (msg.includes('owner') || msg.includes('Ownable')) {
+            msg = 'شما owner این خزانه نیستید.';
+        } else if (msg.includes('Insufficient') || msg.includes('balance')) {
+            msg = 'موجودی خزانه کافی نیست.';
+        }
+
+        setStatus('خطا در برداشت: ' + msg, 'error');
+    }
 }
 
 function setStatus(message, type) {
