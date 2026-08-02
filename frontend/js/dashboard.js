@@ -11,58 +11,79 @@ const multisigABI = [
     { "inputs": [], "name": "getOwners", "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }], "stateMutability": "view", "type": "function" }
 ];
 
-// ==================== اتصال کیف پول ====================
-async function connectWallet() {
-    // اول سعی می‌کنیم MetaMask (EVM)
-    if (typeof window.ethereum !== 'undefined') {
-        try {
-            let accounts = await window.ethereum.request({ method: 'eth_accounts' });
-            if (accounts.length === 0) {
-                accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            }
-            userAddress = accounts[0];
-            userAddressType = 'EVM';
-
-            document.getElementById('accountDisplay').textContent =
-                `وصل شد (EVM): ${userAddress.slice(0, 8)}...${userAddress.slice(-6)}`;
-
-            document.getElementById('connectSection').style.display = 'none';
-            document.getElementById('loading').style.display = 'block';
-
-            await loadProjects();
-            return;
-        } catch (err) {
-            if (err.code === 4001) {
-                alert('اتصال MetaMask لغو شد.');
-                return;
-            }
-            console.warn('خطا در MetaMask:', err);
-        }
+// ==================== اتصال MetaMask ====================
+async function connectMetaMask() {
+    if (typeof window.ethereum === 'undefined') {
+        alert('لطفاً افزونه MetaMask را نصب کنید.');
+        return;
     }
 
-    // اگر MetaMask نبود یا خطا داد، TronLink را امتحان کن
-    if (window.tronWeb && window.tronWeb.defaultAddress?.base58) {
-        try {
-            if (typeof window.tronWeb.request === 'function') {
-                await window.tronWeb.request({ method: 'tron_requestAccounts' });
-            }
-            userAddress = window.tronWeb.defaultAddress.base58;
-            userAddressType = 'TVM';
+    try {
+        let accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length === 0) {
+            accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        }
 
-            document.getElementById('accountDisplay').textContent =
-                `وصل شد (Tron): ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+        userAddress = accounts[0];
+        userAddressType = 'EVM';
 
-            document.getElementById('connectSection').style.display = 'none';
-            document.getElementById('loading').style.display = 'block';
+        document.getElementById('accountDisplay').textContent =
+            `وصل شد (MetaMask): ${userAddress.slice(0, 8)}...${userAddress.slice(-6)}`;
 
-            await loadProjects();
-            return;
-        } catch (err) {
-            console.warn('خطا در TronLink:', err);
+        document.getElementById('connectSection').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+
+        await loadProjects();
+
+    } catch (err) {
+        console.error('خطا در اتصال MetaMask:', err);
+        if (err.code === 4001) {
+            alert('اتصال MetaMask لغو شد.');
+        } else {
+            alert('خطا در اتصال MetaMask: ' + (err.message || 'مشکل ناشناخته'));
         }
     }
+}
 
-    alert('لطفاً MetaMask یا TronLink را نصب و فعال کنید.');
+// ==================== اتصال TronLink ====================
+async function connectTronLink() {
+    const tronWeb = window.tronWeb;
+
+    if (!tronWeb) {
+        alert('لطفاً افزونه TronLink را نصب و فعال کنید.');
+        return;
+    }
+
+    try {
+        if (typeof tronWeb.request === 'function') {
+            await tronWeb.request({ method: 'tron_requestAccounts' });
+        }
+
+        const account = tronWeb.defaultAddress?.base58;
+        if (!account) {
+            alert('TronLink قفل است یا هیچ حسابی انتخاب نشده. لطفاً قفل را باز کنید و دوباره امتحان کنید.');
+            return;
+        }
+
+        userAddress = account;
+        userAddressType = 'TVM';
+
+        document.getElementById('accountDisplay').textContent =
+            `وصل شد (TronLink): ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+
+        document.getElementById('connectSection').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+
+        await loadProjects();
+
+    } catch (err) {
+        console.error('خطا در اتصال TronLink:', err);
+        if (err.code === 4001 || (err.message && err.message.includes('cancel'))) {
+            alert('اتصال TronLink لغو شد.');
+        } else {
+            alert('خطا در اتصال TronLink: ' + (err.message || 'مشکل ناشناخته'));
+        }
+    }
 }
 
 // ==================== چک مالکیت روی یک شبکه ====================
