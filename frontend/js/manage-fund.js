@@ -1895,50 +1895,41 @@ Multisig: ${multisigAddress}`
          * TronWeb ABI encoding
          */
 
-        if (
-            tronWeb.utils?.abi?.encodeFunctionCall
-        ) {
+        /*
+         * ==========================================
+         * Encode withdrawToken(address,address,uint256)
+         * برای ارسال به TronMultiSigWallet
+         * ==========================================
+         *
+         * Function selector:
+         * withdrawToken(address,address,uint256)
+         * = 0x01e33667
+         */
 
-            parameterData =
-                tronWeb.utils.abi.encodeFunctionCall(
-                    withdrawFunctionABI,
-                    [
-                        usdt,
-                        destination,
-                        amount.toString()
-                    ]
-                );
+        const functionSelector =
+            "01e33667";
 
-        } else if (
-            tronWeb.utils?.abi?.encodeParams
-        ) {
-
-            parameterData =
-                "0x" +
-                tronWeb.utils.abi
-                    .encodeParams(
-                        [
-                            "address",
-                            "address",
-                            "uint256"
-                        ],
-                        [
-                            getTronHex(usdt),
-                            getTronHex(destination),
-                            amount.toString()
-                        ]
-                    )
-                    .replace(
-                        /^0x/,
-                        ""
-                    );
-
-        } else {
-
-            throw new Error(
-                "TronWeb ABI encoder در نسخه فعلی TronLink در دسترس نیست."
+        const encodedParams =
+            tronWeb.utils.abi.encodeParams(
+                [
+                    "address",
+                    "address",
+                    "uint256"
+                ],
+                [
+                    getTronHex(usdt),
+                    getTronHex(destination),
+                    amount.toString()
+                ]
             );
-        }
+
+        parameterData =
+            "0x" +
+            functionSelector +
+            encodedParams.replace(
+                /^0x/,
+                ""
+            );
 
         /*
          * ==========================================
