@@ -618,7 +618,7 @@
         "وضعیت راهبری پروژه": "وضعیت نازک کاری پروژه تایید شد",
         "contractAddress": "0x63deb2eb87b1fbc52b71f1b3e030e0d04028c332",
         "contractAddressMainnet": null,
-        "contractAddressTron": null,
+        "contractAddressTron": "TSeX2tcCV5jwLwoxRpoMjDex2AboA6LKVa",
         "contractAddressCLC": null,
         "contractAddressEthereum": null,
         "contractAddressBSC": null,
@@ -628,7 +628,20 @@
         "contractAddressSolana": null,
         "targetAmount(USDT)": 27500,
         "status": null,
-        "raisedAmount": null
+        "raisedAmount": null,
+        "funds": {
+          "tron_nile": {
+            "address": "TSeX2tcCV5jwLwoxRpoMjDex2AboA6LKVa",
+            "multisigAddress": null,
+            "owners": [
+              "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1"
+            ],
+            "requiredSignatures": 1,
+            "createdAt": "2026-08-03T06:01:36.215Z",
+            "network": "tron_nile",
+            "isMultisig": false
+          }
+        }
       },
       "geometry": {
         "x": 61.25938942,
