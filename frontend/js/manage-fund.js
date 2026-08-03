@@ -256,21 +256,27 @@ function getTronBase58(address) {
         return address;
     }
 
-    try {
-        if (tronWeb.isAddress(address)) {
-            return address;
-        }
-    } catch (_) {}
+    const value = String(address).trim();
 
-    try {
-        if (tronWeb.address?.fromHex) {
-            return tronWeb.address.fromHex(address);
-        }
-    } catch (_) {}
+    // Already Base58
+    if (value.startsWith("T")) {
+        return value;
+    }
 
-    return address;
+    // TRON Hex address
+    if (value.startsWith("41") && value.length === 42) {
+        try {
+            return tronWeb.address.fromHex(value);
+        } catch (error) {
+            console.error("Failed to convert TRON Hex address to Base58:", error);
+            return value;
+        }
+    }
+
+    return value;
 }
 
+function sameAddress(a, b) {
 function getTronHex(address) {
     const tronWeb = getTronWeb();
 
