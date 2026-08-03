@@ -1588,25 +1588,6 @@ async function submitWithdrawTron() {
                 connection.account
             );
 
-        /*
-         * بررسی واقعی Owner بودن کاربر
-         * روی Multisig
-         */
-        const isMultisigOwner =
-            tronMultisigOwners.some(
-                owner =>
-                    sameAddress(
-                        owner,
-                        userAddress
-                    )
-            );
-
-        if (!isMultisigOwner) {
-            throw new Error(
-                "کیف پول شما Owner این Multisig نیست."
-            );
-        }
-
         const amountInput =
             getElement("withdrawAmount")
                 ?.value
@@ -1667,8 +1648,11 @@ async function submitWithdrawTron() {
             );
 
         /*
-         * ابتدا اطلاعات واقعی خزانه
+         * ==========================================
+         * خواندن اطلاعات واقعی قرارداد خزانه
+         * ==========================================
          */
+
         const fundContract =
             await tronWeb.contract(
                 tronFundABI,
@@ -1683,20 +1667,88 @@ async function submitWithdrawTron() {
             );
 
         /*
-         * owner خزانه باید Multisig باشد
+         * ==========================================
+         * تشخیص Single-Sig یا Multi-Sig
+         *
+         * Single-Sig:
+         * owner() == کیف پول متصل‌شده
+         *
+         * Multi-Sig:
+         * owner() == آدرس قرارداد Multisig
+         * ==========================================
          */
-        if (
-            !sameAddress(
+
+        const isSingleSig =
+            sameAddress(
                 actualOwner,
-                multisigAddress
-            )
-        ) {
-            throw new Error(
-                `مالک قرارداد خزانه با Multisig ثبت‌شده مطابقت ندارد.
+                userAddress
+            );
+
+        /*
+         * ==========================================
+         * بررسی مالکیت
+         * ==========================================
+         */
+
+        if (isSingleSig) {
+
+            /*
+             * Single-Sig:
+             * مالک قرارداد همان کیف پول متصل است.
+             * بنابراین نیازی به Multisig نیست.
+             */
+
+            isOwner = true;
+
+        } else {
+
+            /*
+             * Multi-Sig:
+             * کاربر باید یکی از Ownerهای Multisig باشد.
+             */
+
+            const isMultisigOwner =
+                tronMultisigOwners.some(
+                    owner =>
+                        sameAddress(
+                            owner,
+                            userAddress
+                        )
+                );
+
+            if (!isMultisigOwner) {
+                throw new Error(
+                    "کیف پول شما Owner این Multisig نیست."
+                );
+            }
+
+            /*
+             * owner خزانه باید همان Multisig
+             * ثبت‌شده باشد.
+             */
+
+            if (
+                !multisigAddress ||
+                !sameAddress(
+                    actualOwner,
+                    multisigAddress
+                )
+            ) {
+                throw new Error(
+                    `مالک قرارداد خزانه با Multisig ثبت‌شده مطابقت ندارد.
 Owner خزانه: ${actualOwner}
 Multisig: ${multisigAddress}`
-            );
+                );
+            }
+
+            isOwner = true;
         }
+
+        /*
+         * ==========================================
+         * بررسی مجاز بودن USDT
+         * ==========================================
+         */
 
         const tokenAllowed =
             await fundContract
@@ -1709,13 +1761,21 @@ Multisig: ${multisigAddress}`
             );
         }
 
+        /*
+         * ==========================================
+         * بررسی موجودی خزانه
+         * ==========================================
+         */
+
         const rawBalance =
             await fundContract
                 .balanceOf(usdt)
                 .call();
 
         const balance =
-            BigInt(String(rawBalance));
+            BigInt(
+                String(rawBalance)
+            );
 
         if (balance < amount) {
             throw new Error(
@@ -1729,9 +1789,87 @@ Multisig: ${multisigAddress}`
         }
 
         /*
-         * ABI واقعی withdrawToken را برای
-         * ارسال به Multisig encode می‌کنیم.
+         * ==========================================
+         * SINGLE-SIG
+         *
+         * در این حالت مستقیماً withdrawToken()
+         * روی قرارداد خزانه اجرا می‌شود.
+         *
+         * هیچ submitTransaction یا
+         * confirmTransaction وجود ندارد.
+         * ==========================================
          */
+
+        if (isSingleSig) {
+
+            setStatus(
+                "در حال ارسال درخواست برداشت به TronLink...",
+                "warning"
+            );
+
+            const result =
+                await fundContract
+                    .withdrawToken(
+                        usdt,
+                        destination,
+                        amount.toString()
+                    )
+                    .send({
+                        feeLimit: 150000000,
+                        callValue: 0,
+                        shouldPollResponse: true
+                    });
+
+            const txId =
+                typeof result === "string"
+                    ? result
+                    : (
+                        result?.txid ||
+                        result?.txID ||
+                        result?.transaction?.txID ||
+                        null
+                    );
+
+            if (txId) {
+                await waitForTronTransaction(
+                    tronWeb,
+                    txId,
+                    30,
+                    2000
+                );
+            }
+
+            setStatus(
+                "برداشت با موفقیت انجام شد.",
+                "success"
+            );
+
+            await new Promise(
+                resolve =>
+                    setTimeout(
+                        resolve,
+                        1500
+                    )
+            );
+
+            await loadTronFundData();
+            await loadTotalRaised();
+
+            return;
+        }
+
+        /*
+         * ==========================================
+         * MULTI-SIG
+         *
+         * در این حالت withdrawToken مستقیماً
+         * اجرا نمی‌شود.
+         *
+         * ابتدا calldata ساخته شده و به
+         * TronMultiSigWallet ارسال می‌شود.
+         * ==========================================
+         */
+
         const withdrawFunctionABI = {
             name: "withdrawToken",
             type: "function",
@@ -1751,19 +1889,16 @@ Multisig: ${multisigAddress}`
             ]
         };
 
-        const encodedData =
-            tronWeb.transactionBuilder
-                ? tronWeb.transactionBuilder
-                : null;
-
         let parameterData;
 
         /*
          * TronWeb ABI encoding
          */
+
         if (
             tronWeb.utils?.abi?.encodeFunctionCall
         ) {
+
             parameterData =
                 tronWeb.utils.abi.encodeFunctionCall(
                     withdrawFunctionABI,
@@ -1773,9 +1908,11 @@ Multisig: ${multisigAddress}`
                         amount.toString()
                     ]
                 );
+
         } else if (
             tronWeb.utils?.abi?.encodeParams
         ) {
+
             parameterData =
                 "0x" +
                 tronWeb.utils.abi
@@ -1791,20 +1928,23 @@ Multisig: ${multisigAddress}`
                             amount.toString()
                         ]
                     )
-                    .replace(/^0x/, "");
+                    .replace(
+                        /^0x/,
+                        ""
+                    );
+
         } else {
-            /*
-             * روش مطمئن برای TronWeb:
-             * قرارداد Multisig را با ABI کامل باز می‌کنیم
-             * و submitTransaction را فراخوانی می‌کنیم.
-             *
-             * برای data باید selector تابع withdrawToken
-             * ساخته شود.
-             */
+
             throw new Error(
                 "TronWeb ABI encoder در نسخه فعلی TronLink در دسترس نیست."
             );
         }
+
+        /*
+         * ==========================================
+         * ساخت قرارداد Multisig
+         * ==========================================
+         */
 
         const multisigContract =
             await tronWeb.contract(
@@ -1816,6 +1956,12 @@ Multisig: ${multisigAddress}`
             "در حال ثبت درخواست برداشت در Multisig...",
             "warning"
         );
+
+        /*
+         * ==========================================
+         * ثبت Transaction در Multisig
+         * ==========================================
+         */
 
         const result =
             await multisigContract
@@ -1858,13 +2004,17 @@ Multisig: ${multisigAddress}`
 
         await new Promise(
             resolve =>
-                setTimeout(resolve, 1500)
+                setTimeout(
+                    resolve,
+                    1500
+                )
         );
 
         await loadTronFundData();
         await loadTotalRaised();
 
     } catch (error) {
+
         console.error(
             "Tron withdrawal error:",
             error
