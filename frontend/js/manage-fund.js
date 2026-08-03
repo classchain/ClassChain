@@ -276,7 +276,6 @@ function getTronBase58(address) {
     return value;
 }
 
-function sameAddress(a, b) {
 function getTronHex(address) {
     const tronWeb = getTronWeb();
 
