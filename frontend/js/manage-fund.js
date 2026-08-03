@@ -998,43 +998,78 @@ async function loadTronFundData() {
                 );
         }
 
-        const multisigContract =
-            await tronWeb.contract(
-                tronMultisigABI,
-                multisigAddress
+        const isSingleSig =
+            sameAddress(
+                actualOwner,
+                userAddress
             );
 
-        tronMultisigOwners =
-            await multisigContract
-                .getOwners()
-                .call();
+        if (isSingleSig) {
 
-        tronRequiredConfirmations =
-            Number(
+            // -----------------------------
+            // Single-Sig Fund
+            // -----------------------------
+
+            multisigAddress = null;
+
+            tronMultisigOwners = [
+                userAddress
+            ];
+
+            tronRequiredConfirmations = 1;
+
+            isOwner = true;
+
+        } else {
+
+            // -----------------------------
+            // Multi-Sig Fund
+            // -----------------------------
+
+            multisigAddress =
+                getTronBase58(actualOwner);
+
+            const multisigContract =
+                await tronWeb.contract(
+                    tronMultisigABI,
+                    multisigAddress
+                );
+
+            tronMultisigOwners =
                 await multisigContract
-                    .numConfirmationsRequired()
-                    .call()
-            );
+                    .getOwners()
+                    .call();
 
-        tronMultisigOwners =
-            tronMultisigOwners.map(
-                address =>
-                    getTronBase58(address)
-            );
+            tronRequiredConfirmations =
+                Number(
+                    await multisigContract
+                        .numConfirmationsRequired()
+                        .call()
+                );
+
+            tronMultisigOwners =
+                tronMultisigOwners.map(
+                    address =>
+                        getTronBase58(address)
+                );
+
+            isOwner =
+                tronMultisigOwners.some(
+                    owner =>
+                        sameAddress(
+                            owner,
+                            userAddress
+                        )
+                );
+        }
+
 
         /*
          * اینجا مالکیت واقعی بررسی می‌شود:
          * کاربر باید یکی از ownerهای Multisig باشد.
          */
 
-        isOwner =
-            tronMultisigOwners.some(
-                owner =>
-                    sameAddress(
-                        owner,
-                        userAddress
-                    )
-            );
+
 
         const requiredElement =
             getElement(
@@ -1173,9 +1208,19 @@ async function loadTronFundData() {
             setStatus("", "");
         }
 
-        await loadTronPendingTransactions(
-            multisigContract
-        );
+        // فقط برای Multi-Sig تراکنش‌های Pending را بخوان
+        if (multisigAddress) {
+
+            const multisigContract =
+                await tronWeb.contract(
+                    tronMultisigABI,
+                    multisigAddress
+                );
+
+            await loadTronPendingTransactions(
+                multisigContract
+            );
+        }
 
         const withdrawButton =
             getElement("btnWithdraw");
