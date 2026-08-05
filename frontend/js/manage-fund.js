@@ -2303,8 +2303,14 @@ Chain ID فعلی: ${currentChainId}
         }
 
         // ======================================
-        // 9. احتمال Multi-Sig
+        // 9. Multi-Sig ABI
         // ======================================
+
+        /*
+         * این ABI علاوه بر اطلاعات مالکیت،
+         * توابع لازم برای خواندن تراکنش‌های
+         * Pending را نیز دارد.
+         */
 
         const multisigAbi = [
             {
@@ -2321,6 +2327,7 @@ Chain ID فعلی: ${currentChainId}
                 "stateMutability": "view",
                 "type": "function"
             },
+
             {
                 "inputs": [],
                 "name":
@@ -2336,6 +2343,7 @@ Chain ID فعلی: ${currentChainId}
                 "stateMutability": "view",
                 "type": "function"
             },
+
             {
                 "inputs": [
                     {
@@ -2357,6 +2365,7 @@ Chain ID فعلی: ${currentChainId}
                 "stateMutability": "view",
                 "type": "function"
             },
+
             {
                 "inputs": [],
                 "name":
@@ -2371,8 +2380,88 @@ Chain ID فعلی: ${currentChainId}
                 ],
                 "stateMutability": "view",
                 "type": "function"
+            },
+
+            {
+                "inputs": [
+                    {
+                        "internalType":
+                            "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "name":
+                    "getTransaction",
+                "outputs": [
+                    {
+                        "internalType":
+                            "address",
+                        "name": "to",
+                        "type": "address"
+                    },
+                    {
+                        "internalType":
+                            "uint256",
+                        "name": "value",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType":
+                            "bytes",
+                        "name": "data",
+                        "type": "bytes"
+                    },
+                    {
+                        "internalType":
+                            "bool",
+                        "name": "executed",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType":
+                            "uint256",
+                        "name":
+                            "numConfirmations",
+                        "type": "uint256"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
+            },
+
+            {
+                "inputs": [
+                    {
+                        "internalType":
+                            "uint256",
+                        "name": "",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType":
+                            "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "name": "isConfirmed",
+                "outputs": [
+                    {
+                        "internalType":
+                            "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability": "view",
+                "type": "function"
             }
         ];
+
+        // ======================================
+        // 10. ساخت قرارداد Multi-Sig
+        // ======================================
 
         const multisigContract =
             new web3.eth.Contract(
@@ -2381,7 +2470,7 @@ Chain ID فعلی: ${currentChainId}
             );
 
         // ======================================
-        // 10. خواندن Owners
+        // 11. خواندن Owners
         // ======================================
 
         let owners;
@@ -2428,7 +2517,7 @@ Chain ID فعلی: ${currentChainId}
         }
 
         // ======================================
-        // 11. حد نصاب
+        // 12. حد نصاب
         // ======================================
 
         const requiredConfirmations =
@@ -2439,7 +2528,7 @@ Chain ID فعلی: ${currentChainId}
             );
 
         // ======================================
-        // 12. آیا کاربر Owner است؟
+        // 13. آیا کاربر Owner است؟
         // ======================================
 
         const userIsMultisigOwner =
@@ -2483,13 +2572,21 @@ Chain ID فعلی: ${currentChainId}
         }
 
         // ======================================
-        // 13. Multi-Sig تأیید شد
+        // 14. Multi-Sig تأیید شد
         // ======================================
 
         isOwner = true;
 
         multisigAddress =
             actualOwner;
+
+        /*
+         * توجه:
+         * اسم این متغیرها در پروژه فعلی
+         * برای TRON انتخاب شده،
+         * اما در EVM نیز برای نگهداری
+         * Owners و Required استفاده می‌کنیم.
+         */
 
         tronMultisigOwners =
             owners;
@@ -2498,7 +2595,7 @@ Chain ID فعلی: ${currentChainId}
             requiredConfirmations;
 
         // ======================================
-        // 14. نمایش Required
+        // 15. نمایش Required
         // ======================================
 
         const requiredElement =
@@ -2512,7 +2609,7 @@ Chain ID فعلی: ${currentChainId}
         }
 
         // ======================================
-        // 15. نمایش Owners
+        // 16. نمایش Owners
         // ======================================
 
         const ownersList =
@@ -2554,7 +2651,7 @@ Chain ID فعلی: ${currentChainId}
         }
 
         // ======================================
-        // 16. تعداد تراکنش‌ها
+        // 17. تعداد تراکنش‌ها
         // ======================================
 
         const txCount =
@@ -2564,41 +2661,13 @@ Chain ID فعلی: ${currentChainId}
                     .call()
             );
 
-        const pendingTxs =
-            getElement("pendingTxs");
-
-        if (pendingTxs) {
-
-            pendingTxs.innerHTML = `
-                <p>
-                    نوع خزانه:
-                    Multi-Sig
-                </p>
-
-                <p>
-                    آدرس Multisig:
-                    ${shortAddress(actualOwner)}
-                </p>
-
-                <p>
-                    تعداد امضاهای لازم:
-                    ${requiredConfirmations}
-                </p>
-
-                <p>
-                    موجودی خزانه:
-                    ${balance} USDT
-                </p>
-
-                <p>
-                    تعداد تراکنش‌های ثبت‌شده:
-                    ${txCount}
-                </p>
-            `;
-        }
+        console.log(
+            "EVM Multisig transaction count:",
+            txCount
+        );
 
         // ======================================
-        // 17. نمایش پنل
+        // 18. نمایش پنل
         // ======================================
 
         const noAccessCard =
@@ -2620,8 +2689,7 @@ Chain ID فعلی: ${currentChainId}
         setStatus("", "");
 
         // ======================================
-        // 18. بسیار مهم:
-        // اتصال دکمه برداشت برای Multi-Sig
+        // 19. اتصال دکمه برداشت
         // ======================================
 
         const withdrawButton =
@@ -2631,6 +2699,28 @@ Chain ID فعلی: ${currentChainId}
             withdrawButton.onclick =
                 submitWithdrawEvm;
         }
+
+        // ======================================
+        // 20. خواندن Pending Transactions
+        // ======================================
+
+        /*
+         * این بخش تفاوت اصلی با نسخه قبلی است.
+         *
+         * حالا Owner دوم که وارد می‌شود:
+         *
+         * getTransactionCount()
+         *       ↓
+         * getTransaction(i)
+         *       ↓
+         * isConfirmed(i, user)
+         *       ↓
+         * نمایش دکمه Confirm
+         */
+
+        await loadEvmPendingTransactions(
+            multisigContract
+        );
 
     } catch (error) {
 
@@ -3230,6 +3320,496 @@ async function submitWithdrawEvmMultiSig(
         );
 
         throw error;
+    }
+}
+
+async function loadEvmPendingTransactions(
+    multisigContract
+) {
+    const pendingDiv =
+        getElement("pendingTxs");
+
+    if (!pendingDiv) {
+        return;
+    }
+
+    try {
+
+        const count =
+            Number(
+                await multisigContract.methods
+                    .getTransactionCount()
+                    .call()
+            );
+
+        let html = "";
+
+        for (
+            let i = 0;
+            i < count;
+            i++
+        ) {
+
+            const tx =
+                await multisigContract.methods
+                    .getTransaction(i)
+                    .call();
+
+            const executed =
+                Boolean(tx.executed);
+
+            const confirmations =
+                Number(
+                    tx.numConfirmations
+                );
+
+            // تراکنش اجراشده را نمایش نده
+            if (executed) {
+                continue;
+            }
+
+            const confirmedByUser =
+                await getEvmConfirmationStatus(
+                    multisigContract,
+                    i,
+                    connection.account
+                );
+
+            html += `
+                <div
+                    class="pending-tx"
+                    style="
+                        margin-top:12px;
+                        padding:12px;
+                        border:1px solid rgba(255,255,255,.1);
+                        border-radius:8px;
+                    "
+                >
+
+                    <p>
+                        <strong>
+                            تراکنش #${i}
+                        </strong>
+                    </p>
+
+                    <p>
+                        مقصد:
+                        ${shortAddress(tx.to)}
+                    </p>
+
+                    <p>
+                        تأییدها:
+                        ${confirmations}
+                        /
+                        ${tronRequiredConfirmations}
+                    </p>
+
+                    <p>
+                        وضعیت شما:
+                        ${
+                            confirmedByUser
+                                ? "✅ تأیید کرده‌اید"
+                                : "⏳ نیاز به تأیید شما"
+                        }
+                    </p>
+
+                    ${
+                        !confirmedByUser
+                            ? `
+                                <button
+                                    type="button"
+                                    onclick="confirmEvmTransaction(${i})"
+                                >
+                                    تأیید تراکنش #${i}
+                                </button>
+                              `
+                            : ""
+                    }
+
+                </div>
+            `;
+        }
+
+        if (!html) {
+
+            html =
+                "<p>هیچ تراکنش در انتظار تأییدی وجود ندارد.</p>";
+        }
+
+        pendingDiv.innerHTML =
+            html;
+
+    } catch (error) {
+
+        console.warn(
+            "EVM pending transaction error:",
+            error
+        );
+
+        pendingDiv.innerHTML =
+            `<p>
+                خطا در خواندن تراکنش‌های Multisig:
+                ${getReadableError(error)}
+            </p>`;
+    }
+}
+
+async function getEvmConfirmationStatus(
+    multisigContract,
+    txIndex,
+    ownerAddress
+) {
+    try {
+
+        /*
+         * isConfirmed(uint256,address)
+         *
+         * این تابع در قرارداد MultiSigWallet
+         * به صورت public mapping وجود دارد.
+         */
+
+        const contractWithMappingABI = [
+            {
+                inputs: [
+                    {
+                        internalType:
+                            "uint256",
+                        name: "",
+                        type: "uint256"
+                    },
+                    {
+                        internalType:
+                            "address",
+                        name: "",
+                        type: "address"
+                    }
+                ],
+                name: "isConfirmed",
+                outputs: [
+                    {
+                        internalType:
+                            "bool",
+                        name: "",
+                        type: "bool"
+                    }
+                ],
+                stateMutability:
+                    "view",
+                type: "function"
+            }
+        ];
+
+        const web3 =
+            connection.web3;
+
+        const contract =
+            new web3.eth.Contract(
+                contractWithMappingABI,
+                multisigAddress
+            );
+
+        return Boolean(
+            await contract.methods
+                .isConfirmed(
+                    txIndex,
+                    ownerAddress
+                )
+                .call()
+        );
+
+    } catch (error) {
+
+        console.warn(
+            "EVM isConfirmed read error:",
+            error
+        );
+
+        return false;
+    }
+}
+
+async function confirmEvmTransaction(
+    txIndex
+) {
+
+    if (
+        !connection ||
+        connection.type !== "EVM" ||
+        !connection.web3 ||
+        !multisigAddress
+    ) {
+
+        setStatus(
+            "اتصال Multisig برقرار نیست.",
+            "error"
+        );
+
+        return;
+    }
+
+    const web3 =
+        connection.web3;
+
+    const userAddress =
+        connection.account;
+
+    try {
+
+        // ======================================
+        // 1. بررسی شبکه
+        // ======================================
+
+        const currentChainId =
+            Number(
+                await web3.eth.getChainId()
+            );
+
+        const expectedChainId =
+            Number(
+                selectedNetCfg.chainId
+            );
+
+        if (
+            currentChainId !==
+            expectedChainId
+        ) {
+
+            throw new Error(
+                `شبکه MetaMask صحیح نیست.
+Chain ID فعلی: ${currentChainId}
+مورد انتظار: ${expectedChainId}`
+            );
+        }
+
+        // ======================================
+        // 2. ABI
+        // ======================================
+
+        const multisigABI = [
+            {
+                inputs: [
+                    {
+                        internalType:
+                            "uint256",
+                        name: "_txIndex",
+                        type: "uint256"
+                    }
+                ],
+                name:
+                    "confirmTransaction",
+                outputs: [],
+                stateMutability:
+                    "nonpayable",
+                type: "function"
+            },
+            {
+                inputs: [
+                    {
+                        internalType:
+                            "address",
+                        name: "",
+                        type: "address"
+                    }
+                ],
+                name:
+                    "isOwner",
+                outputs: [
+                    {
+                        internalType:
+                            "bool",
+                        name: "",
+                        type: "bool"
+                    }
+                ],
+                stateMutability:
+                    "view",
+                type: "function"
+            },
+            {
+                inputs: [
+                    {
+                        internalType:
+                            "uint256",
+                        name: "",
+                        type: "uint256"
+                    },
+                    {
+                        internalType:
+                            "address",
+                        name: "",
+                        type: "address"
+                    }
+                ],
+                name:
+                    "isConfirmed",
+                outputs: [
+                    {
+                        internalType:
+                            "bool",
+                        name: "",
+                        type: "bool"
+                    }
+                ],
+                stateMutability:
+                    "view",
+                type: "function"
+            },
+            {
+                inputs: [],
+                name:
+                    "numConfirmationsRequired",
+                outputs: [
+                    {
+                        internalType:
+                            "uint256",
+                        name: "",
+                        type: "uint256"
+                    }
+                ],
+                stateMutability:
+                    "view",
+                type: "function"
+            }
+        ];
+
+        const multisigContract =
+            new web3.eth.Contract(
+                multisigABI,
+                multisigAddress
+            );
+
+        // ======================================
+        // 3. بررسی Owner
+        // ======================================
+
+        const isMultisigOwner =
+            await multisigContract.methods
+                .isOwner(userAddress)
+                .call();
+
+        if (!isMultisigOwner) {
+
+            throw new Error(
+                "کیف پول شما Owner این Multisig نیست."
+            );
+        }
+
+        // ======================================
+        // 4. بررسی اینکه قبلاً تأیید نکرده
+        // ======================================
+
+        const alreadyConfirmed =
+            await getEvmConfirmationStatus(
+                multisigContract,
+                txIndex,
+                userAddress
+            );
+
+        if (alreadyConfirmed) {
+
+            setStatus(
+                "این کیف پول قبلاً این تراکنش را تأیید کرده است.",
+                "warning"
+            );
+
+            return;
+        }
+
+        // ======================================
+        // 5. Estimate Gas
+        // ======================================
+
+        const gasEstimate =
+            await multisigContract.methods
+                .confirmTransaction(
+                    txIndex
+                )
+                .estimateGas({
+                    from:
+                        userAddress
+                });
+
+        const gasLimit =
+            Math.ceil(
+                Number(gasEstimate) * 1.2
+            );
+
+        const gasPrice =
+            await web3.eth.getGasPrice();
+
+        // ======================================
+        // 6. ارسال Confirmation
+        // ======================================
+
+        setStatus(
+            "در حال ارسال تأیید به MetaMask...",
+            "warning"
+        );
+
+        const result =
+            await multisigContract.methods
+                .confirmTransaction(
+                    txIndex
+                )
+                .send({
+                    from:
+                        userAddress,
+                    gas:
+                        gasLimit,
+                    gasPrice:
+                        gasPrice
+                });
+
+        const txHash =
+            result?.transactionHash ||
+            null;
+
+        console.log(
+            "EVM confirmation TX:",
+            txHash
+        );
+
+        // ======================================
+        // 7. موفقیت
+        // ======================================
+
+        setStatus(
+            `تأیید تراکنش با موفقیت انجام شد.${
+                txHash
+                    ? `<br>TX: ${txHash}`
+                    : ""
+            }`,
+            "success"
+        );
+
+        await new Promise(
+            resolve =>
+                setTimeout(
+                    resolve,
+                    2000
+                )
+        );
+
+        // ======================================
+        // 8. Refresh
+        // ======================================
+
+        await loadEvmFundData();
+
+        await loadTotalRaised();
+
+    } catch (error) {
+
+        console.error(
+            "confirmEvmTransaction error:",
+            error
+        );
+
+        setStatus(
+            "خطا در تأیید تراکنش: " +
+            getReadableError(error),
+            "error"
+        );
     }
 }
 
