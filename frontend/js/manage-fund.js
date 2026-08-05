@@ -1215,6 +1215,12 @@ async function loadTronFundData() {
             );
         }
 
+        // اتصال دکمه برداشت به handler مخصوص Tron
+        const withdrawButton = getElement("btnWithdraw");
+        if (withdrawButton) {
+            withdrawButton.onclick = submitWithdrawTron;
+        }
+
     } catch (error) {
         console.error(
             "loadTronFundData error:",
