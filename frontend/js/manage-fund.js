@@ -2737,16 +2737,16 @@ async function submitWithdrawEvm() {
         // 8. بررسی مجاز بودن USDT
         // ======================================
 
-        const tokenAllowed =
-            await fundContract.methods
-                .allowedTokens(usdt)
-                .call();
+        //const tokenAllowed =
+        //    await fundContract.methods
+        //        .allowedTokens(usdt)
+        //        .call();
 
-        if (!tokenAllowed) {
-            throw new Error(
-                "USDT در قرارداد خزانه مجاز نیست."
-            );
-        }
+        //if (!tokenAllowed) {
+        //    throw new Error(
+        //        "USDT در قرارداد خزانه مجاز نیست."
+        //    );
+        //}
 
         // ======================================
         // 9. بررسی موجودی خزانه
