@@ -341,7 +341,7 @@
         "وضعیت راهبری پروژه": "وضعیت سفت کاری پروژه تایید شد",
         "contractAddress": "0xA8dA3ADB7Ed0Da86884E396B88Bd905394Cbc95b",
         "contractAddressMainnet": null,
-        "contractAddressTron": null,
+        "contractAddressTron": "TMpcEfJjrjxHfHD1W1FYLWpaGYi95XEmn3",
         "contractAddressCLC": null,
         "contractAddressEthereum": null,
         "contractAddressBSC": null,
@@ -365,13 +365,13 @@
             "isMultisig": false
           },
           "tron_nile": {
-            "address": null,
+            "address": "TMpcEfJjrjxHfHD1W1FYLWpaGYi95XEmn3",
             "multisigAddress": null,
             "owners": [
               "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1"
             ],
             "requiredSignatures": 1,
-            "createdAt": "2026-08-01T07:36:08.216Z",
+            "createdAt": "2026-08-05T10:58:05.290Z",
             "network": "tron_nile",
             "isMultisig": false
           }
