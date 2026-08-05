@@ -2081,22 +2081,33 @@ async function loadEvmFundData() {
 
     const web3 = connection.web3;
     const userAddress = connection.account;
-    const decimals = selectedNetCfg.tokenDecimals || 6;
+    const decimals =
+        selectedNetCfg.tokenDecimals || 6;
 
     try {
+
         // ======================================
         // 1. بررسی شبکه
         // ======================================
 
         const currentChainId =
-            Number(await web3.eth.getChainId());
+            Number(
+                await web3.eth.getChainId()
+            );
 
         const expectedChainId =
-            Number(selectedNetCfg.chainId);
+            Number(
+                selectedNetCfg.chainId
+            );
 
-        if (currentChainId !== expectedChainId) {
+        if (
+            currentChainId !==
+            expectedChainId
+        ) {
             throw new Error(
-                `شبکه MetaMask صحیح نیست. Chain ID فعلی: ${currentChainId} - مورد انتظار: ${expectedChainId}`
+                `شبکه MetaMask صحیح نیست.
+Chain ID فعلی: ${currentChainId}
+مورد انتظار: ${expectedChainId}`
             );
         }
 
@@ -2111,7 +2122,7 @@ async function loadEvmFundData() {
             );
 
         // ======================================
-        // 3. Owner واقعی قرارداد Fund
+        // 3. Owner واقعی Fund
         // ======================================
 
         const actualOwner =
@@ -2120,7 +2131,7 @@ async function loadEvmFundData() {
                 .call();
 
         // ======================================
-        // 4. موجودی USDT خزانه
+        // 4. موجودی USDT
         // ======================================
 
         const rawBalance =
@@ -2162,18 +2173,20 @@ async function loadEvmFundData() {
         }
 
         // ======================================
-        // 7. بررسی Single-Sig
+        // 7. تشخیص Single-Sig
         // ======================================
 
-        if (
+        const isSingleSig =
             sameAddress(
                 actualOwner,
                 userAddress
-            )
-        ) {
-            // ----------------------------------
-            // Single-Sig
-            // ----------------------------------
+            );
+
+        // ======================================
+        // 8. Single-Sig
+        // ======================================
+
+        if (isSingleSig) {
 
             isOwner = true;
 
@@ -2185,14 +2198,23 @@ async function loadEvmFundData() {
 
             tronRequiredConfirmations = 1;
 
+            // ------------------------------
+            // Required confirmations
+            // ------------------------------
+
             const requiredElement =
                 getElement(
                     "requiredConfirmations"
                 );
 
             if (requiredElement) {
-                requiredElement.textContent = "1";
+                requiredElement.textContent =
+                    "1";
             }
+
+            // ------------------------------
+            // Owners
+            // ------------------------------
 
             const ownersList =
                 getElement("ownersList");
@@ -2200,6 +2222,7 @@ async function loadEvmFundData() {
             if (ownersList) {
                 ownersList.innerHTML = `
                     <div class="info-item">
+
                         <div class="info-label">
                             Owner
                         </div>
@@ -2211,9 +2234,14 @@ async function loadEvmFundData() {
                         <small style="color:var(--success);">
                             شما
                         </small>
+
                     </div>
                 `;
             }
+
+            // ------------------------------
+            // Pending area
+            // ------------------------------
 
             const pendingTxs =
                 getElement("pendingTxs");
@@ -2237,7 +2265,10 @@ async function loadEvmFundData() {
                 `;
             }
 
+            // ------------------------------
             // نمایش پنل
+            // ------------------------------
+
             const noAccessCard =
                 getElement("noAccessCard");
 
@@ -2255,6 +2286,11 @@ async function loadEvmFundData() {
             }
 
             setStatus("", "");
+
+            // ------------------------------
+            // اتصال دکمه برداشت
+            // ------------------------------
+
             const withdrawButton =
                 getElement("btnWithdraw");
 
@@ -2262,47 +2298,49 @@ async function loadEvmFundData() {
                 withdrawButton.onclick =
                     submitWithdrawEvm;
             }
+
             return;
         }
 
         // ======================================
-        // 8. اگر Owner خود کاربر نیست،
-        //    احتمالاً Fund تحت مالکیت MultiSig است
+        // 9. احتمال Multi-Sig
         // ======================================
 
         const multisigAbi = [
             {
-                "constant": true,
                 "inputs": [],
                 "name": "getOwners",
                 "outputs": [
                     {
+                        "internalType":
+                            "address[]",
                         "name": "",
                         "type": "address[]"
                     }
                 ],
-                "payable": false,
                 "stateMutability": "view",
                 "type": "function"
             },
             {
-                "constant": true,
                 "inputs": [],
-                "name": "numConfirmationsRequired",
+                "name":
+                    "numConfirmationsRequired",
                 "outputs": [
                     {
+                        "internalType":
+                            "uint256",
                         "name": "",
                         "type": "uint256"
                     }
                 ],
-                "payable": false,
                 "stateMutability": "view",
                 "type": "function"
             },
             {
-                "constant": true,
                 "inputs": [
                     {
+                        "internalType":
+                            "address",
                         "name": "",
                         "type": "address"
                     }
@@ -2310,25 +2348,27 @@ async function loadEvmFundData() {
                 "name": "isOwner",
                 "outputs": [
                     {
+                        "internalType":
+                            "bool",
                         "name": "",
                         "type": "bool"
                     }
                 ],
-                "payable": false,
                 "stateMutability": "view",
                 "type": "function"
             },
             {
-                "constant": true,
                 "inputs": [],
-                "name": "getTransactionCount",
+                "name":
+                    "getTransactionCount",
                 "outputs": [
                     {
+                        "internalType":
+                            "uint256",
                         "name": "",
                         "type": "uint256"
                     }
                 ],
-                "payable": false,
                 "stateMutability": "view",
                 "type": "function"
             }
@@ -2341,22 +2381,23 @@ async function loadEvmFundData() {
             );
 
         // ======================================
-        // 9. بررسی اینکه Owner واقعی Fund
-        //    یک Multisig است یا نه
+        // 10. خواندن Owners
         // ======================================
 
         let owners;
 
         try {
+
             owners =
                 await multisigContract.methods
                     .getOwners()
                     .call();
-        } catch (multisigError) {
+
+        } catch (error) {
 
             console.warn(
-                "Owner خزانه Multisig نیست یا getOwners() در دسترس نیست:",
-                multisigError
+                "Owner خزانه Multisig نیست:",
+                error
             );
 
             isOwner = false;
@@ -2382,18 +2423,12 @@ async function loadEvmFundData() {
                 "شما صاحب این خزانه در شبکه انتخاب‌شده نیستید.",
                 "error"
             );
-            const withdrawButton =
-                getElement("btnWithdraw");
 
-            //if (withdrawButton) {
-            //    withdrawButton.onclick =
-            //        submitWithdrawEvm;
-            //}
             return;
         }
 
         // ======================================
-        // 10. خواندن حد نصاب امضا
+        // 11. حد نصاب
         // ======================================
 
         const requiredConfirmations =
@@ -2404,7 +2439,7 @@ async function loadEvmFundData() {
             );
 
         // ======================================
-        // 11. بررسی اینکه کاربر Owner Multisig است
+        // 12. آیا کاربر Owner است؟
         // ======================================
 
         const userIsMultisigOwner =
@@ -2419,7 +2454,9 @@ async function loadEvmFundData() {
         if (!userIsMultisigOwner) {
 
             isOwner = false;
-            multisigAddress = actualOwner;
+
+            multisigAddress =
+                actualOwner;
 
             const fundDetails =
                 getElement("fundDetails");
@@ -2446,20 +2483,22 @@ async function loadEvmFundData() {
         }
 
         // ======================================
-        // 12. Multi-Sig تأیید شد
+        // 13. Multi-Sig تأیید شد
         // ======================================
 
         isOwner = true;
 
-        multisigAddress = actualOwner;
+        multisigAddress =
+            actualOwner;
 
-        tronMultisigOwners = owners;
+        tronMultisigOwners =
+            owners;
 
         tronRequiredConfirmations =
             requiredConfirmations;
 
         // ======================================
-        // 13. نمایش حد نصاب
+        // 14. نمایش Required
         // ======================================
 
         const requiredElement =
@@ -2473,7 +2512,7 @@ async function loadEvmFundData() {
         }
 
         // ======================================
-        // 14. نمایش Owners
+        // 15. نمایش Owners
         // ======================================
 
         const ownersList =
@@ -2483,37 +2522,39 @@ async function loadEvmFundData() {
 
             ownersList.innerHTML =
                 owners
-                    .map(owner => `
-                        <div class="info-item">
+                    .map(
+                        owner => `
+                            <div class="info-item">
 
-                            <div class="info-label">
-                                Owner
+                                <div class="info-label">
+                                    Owner
+                                </div>
+
+                                <div class="info-value">
+                                    ${shortAddress(owner)}
+                                </div>
+
+                                ${
+                                    sameAddress(
+                                        owner,
+                                        userAddress
+                                    )
+                                    ? `
+                                        <small style="color:var(--success);">
+                                            شما
+                                        </small>
+                                      `
+                                    : ""
+                                }
+
                             </div>
-
-                            <div class="info-value">
-                                ${shortAddress(owner)}
-                            </div>
-
-                            ${
-                                sameAddress(
-                                    owner,
-                                    userAddress
-                                )
-                                ? `
-                                    <small style="color:var(--success);">
-                                        شما
-                                    </small>
-                                  `
-                                : ""
-                            }
-
-                        </div>
-                    `)
+                        `
+                    )
                     .join("");
         }
 
         // ======================================
-        // 15. تعداد تراکنش‌های Multisig
+        // 16. تعداد تراکنش‌ها
         // ======================================
 
         const txCount =
@@ -2557,7 +2598,7 @@ async function loadEvmFundData() {
         }
 
         // ======================================
-        // 16. نمایش پنل
+        // 17. نمایش پنل
         // ======================================
 
         const noAccessCard =
@@ -2578,6 +2619,19 @@ async function loadEvmFundData() {
 
         setStatus("", "");
 
+        // ======================================
+        // 18. بسیار مهم:
+        // اتصال دکمه برداشت برای Multi-Sig
+        // ======================================
+
+        const withdrawButton =
+            getElement("btnWithdraw");
+
+        if (withdrawButton) {
+            withdrawButton.onclick =
+                submitWithdrawEvm;
+        }
+
     } catch (error) {
 
         console.error(
@@ -2594,6 +2648,7 @@ async function loadEvmFundData() {
 }
 
 async function submitWithdrawEvm() {
+
     if (
         !connection ||
         connection.type !== "EVM" ||
@@ -2606,30 +2661,41 @@ async function submitWithdrawEvm() {
         return;
     }
 
-    const web3 = connection.web3;
-    const userAddress = connection.account;
+    const web3 =
+        connection.web3;
+
+    const userAddress =
+        connection.account;
 
     try {
+
         // ======================================
         // 1. بررسی شبکه
         // ======================================
 
         const currentChainId =
-            Number(await web3.eth.getChainId());
+            Number(
+                await web3.eth.getChainId()
+            );
 
         const expectedChainId =
-            Number(selectedNetCfg.chainId);
+            Number(
+                selectedNetCfg.chainId
+            );
 
         if (
-            currentChainId !== expectedChainId
+            currentChainId !==
+            expectedChainId
         ) {
             throw new Error(
-                `شبکه MetaMask صحیح نیست. Chain ID فعلی: ${currentChainId} - مورد انتظار: ${expectedChainId}`
+                `شبکه MetaMask صحیح نیست.
+Chain ID فعلی: ${currentChainId}
+مورد انتظار: ${expectedChainId}`
             );
         }
 
         // ======================================
-        // 2. دریافت ورودی‌ها
+        // 2. ورودی‌ها
         // ======================================
 
         const amountInput =
@@ -2658,7 +2724,7 @@ async function submitWithdrawEvm() {
         }
 
         // ======================================
-        // 3. بررسی آدرس مقصد
+        // 3. آدرس مقصد
         // ======================================
 
         if (
@@ -2687,7 +2753,7 @@ async function submitWithdrawEvm() {
             );
 
         // ======================================
-        // 4. تبدیل مقدار USDT
+        // 4. مقدار
         // ======================================
 
         const decimals =
@@ -2700,7 +2766,7 @@ async function submitWithdrawEvm() {
             );
 
         // ======================================
-        // 5. قرارداد خزانه
+        // 5. Fund Contract
         // ======================================
 
         const fundContract =
@@ -2710,54 +2776,22 @@ async function submitWithdrawEvm() {
             );
 
         // ======================================
-        // 6. بررسی Owner واقعی
+        // 6. Owner
         // ======================================
 
         const actualOwner =
             await fundContract.methods
                 .owner()
                 .call();
-        // ======================================
-        // تشخیص Single-Sig / Multi-Sig
-        // ======================================
 
         const isSingleSig =
             sameAddress(
                 actualOwner,
                 userAddress
             );
-        // ======================================
-        // 7. این مرحله فقط Single-Sig است
-        // ======================================
-
-        //if (
-        //    !sameAddress(
-        //        actualOwner,
-        //        userAddress
-        //    )
-        //) {
-        //    throw new Error(
-        //        "این خزانه Single-Sig نیست. برداشت Multi-Sig در مرحله بعد انجام خواهد شد."
-        //    );
-        //}
 
         // ======================================
-        // 8. بررسی مجاز بودن USDT
-        // ======================================
-
-        //const tokenAllowed =
-        //    await fundContract.methods
-        //        .allowedTokens(usdt)
-        //        .call();
-
-        //if (!tokenAllowed) {
-        //    throw new Error(
-        //        "USDT در قرارداد خزانه مجاز نیست."
-        //    );
-        //}
-
-        // ======================================
-        // 9. بررسی موجودی خزانه
+        // 7. موجودی
         // ======================================
 
         const rawBalance =
@@ -2771,6 +2805,7 @@ async function submitWithdrawEvm() {
             );
 
         if (balance < amount) {
+
             throw new Error(
                 `موجودی خزانه کافی نیست.
 موجودی: ${formatTokenAmount(
@@ -2780,8 +2815,9 @@ async function submitWithdrawEvm() {
 درخواست: ${amountInput} USDT`
             );
         }
+
         // ======================================
-        // Multi-Sig
+        // 8. Multi-Sig
         // ======================================
 
         if (!isSingleSig) {
@@ -2795,8 +2831,8 @@ async function submitWithdrawEvm() {
             ) {
                 throw new Error(
                     `مالک قرارداد خزانه با Multisig ثبت‌شده مطابقت ندارد.
-        Owner خزانه: ${actualOwner}
-        Multisig: ${multisigAddress}`
+Owner خزانه: ${actualOwner}
+Multisig: ${multisigAddress}`
                 );
             }
 
@@ -2823,8 +2859,9 @@ async function submitWithdrawEvm() {
 
             return;
         }
+
         // ======================================
-        // 10. ارسال برداشت مستقیم
+        // 9. Single-Sig
         // ======================================
 
         setStatus(
@@ -2852,12 +2889,13 @@ async function submitWithdrawEvm() {
             );
 
         console.log(
-            "EVM withdrawal:",
+            "EVM Single-Sig withdrawal:",
             {
                 fund,
                 usdt,
                 destination,
-                amount: amount.toString(),
+                amount:
+                    amount.toString(),
                 gasEstimate,
                 gasLimit,
                 gasPrice
@@ -2877,19 +2915,9 @@ async function submitWithdrawEvm() {
                     gasPrice
                 });
 
-        // ======================================
-        // 11. موفقیت
-        // ======================================
-
         const txHash =
-            tx?.transactionHash || null;
-
-        if (txHash) {
-            console.log(
-                "Polygon withdrawal TX:",
-                txHash
-            );
-        }
+            tx?.transactionHash ||
+            null;
 
         setStatus(
             `برداشت با موفقیت انجام شد.${
@@ -2899,10 +2927,6 @@ async function submitWithdrawEvm() {
             }`,
             "success"
         );
-
-        // ======================================
-        // 12. Refresh
-        // ======================================
 
         await new Promise(
             resolve =>
@@ -2936,6 +2960,7 @@ async function submitWithdrawEvmMultiSig(
     destination,
     amount
 ) {
+
     if (
         !connection ||
         connection.type !== "EVM" ||
@@ -2952,38 +2977,68 @@ async function submitWithdrawEvmMultiSig(
         );
     }
 
-    const web3 = connection.web3;
-    const userAddress = connection.account;
+    const web3 =
+        connection.web3;
+
+    const userAddress =
+        connection.account;
 
     try {
 
         // ======================================
-        // 1. قرارداد Multisig
+        // 1. Multisig Contract
         // ======================================
 
         const multisigABI = [
             {
-                inputs: [
+                "inputs": [
                     {
-                        internalType: "address",
-                        name: "_to",
-                        type: "address"
+                        "internalType":
+                            "address",
+                        "name": "_to",
+                        "type": "address"
                     },
                     {
-                        internalType: "uint256",
-                        name: "_value",
-                        type: "uint256"
+                        "internalType":
+                            "uint256",
+                        "name": "_value",
+                        "type": "uint256"
                     },
                     {
-                        internalType: "bytes",
-                        name: "_data",
-                        type: "bytes"
+                        "internalType":
+                            "bytes",
+                        "name": "_data",
+                        "type": "bytes"
                     }
                 ],
-                name: "submitTransaction",
-                outputs: [],
-                stateMutability: "nonpayable",
-                type: "function"
+                "name":
+                    "submitTransaction",
+                "outputs": [],
+                "stateMutability":
+                    "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [
+                    {
+                        "internalType":
+                            "address",
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "name": "isOwner",
+                "outputs": [
+                    {
+                        "internalType":
+                            "bool",
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "stateMutability":
+                    "view",
+                "type": "function"
             }
         ];
 
@@ -2994,39 +3049,11 @@ async function submitWithdrawEvmMultiSig(
             );
 
         // ======================================
-        // 2. بررسی Owner بودن
+        // 2. Owner Check
         // ======================================
 
-        const ownerCheckABI = [
-            {
-                inputs: [
-                    {
-                        internalType: "address",
-                        name: "",
-                        type: "address"
-                    }
-                ],
-                name: "isOwner",
-                outputs: [
-                    {
-                        internalType: "bool",
-                        name: "",
-                        type: "bool"
-                    }
-                ],
-                stateMutability: "view",
-                type: "function"
-            }
-        ];
-
-        const ownerCheckContract =
-            new web3.eth.Contract(
-                ownerCheckABI,
-                multisigAddress
-            );
-
         const isMultisigOwner =
-            await ownerCheckContract.methods
+            await multisigContract.methods
                 .isOwner(userAddress)
                 .call();
 
@@ -3037,32 +3064,37 @@ async function submitWithdrawEvmMultiSig(
         }
 
         // ======================================
-        // 3. Encode withdrawToken()
+        // 3. ABI برای Encode
         // ======================================
 
         const fundABIForEncoding = [
             {
-                inputs: [
+                "inputs": [
                     {
-                        internalType: "address",
-                        name: "token",
-                        type: "address"
+                        "internalType":
+                            "address",
+                        "name": "token",
+                        "type": "address"
                     },
                     {
-                        internalType: "address",
-                        name: "to",
-                        type: "address"
+                        "internalType":
+                            "address",
+                        "name": "to",
+                        "type": "address"
                     },
                     {
-                        internalType: "uint256",
-                        name: "amount",
-                        type: "uint256"
+                        "internalType":
+                            "uint256",
+                        "name": "amount",
+                        "type": "uint256"
                     }
                 ],
-                name: "withdrawToken",
-                outputs: [],
-                stateMutability: "nonpayable",
-                type: "function"
+                "name":
+                    "withdrawToken",
+                "outputs": [],
+                "stateMutability":
+                    "nonpayable",
+                "type": "function"
             }
         ];
 
@@ -3070,6 +3102,10 @@ async function submitWithdrawEvmMultiSig(
             new web3.eth.Contract(
                 fundABIForEncoding
             );
+
+        // ======================================
+        // 4. ساخت calldata
+        // ======================================
 
         const parameterData =
             fundEncoder.methods
@@ -3083,17 +3119,26 @@ async function submitWithdrawEvmMultiSig(
         console.log(
             "EVM MultiSig submit:",
             {
-                multisig: multisigAddress,
-                fund: fundAddress,
+                multisig:
+                    multisigAddress,
+
+                fund:
+                    fundAddress,
+
                 usdt,
+
                 destination,
-                amount: amount.toString(),
-                data: parameterData
+
+                amount:
+                    amount.toString(),
+
+                data:
+                    parameterData
             }
         );
 
         // ======================================
-        // 4. Estimate Gas
+        // 5. Estimate Gas
         // ======================================
 
         const gasEstimate =
@@ -3104,7 +3149,8 @@ async function submitWithdrawEvmMultiSig(
                     parameterData
                 )
                 .estimateGas({
-                    from: userAddress
+                    from:
+                        userAddress
                 });
 
         const gasLimit =
@@ -3116,7 +3162,7 @@ async function submitWithdrawEvmMultiSig(
             await web3.eth.getGasPrice();
 
         // ======================================
-        // 5. Submit Transaction
+        // 6. Submit
         // ======================================
 
         setStatus(
@@ -3132,13 +3178,19 @@ async function submitWithdrawEvmMultiSig(
                     parameterData
                 )
                 .send({
-                    from: userAddress,
-                    gas: gasLimit,
-                    gasPrice
+                    from:
+                        userAddress,
+
+                    gas:
+                        gasLimit,
+
+                    gasPrice:
+                        gasPrice
                 });
 
         const txHash =
-            result?.transactionHash || null;
+            result?.transactionHash ||
+            null;
 
         console.log(
             "EVM MultiSig submit TX:",
@@ -3146,7 +3198,7 @@ async function submitWithdrawEvmMultiSig(
         );
 
         // ======================================
-        // 6. موفقیت
+        // 7. موفقیت
         // ======================================
 
         setStatus(
