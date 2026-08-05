@@ -462,7 +462,7 @@
         "مسئول پروژه": "ابراهيم رسولي (2890151107)",
         "شماره تلفن مسئول پروژه": "09146377947",
         "وضعیت راهبری پروژه": "وضعیت سفت کاری پروژه تایید شد",
-        "contractAddress": null,
+        "contractAddress": "0xe83B14a4f10afae5700bf7dEaFa2d21F38C49F32",
         "contractAddressMainnet": null,
         "contractAddressTron": null,
         "contractAddressCLC": null,
@@ -477,16 +477,16 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": null,
+            "address": "0xe83B14a4f10afae5700bf7dEaFa2d21F38C49F32",
             "multisigAddress": null,
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
             ],
-            "requiredSignatures": 2,
-            "createdAt": "2026-06-29T06:57:35.767Z",
+            "requiredSignatures": 1,
+            "createdAt": "2026-08-05T10:51:24.252Z",
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           },
           "tron_nile": {
             "address": null,
