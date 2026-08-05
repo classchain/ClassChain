@@ -339,7 +339,7 @@
         "مسئول پروژه": "زهرا خادمي جليل (3992333027)",
         "شماره تلفن مسئول پروژه": "09125692443",
         "وضعیت راهبری پروژه": "وضعیت اسکلت و سقف پروژه تایید شد",
-        "contractAddress": null,
+        "contractAddress": "0xb4acc41C406C6f8485ad02e476a75BacE003a5AF",
         "contractAddressMainnet": null,
         "contractAddressTron": "41cdc24051cc2fa3584eae743931001d1f2f4e08ee",
         "contractAddressCLC": null,
@@ -363,6 +363,18 @@
             "requiredSignatures": 2,
             "createdAt": "2026-08-01T07:51:55.803Z",
             "network": "tron_nile",
+            "isMultisig": false
+          },
+          "polygon_amoy": {
+            "address": "0xb4acc41C406C6f8485ad02e476a75BacE003a5AF",
+            "multisigAddress": null,
+            "owners": [
+              "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a",
+              "0x9626438503C8832A65eCc931B124825c417e467e"
+            ],
+            "requiredSignatures": 1,
+            "createdAt": "2026-08-05T10:21:58.874Z",
+            "network": "polygon_amoy",
             "isMultisig": false
           }
         }
