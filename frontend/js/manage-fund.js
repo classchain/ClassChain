@@ -1222,14 +1222,6 @@ async function loadTronFundData() {
             );
         }
 
-        const withdrawButton =
-            getElement("btnWithdraw");
-
-        if (withdrawButton) {
-            withdrawButton.onclick =
-                submitWithdrawTron;
-        }
-
     } catch (error) {
         console.error(
             "loadTronFundData error:",
@@ -2094,46 +2086,33 @@ async function loadEvmFundData() {
             "اتصال MetaMask معتبر نیست.",
             "error"
         );
-
         return;
     }
 
     const web3 = connection.web3;
-
-    const userAddress =
-        connection.account;
-
-    const decimals =
-        selectedNetCfg.tokenDecimals || 6;
+    const userAddress = connection.account;
+    const decimals = selectedNetCfg.tokenDecimals || 6;
 
     try {
-
-        // --------------------------------------
-        // بررسی Chain ID
-        // --------------------------------------
+        // ======================================
+        // 1. بررسی شبکه
+        // ======================================
 
         const currentChainId =
-            Number(
-                await web3.eth.getChainId()
-            );
+            Number(await web3.eth.getChainId());
 
         const expectedChainId =
-            Number(
-                selectedNetCfg.chainId
-            );
+            Number(selectedNetCfg.chainId);
 
-        if (
-            currentChainId !==
-            expectedChainId
-        ) {
+        if (currentChainId !== expectedChainId) {
             throw new Error(
                 `شبکه MetaMask صحیح نیست. Chain ID فعلی: ${currentChainId} - مورد انتظار: ${expectedChainId}`
             );
         }
 
-        // --------------------------------------
-        // قرارداد خزانه
-        // --------------------------------------
+        // ======================================
+        // 2. قرارداد خزانه
+        // ======================================
 
         const fundContract =
             new web3.eth.Contract(
@@ -2141,18 +2120,18 @@ async function loadEvmFundData() {
                 fundAddress
             );
 
-        // --------------------------------------
-        // Owner واقعی خزانه
-        // --------------------------------------
+        // ======================================
+        // 3. Owner واقعی قرارداد Fund
+        // ======================================
 
         const actualOwner =
             await fundContract.methods
                 .owner()
                 .call();
 
-        // --------------------------------------
-        // موجودی USDT خزانه
-        // --------------------------------------
+        // ======================================
+        // 4. موجودی USDT خزانه
+        // ======================================
 
         const rawBalance =
             await fundContract.methods
@@ -2167,9 +2146,9 @@ async function loadEvmFundData() {
                 decimals
             );
 
-        // --------------------------------------
-        // نمایش موجودی
-        // --------------------------------------
+        // ======================================
+        // 5. نمایش موجودی
+        // ======================================
 
         const fundBalance =
             getElement("fundBalance");
@@ -2180,9 +2159,9 @@ async function loadEvmFundData() {
                 " USDT";
         }
 
-        // --------------------------------------
-        // نمایش Owner
-        // --------------------------------------
+        // ======================================
+        // 6. نمایش Owner
+        // ======================================
 
         const ownerAddressElement =
             getElement("ownerAddress");
@@ -2192,24 +2171,200 @@ async function loadEvmFundData() {
                 shortAddress(actualOwner);
         }
 
-        // --------------------------------------
-        // تشخیص Single-Sig
-        // --------------------------------------
+        // ======================================
+        // 7. بررسی Single-Sig
+        // ======================================
 
-        const isSingleSig =
+        if (
             sameAddress(
                 actualOwner,
                 userAddress
+            )
+        ) {
+            // ----------------------------------
+            // Single-Sig
+            // ----------------------------------
+
+            isOwner = true;
+
+            multisigAddress = null;
+
+            tronMultisigOwners = [
+                userAddress
+            ];
+
+            tronRequiredConfirmations = 1;
+
+            const requiredElement =
+                getElement(
+                    "requiredConfirmations"
+                );
+
+            if (requiredElement) {
+                requiredElement.textContent = "1";
+            }
+
+            const ownersList =
+                getElement("ownersList");
+
+            if (ownersList) {
+                ownersList.innerHTML = `
+                    <div class="info-item">
+                        <div class="info-label">
+                            Owner
+                        </div>
+
+                        <div class="info-value">
+                            ${shortAddress(userAddress)}
+                        </div>
+
+                        <small style="color:var(--success);">
+                            شما
+                        </small>
+                    </div>
+                `;
+            }
+
+            const pendingTxs =
+                getElement("pendingTxs");
+
+            if (pendingTxs) {
+                pendingTxs.innerHTML = `
+                    <p>
+                        نوع خزانه:
+                        Single-Sig
+                    </p>
+
+                    <p>
+                        Owner:
+                        ${shortAddress(actualOwner)}
+                    </p>
+
+                    <p>
+                        موجودی خزانه:
+                        ${balance} USDT
+                    </p>
+                `;
+            }
+
+            // نمایش پنل
+            const noAccessCard =
+                getElement("noAccessCard");
+
+            const fundDetails =
+                getElement("fundDetails");
+
+            if (noAccessCard) {
+                noAccessCard.style.display =
+                    "none";
+            }
+
+            if (fundDetails) {
+                fundDetails.style.display =
+                    "block";
+            }
+
+            setStatus("", "");
+
+            return;
+        }
+
+        // ======================================
+        // 8. اگر Owner خود کاربر نیست،
+        //    احتمالاً Fund تحت مالکیت MultiSig است
+        // ======================================
+
+        const multisigAbi = [
+            {
+                "constant": true,
+                "inputs": [],
+                "name": "getOwners",
+                "outputs": [
+                    {
+                        "name": "",
+                        "type": "address[]"
+                    }
+                ],
+                "payable": false,
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "constant": true,
+                "inputs": [],
+                "name": "numConfirmationsRequired",
+                "outputs": [
+                    {
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "payable": false,
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "constant": true,
+                "inputs": [
+                    {
+                        "name": "",
+                        "type": "address"
+                    }
+                ],
+                "name": "isOwner",
+                "outputs": [
+                    {
+                        "name": "",
+                        "type": "bool"
+                    }
+                ],
+                "payable": false,
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "constant": true,
+                "inputs": [],
+                "name": "getTransactionCount",
+                "outputs": [
+                    {
+                        "name": "",
+                        "type": "uint256"
+                    }
+                ],
+                "payable": false,
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+
+        const multisigContract =
+            new web3.eth.Contract(
+                multisigAbi,
+                actualOwner
             );
 
-        if (!isSingleSig) {
+        // ======================================
+        // 9. بررسی اینکه Owner واقعی Fund
+        //    یک Multisig است یا نه
+        // ======================================
 
-            /*
-             * فعلاً Multi-Sig را در این مرحله
-             * پیاده‌سازی نمی‌کنیم.
-             */
+        let owners;
+
+        try {
+            owners =
+                await multisigContract.methods
+                    .getOwners()
+                    .call();
+        } catch (multisigError) {
+
+            console.warn(
+                "Owner خزانه Multisig نیست یا getOwners() در دسترس نیست:",
+                multisigError
+            );
 
             isOwner = false;
+            multisigAddress = null;
 
             const fundDetails =
                 getElement("fundDetails");
@@ -2228,30 +2383,82 @@ async function loadEvmFundData() {
             }
 
             setStatus(
-                "این خزانه Multi-Sig است. پشتیبانی Multi-Sig را در مرحله بعد اضافه می‌کنیم.",
-                "warning"
+                "شما صاحب این خزانه در شبکه انتخاب‌شده نیستید.",
+                "error"
             );
 
             return;
         }
 
-        // --------------------------------------
-        // Single-Sig تأیید شد
-        // --------------------------------------
+        // ======================================
+        // 10. خواندن حد نصاب امضا
+        // ======================================
+
+        const requiredConfirmations =
+            Number(
+                await multisigContract.methods
+                    .numConfirmationsRequired()
+                    .call()
+            );
+
+        // ======================================
+        // 11. بررسی اینکه کاربر Owner Multisig است
+        // ======================================
+
+        const userIsMultisigOwner =
+            owners.some(
+                owner =>
+                    sameAddress(
+                        owner,
+                        userAddress
+                    )
+            );
+
+        if (!userIsMultisigOwner) {
+
+            isOwner = false;
+            multisigAddress = actualOwner;
+
+            const fundDetails =
+                getElement("fundDetails");
+
+            const noAccessCard =
+                getElement("noAccessCard");
+
+            if (fundDetails) {
+                fundDetails.style.display =
+                    "none";
+            }
+
+            if (noAccessCard) {
+                noAccessCard.style.display =
+                    "block";
+            }
+
+            setStatus(
+                "شما صاحب این خزانه در شبکه انتخاب‌شده نیستید.",
+                "error"
+            );
+
+            return;
+        }
+
+        // ======================================
+        // 12. Multi-Sig تأیید شد
+        // ======================================
 
         isOwner = true;
 
-        multisigAddress = null;
+        multisigAddress = actualOwner;
 
-        tronMultisigOwners = [
-            userAddress
-        ];
+        tronMultisigOwners = owners;
 
-        tronRequiredConfirmations = 1;
+        tronRequiredConfirmations =
+            requiredConfirmations;
 
-        // --------------------------------------
-        // تعداد تأیید
-        // --------------------------------------
+        // ======================================
+        // 13. نمایش حد نصاب
+        // ======================================
 
         const requiredElement =
             getElement(
@@ -2260,40 +2467,59 @@ async function loadEvmFundData() {
 
         if (requiredElement) {
             requiredElement.textContent =
-                "1";
+                requiredConfirmations;
         }
 
-        // --------------------------------------
-        // Owners
-        // --------------------------------------
+        // ======================================
+        // 14. نمایش Owners
+        // ======================================
 
         const ownersList =
             getElement("ownersList");
 
         if (ownersList) {
 
-            ownersList.innerHTML = `
-                <div class="info-item">
+            ownersList.innerHTML =
+                owners
+                    .map(owner => `
+                        <div class="info-item">
 
-                    <div class="info-label">
-                        Owner
-                    </div>
+                            <div class="info-label">
+                                Owner
+                            </div>
 
-                    <div class="info-value">
-                        ${shortAddress(userAddress)}
-                    </div>
+                            <div class="info-value">
+                                ${shortAddress(owner)}
+                            </div>
 
-                    <small style="color:var(--success);">
-                        شما
-                    </small>
+                            ${
+                                sameAddress(
+                                    owner,
+                                    userAddress
+                                )
+                                ? `
+                                    <small style="color:var(--success);">
+                                        شما
+                                    </small>
+                                  `
+                                : ""
+                            }
 
-                </div>
-            `;
+                        </div>
+                    `)
+                    .join("");
         }
 
-        // --------------------------------------
-        // Pending
-        // --------------------------------------
+        // ======================================
+        // 15. تعداد تراکنش‌های Multisig
+        // ======================================
+
+        const txCount =
+            Number(
+                await multisigContract.methods
+                    .getTransactionCount()
+                    .call()
+            );
 
         const pendingTxs =
             getElement("pendingTxs");
@@ -2303,24 +2529,34 @@ async function loadEvmFundData() {
             pendingTxs.innerHTML = `
                 <p>
                     نوع خزانه:
-                    Single-Sig
+                    Multi-Sig
                 </p>
 
                 <p>
-                    Owner:
+                    آدرس Multisig:
                     ${shortAddress(actualOwner)}
+                </p>
+
+                <p>
+                    تعداد امضاهای لازم:
+                    ${requiredConfirmations}
                 </p>
 
                 <p>
                     موجودی خزانه:
                     ${balance} USDT
                 </p>
+
+                <p>
+                    تعداد تراکنش‌های ثبت‌شده:
+                    ${txCount}
+                </p>
             `;
         }
 
-        // --------------------------------------
-        // نمایش پنل اصلی خزانه
-        // --------------------------------------
+        // ======================================
+        // 16. نمایش پنل
+        // ======================================
 
         const noAccessCard =
             getElement("noAccessCard");
@@ -2336,18 +2572,6 @@ async function loadEvmFundData() {
         if (fundDetails) {
             fundDetails.style.display =
                 "block";
-        }
-
-        // --------------------------------------
-        // اتصال دکمه برداشت
-        // --------------------------------------
-
-        const withdrawButton =
-            getElement("btnWithdraw");
-
-        if (withdrawButton) {
-            withdrawButton.onclick =
-                submitWithdrawEvm;
         }
 
         setStatus("", "");
