@@ -339,9 +339,9 @@
         "مسئول پروژه": "ابراهيم رسولي (2890151107)",
         "شماره تلفن مسئول پروژه": "09146377947",
         "وضعیت راهبری پروژه": "وضعیت سفت کاری پروژه تایید شد",
-        "contractAddress": "0xe8d63212326a7a57A87AE1B032b4b4a4313137d5",
+        "contractAddress": null,
         "contractAddressMainnet": null,
-        "contractAddressTron": "TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp",
+        "contractAddressTron": null,
         "contractAddressCLC": null,
         "contractAddressEthereum": null,
         "contractAddressBSC": null,
@@ -354,7 +354,7 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xe8d63212326a7a57A87AE1B032b4b4a4313137d5",
+            "address": null,
             "multisigAddress": null,
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
@@ -366,7 +366,7 @@
             "isMultisig": false
           },
           "tron_nile": {
-            "address": "TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp",
+            "address": null,
             "multisigAddress": null,
             "owners": [
               "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1"
@@ -401,9 +401,9 @@
         "مسئول پروژه": "ابراهيم رسولي (2890151107)",
         "شماره تلفن مسئول پروژه": "09146377947",
         "وضعیت راهبری پروژه": "وضعیت سفت کاری پروژه تایید شد",
-        "contractAddress": "0xe8d63212326a7a57A87AE1B032b4b4a4313137d5",
+        "contractAddress": null,
         "contractAddressMainnet": null,
-        "contractAddressTron": "TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp",
+        "contractAddressTron": null,
         "contractAddressCLC": null,
         "contractAddressEthereum": null,
         "contractAddressBSC": null,
@@ -416,7 +416,7 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xe8d63212326a7a57A87AE1B032b4b4a4313137d5",
+            "address": null,
             "multisigAddress": null,
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
@@ -428,7 +428,7 @@
             "isMultisig": false
           },
           "tron_nile": {
-            "address": "TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp",
+            "address": null,
             "multisigAddress": null,
             "owners": [
               "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1"
@@ -463,9 +463,9 @@
         "مسئول پروژه": "ابراهيم رسولي (2890151107)",
         "شماره تلفن مسئول پروژه": "09146377947",
         "وضعیت راهبری پروژه": "وضعیت سفت کاری پروژه تایید شد",
-        "contractAddress": "0xe8d63212326a7a57A87AE1B032b4b4a4313137d5",
+        "contractAddress": null,
         "contractAddressMainnet": null,
-        "contractAddressTron": "TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp",
+        "contractAddressTron": null,
         "contractAddressCLC": null,
         "contractAddressEthereum": null,
         "contractAddressBSC": null,
@@ -478,7 +478,7 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xe8d63212326a7a57A87AE1B032b4b4a4313137d5",
+            "address": null,
             "multisigAddress": null,
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
@@ -490,7 +490,7 @@
             "isMultisig": false
           },
           "tron_nile": {
-            "address": "TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp",
+            "address": null,
             "multisigAddress": null,
             "owners": [
               "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1"
