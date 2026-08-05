@@ -2087,7 +2087,8 @@ async function waitForTronTransaction(
 async function loadEvmFundData() {
     if (
         !connection ||
-        connection.type !== "EVM"
+        connection.type !== "EVM" ||
+        !connection.web3
     ) {
         setStatus(
             "اتصال MetaMask معتبر نیست.",
@@ -2097,90 +2098,78 @@ async function loadEvmFundData() {
         return;
     }
 
-    if (
-        !window.ethers ||
-        !window.ethers.Contract
-    ) {
-        throw new Error(
-            "کتابخانه ethers در دسترس نیست."
-        );
-    }
-
-    const provider =
-        connection.provider ||
-        new window.ethers.providers.Web3Provider(
-            window.ethereum
-        );
-
-    const signer =
-        provider.getSigner();
+    const web3 = connection.web3;
 
     const userAddress =
-        await signer.getAddress();
+        connection.account;
 
     const decimals =
         selectedNetCfg.tokenDecimals || 6;
 
     try {
-        /*
-         * --------------------------------------
-         * بررسی شبکه
-         * --------------------------------------
-         */
 
-        const network =
-            await provider.getNetwork();
+        // --------------------------------------
+        // بررسی Chain ID
+        // --------------------------------------
+
+        const currentChainId =
+            Number(
+                await web3.eth.getChainId()
+            );
 
         const expectedChainId =
-            Number(selectedNetCfg.chainId);
+            Number(
+                selectedNetCfg.chainId
+            );
 
         if (
-            Number(network.chainId) !==
+            currentChainId !==
             expectedChainId
         ) {
             throw new Error(
-                `شبکه MetaMask صحیح نیست. Chain ID فعلی: ${network.chainId} - مورد انتظار: ${expectedChainId}`
+                `شبکه MetaMask صحیح نیست. Chain ID فعلی: ${currentChainId} - مورد انتظار: ${expectedChainId}`
             );
         }
 
-        /*
-         * --------------------------------------
-         * قرارداد خزانه
-         * --------------------------------------
-         */
+        // --------------------------------------
+        // قرارداد خزانه
+        // --------------------------------------
 
         const fundContract =
-            new window.ethers.Contract(
-                fundAddress,
+            new web3.eth.Contract(
                 fundABI,
-                provider
+                fundAddress
             );
 
-        /*
-         * --------------------------------------
-         * Owner واقعی خزانه
-         * --------------------------------------
-         */
+        // --------------------------------------
+        // Owner واقعی خزانه
+        // --------------------------------------
 
         const actualOwner =
-            await fundContract.owner();
+            await fundContract.methods
+                .owner()
+                .call();
 
-        /*
-         * --------------------------------------
-         * موجودی USDT خزانه
-         * --------------------------------------
-         */
+        // --------------------------------------
+        // موجودی USDT خزانه
+        // --------------------------------------
 
         const rawBalance =
-            await fundContract.balanceOf(
-                selectedNetCfg.usdtAddress
-            );
+            await fundContract.methods
+                .balanceOf(
+                    selectedNetCfg.usdtAddress
+                )
+                .call();
 
         const balance =
             formatTokenAmount(
-                rawBalance.toString(),
+                rawBalance,
                 decimals
             );
+
+        // --------------------------------------
+        // نمایش موجودی
+        // --------------------------------------
 
         const fundBalance =
             getElement("fundBalance");
@@ -2191,11 +2180,9 @@ async function loadEvmFundData() {
                 " USDT";
         }
 
-        /*
-         * --------------------------------------
-         * نمایش Owner
-         * --------------------------------------
-         */
+        // --------------------------------------
+        // نمایش Owner
+        // --------------------------------------
 
         const ownerAddressElement =
             getElement("ownerAddress");
@@ -2205,12 +2192,9 @@ async function loadEvmFundData() {
                 shortAddress(actualOwner);
         }
 
-        /*
-         * --------------------------------------
-         * مرحله اول:
-         * فقط Single-Sig
-         * --------------------------------------
-         */
+        // --------------------------------------
+        // تشخیص Single-Sig
+        // --------------------------------------
 
         const isSingleSig =
             sameAddress(
@@ -2221,8 +2205,8 @@ async function loadEvmFundData() {
         if (!isSingleSig) {
 
             /*
-             * فعلاً Multi-Sig را وارد نمی‌کنیم.
-             * در مرحله بعد این قسمت را کامل می‌کنیم.
+             * فعلاً Multi-Sig را در این مرحله
+             * پیاده‌سازی نمی‌کنیم.
              */
 
             isOwner = false;
@@ -2244,22 +2228,30 @@ async function loadEvmFundData() {
             }
 
             setStatus(
-                "این خزانه Single-Sig نیست. بخش Multi-Sig در مرحله بعد فعال خواهد شد.",
+                "این خزانه Multi-Sig است. پشتیبانی Multi-Sig را در مرحله بعد اضافه می‌کنیم.",
                 "warning"
             );
 
             return;
         }
 
-        /*
-         * --------------------------------------
-         * Single-Sig تأیید شد
-         * --------------------------------------
-         */
+        // --------------------------------------
+        // Single-Sig تأیید شد
+        // --------------------------------------
 
         isOwner = true;
 
         multisigAddress = null;
+
+        tronMultisigOwners = [
+            userAddress
+        ];
+
+        tronRequiredConfirmations = 1;
+
+        // --------------------------------------
+        // تعداد تأیید
+        // --------------------------------------
 
         const requiredElement =
             getElement(
@@ -2271,12 +2263,18 @@ async function loadEvmFundData() {
                 "1";
         }
 
+        // --------------------------------------
+        // Owners
+        // --------------------------------------
+
         const ownersList =
             getElement("ownersList");
 
         if (ownersList) {
+
             ownersList.innerHTML = `
                 <div class="info-item">
+
                     <div class="info-label">
                         Owner
                     </div>
@@ -2288,14 +2286,20 @@ async function loadEvmFundData() {
                     <small style="color:var(--success);">
                         شما
                     </small>
+
                 </div>
             `;
         }
+
+        // --------------------------------------
+        // Pending
+        // --------------------------------------
 
         const pendingTxs =
             getElement("pendingTxs");
 
         if (pendingTxs) {
+
             pendingTxs.innerHTML = `
                 <p>
                     نوع خزانه:
@@ -2314,11 +2318,9 @@ async function loadEvmFundData() {
             `;
         }
 
-        /*
-         * --------------------------------------
-         * نمایش بخش مدیریت
-         * --------------------------------------
-         */
+        // --------------------------------------
+        // نمایش پنل اصلی خزانه
+        // --------------------------------------
 
         const noAccessCard =
             getElement("noAccessCard");
@@ -2336,13 +2338,9 @@ async function loadEvmFundData() {
                 "block";
         }
 
-        setStatus("", "");
-
-        /*
-         * --------------------------------------
-         * اتصال دکمه برداشت
-         * --------------------------------------
-         */
+        // --------------------------------------
+        // اتصال دکمه برداشت
+        // --------------------------------------
 
         const withdrawButton =
             getElement("btnWithdraw");
@@ -2351,6 +2349,8 @@ async function loadEvmFundData() {
             withdrawButton.onclick =
                 submitWithdrawEvm;
         }
+
+        setStatus("", "");
 
     } catch (error) {
 
@@ -2366,7 +2366,6 @@ async function loadEvmFundData() {
         );
     }
 }
-
 if (
     typeof particlesJS ===
     "function"
