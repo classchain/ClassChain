@@ -2717,21 +2717,29 @@ async function submitWithdrawEvm() {
             await fundContract.methods
                 .owner()
                 .call();
+        // ======================================
+        // تشخیص Single-Sig / Multi-Sig
+        // ======================================
 
+        const isSingleSig =
+            sameAddress(
+                actualOwner,
+                userAddress
+            );
         // ======================================
         // 7. این مرحله فقط Single-Sig است
         // ======================================
 
-        if (
-            !sameAddress(
-                actualOwner,
-                userAddress
-            )
-        ) {
-            throw new Error(
-                "این خزانه Single-Sig نیست. برداشت Multi-Sig در مرحله بعد انجام خواهد شد."
-            );
-        }
+        //if (
+        //    !sameAddress(
+        //        actualOwner,
+        //        userAddress
+        //    )
+        //) {
+        //    throw new Error(
+        //        "این خزانه Single-Sig نیست. برداشت Multi-Sig در مرحله بعد انجام خواهد شد."
+        //    );
+        //}
 
         // ======================================
         // 8. بررسی مجاز بودن USDT
@@ -2772,7 +2780,49 @@ async function submitWithdrawEvm() {
 درخواست: ${amountInput} USDT`
             );
         }
+        // ======================================
+        // Multi-Sig
+        // ======================================
 
+        if (!isSingleSig) {
+
+            if (
+                !multisigAddress ||
+                !sameAddress(
+                    actualOwner,
+                    multisigAddress
+                )
+            ) {
+                throw new Error(
+                    `مالک قرارداد خزانه با Multisig ثبت‌شده مطابقت ندارد.
+        Owner خزانه: ${actualOwner}
+        Multisig: ${multisigAddress}`
+                );
+            }
+
+            const isMultisigOwner =
+                tronMultisigOwners.some(
+                    owner =>
+                        sameAddress(
+                            owner,
+                            userAddress
+                        )
+                );
+
+            if (!isMultisigOwner) {
+                throw new Error(
+                    "کیف پول متصل‌شده Owner این Multisig نیست."
+                );
+            }
+
+            await submitWithdrawEvmMultiSig(
+                usdt,
+                destination,
+                amount
+            );
+
+            return;
+        }
         // ======================================
         // 10. ارسال برداشت مستقیم
         // ======================================
@@ -2878,6 +2928,256 @@ async function submitWithdrawEvm() {
             getReadableError(error),
             "error"
         );
+    }
+}
+
+async function submitWithdrawEvmMultiSig(
+    usdt,
+    destination,
+    amount
+) {
+    if (
+        !connection ||
+        connection.type !== "EVM" ||
+        !connection.web3
+    ) {
+        throw new Error(
+            "ابتدا به Polygon Amoy متصل شوید."
+        );
+    }
+
+    if (!multisigAddress) {
+        throw new Error(
+            "آدرس Multisig مشخص نیست."
+        );
+    }
+
+    const web3 = connection.web3;
+    const userAddress = connection.account;
+
+    try {
+
+        // ======================================
+        // 1. قرارداد Multisig
+        // ======================================
+
+        const multisigABI = [
+            {
+                inputs: [
+                    {
+                        internalType: "address",
+                        name: "_to",
+                        type: "address"
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "_value",
+                        type: "uint256"
+                    },
+                    {
+                        internalType: "bytes",
+                        name: "_data",
+                        type: "bytes"
+                    }
+                ],
+                name: "submitTransaction",
+                outputs: [],
+                stateMutability: "nonpayable",
+                type: "function"
+            }
+        ];
+
+        const multisigContract =
+            new web3.eth.Contract(
+                multisigABI,
+                multisigAddress
+            );
+
+        // ======================================
+        // 2. بررسی Owner بودن
+        // ======================================
+
+        const ownerCheckABI = [
+            {
+                inputs: [
+                    {
+                        internalType: "address",
+                        name: "",
+                        type: "address"
+                    }
+                ],
+                name: "isOwner",
+                outputs: [
+                    {
+                        internalType: "bool",
+                        name: "",
+                        type: "bool"
+                    }
+                ],
+                stateMutability: "view",
+                type: "function"
+            }
+        ];
+
+        const ownerCheckContract =
+            new web3.eth.Contract(
+                ownerCheckABI,
+                multisigAddress
+            );
+
+        const isMultisigOwner =
+            await ownerCheckContract.methods
+                .isOwner(userAddress)
+                .call();
+
+        if (!isMultisigOwner) {
+            throw new Error(
+                "کیف پول متصل‌شده Owner این Multisig نیست."
+            );
+        }
+
+        // ======================================
+        // 3. Encode withdrawToken()
+        // ======================================
+
+        const fundABIForEncoding = [
+            {
+                inputs: [
+                    {
+                        internalType: "address",
+                        name: "token",
+                        type: "address"
+                    },
+                    {
+                        internalType: "address",
+                        name: "to",
+                        type: "address"
+                    },
+                    {
+                        internalType: "uint256",
+                        name: "amount",
+                        type: "uint256"
+                    }
+                ],
+                name: "withdrawToken",
+                outputs: [],
+                stateMutability: "nonpayable",
+                type: "function"
+            }
+        ];
+
+        const fundEncoder =
+            new web3.eth.Contract(
+                fundABIForEncoding
+            );
+
+        const parameterData =
+            fundEncoder.methods
+                .withdrawToken(
+                    usdt,
+                    destination,
+                    amount.toString()
+                )
+                .encodeABI();
+
+        console.log(
+            "EVM MultiSig submit:",
+            {
+                multisig: multisigAddress,
+                fund: fundAddress,
+                usdt,
+                destination,
+                amount: amount.toString(),
+                data: parameterData
+            }
+        );
+
+        // ======================================
+        // 4. Estimate Gas
+        // ======================================
+
+        const gasEstimate =
+            await multisigContract.methods
+                .submitTransaction(
+                    fundAddress,
+                    "0",
+                    parameterData
+                )
+                .estimateGas({
+                    from: userAddress
+                });
+
+        const gasLimit =
+            Math.ceil(
+                Number(gasEstimate) * 1.2
+            );
+
+        const gasPrice =
+            await web3.eth.getGasPrice();
+
+        // ======================================
+        // 5. Submit Transaction
+        // ======================================
+
+        setStatus(
+            "در حال ثبت درخواست برداشت در Multisig...",
+            "warning"
+        );
+
+        const result =
+            await multisigContract.methods
+                .submitTransaction(
+                    fundAddress,
+                    "0",
+                    parameterData
+                )
+                .send({
+                    from: userAddress,
+                    gas: gasLimit,
+                    gasPrice
+                });
+
+        const txHash =
+            result?.transactionHash || null;
+
+        console.log(
+            "EVM MultiSig submit TX:",
+            txHash
+        );
+
+        // ======================================
+        // 6. موفقیت
+        // ======================================
+
+        setStatus(
+            `درخواست برداشت با موفقیت ثبت شد.${
+                txHash
+                    ? `<br>TX: ${txHash}`
+                    : ""
+            }`,
+            "success"
+        );
+
+        await new Promise(
+            resolve =>
+                setTimeout(
+                    resolve,
+                    1500
+                )
+        );
+
+        await loadEvmFundData();
+
+        await loadTotalRaised();
+
+    } catch (error) {
+
+        console.error(
+            "submitWithdrawEvmMultiSig error:",
+            error
+        );
+
+        throw error;
     }
 }
 
