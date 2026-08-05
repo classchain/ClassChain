@@ -455,7 +455,7 @@
         "وضعیت راهبری پروژه": "وضعیت دیوار اتمام ساختمان پروژه تایید شد",
         "contractAddress": "0x4BB0Bfd51DB115A350D29BD1a2F39A4c6c5a7e06",
         "contractAddressMainnet": null,
-        "contractAddressTron": null,
+        "contractAddressTron": "TDAiZyqzBJdHSDvarb2RC2bM3R6iUYPbYf",
         "contractAddressCLC": null,
         "contractAddressEthereum": null,
         "contractAddressBSC": null,
@@ -476,6 +476,17 @@
             "requiredSignatures": 1,
             "createdAt": "2026-08-05T10:07:59.108Z",
             "network": "polygon_amoy",
+            "isMultisig": false
+          },
+          "tron_nile": {
+            "address": "TDAiZyqzBJdHSDvarb2RC2bM3R6iUYPbYf",
+            "multisigAddress": null,
+            "owners": [
+              "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1"
+            ],
+            "requiredSignatures": 1,
+            "createdAt": "2026-08-05T10:09:25.474Z",
+            "network": "tron_nile",
             "isMultisig": false
           }
         }
