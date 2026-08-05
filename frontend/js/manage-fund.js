@@ -2085,7 +2085,286 @@ async function waitForTronTransaction(
 }
 
 async function loadEvmFundData() {
-    return;
+    if (
+        !connection ||
+        connection.type !== "EVM"
+    ) {
+        setStatus(
+            "اتصال MetaMask معتبر نیست.",
+            "error"
+        );
+
+        return;
+    }
+
+    if (
+        !window.ethers ||
+        !window.ethers.Contract
+    ) {
+        throw new Error(
+            "کتابخانه ethers در دسترس نیست."
+        );
+    }
+
+    const provider =
+        connection.provider ||
+        new window.ethers.providers.Web3Provider(
+            window.ethereum
+        );
+
+    const signer =
+        provider.getSigner();
+
+    const userAddress =
+        await signer.getAddress();
+
+    const decimals =
+        selectedNetCfg.tokenDecimals || 6;
+
+    try {
+        /*
+         * --------------------------------------
+         * بررسی شبکه
+         * --------------------------------------
+         */
+
+        const network =
+            await provider.getNetwork();
+
+        const expectedChainId =
+            Number(selectedNetCfg.chainId);
+
+        if (
+            Number(network.chainId) !==
+            expectedChainId
+        ) {
+            throw new Error(
+                `شبکه MetaMask صحیح نیست. Chain ID فعلی: ${network.chainId} - مورد انتظار: ${expectedChainId}`
+            );
+        }
+
+        /*
+         * --------------------------------------
+         * قرارداد خزانه
+         * --------------------------------------
+         */
+
+        const fundContract =
+            new window.ethers.Contract(
+                fundAddress,
+                fundABI,
+                provider
+            );
+
+        /*
+         * --------------------------------------
+         * Owner واقعی خزانه
+         * --------------------------------------
+         */
+
+        const actualOwner =
+            await fundContract.owner();
+
+        /*
+         * --------------------------------------
+         * موجودی USDT خزانه
+         * --------------------------------------
+         */
+
+        const rawBalance =
+            await fundContract.balanceOf(
+                selectedNetCfg.usdtAddress
+            );
+
+        const balance =
+            formatTokenAmount(
+                rawBalance.toString(),
+                decimals
+            );
+
+        const fundBalance =
+            getElement("fundBalance");
+
+        if (fundBalance) {
+            fundBalance.textContent =
+                Number(balance).toFixed(4) +
+                " USDT";
+        }
+
+        /*
+         * --------------------------------------
+         * نمایش Owner
+         * --------------------------------------
+         */
+
+        const ownerAddressElement =
+            getElement("ownerAddress");
+
+        if (ownerAddressElement) {
+            ownerAddressElement.textContent =
+                shortAddress(actualOwner);
+        }
+
+        /*
+         * --------------------------------------
+         * مرحله اول:
+         * فقط Single-Sig
+         * --------------------------------------
+         */
+
+        const isSingleSig =
+            sameAddress(
+                actualOwner,
+                userAddress
+            );
+
+        if (!isSingleSig) {
+
+            /*
+             * فعلاً Multi-Sig را وارد نمی‌کنیم.
+             * در مرحله بعد این قسمت را کامل می‌کنیم.
+             */
+
+            isOwner = false;
+
+            const fundDetails =
+                getElement("fundDetails");
+
+            const noAccessCard =
+                getElement("noAccessCard");
+
+            if (fundDetails) {
+                fundDetails.style.display =
+                    "none";
+            }
+
+            if (noAccessCard) {
+                noAccessCard.style.display =
+                    "block";
+            }
+
+            setStatus(
+                "این خزانه Single-Sig نیست. بخش Multi-Sig در مرحله بعد فعال خواهد شد.",
+                "warning"
+            );
+
+            return;
+        }
+
+        /*
+         * --------------------------------------
+         * Single-Sig تأیید شد
+         * --------------------------------------
+         */
+
+        isOwner = true;
+
+        multisigAddress = null;
+
+        const requiredElement =
+            getElement(
+                "requiredConfirmations"
+            );
+
+        if (requiredElement) {
+            requiredElement.textContent =
+                "1";
+        }
+
+        const ownersList =
+            getElement("ownersList");
+
+        if (ownersList) {
+            ownersList.innerHTML = `
+                <div class="info-item">
+                    <div class="info-label">
+                        Owner
+                    </div>
+
+                    <div class="info-value">
+                        ${shortAddress(userAddress)}
+                    </div>
+
+                    <small style="color:var(--success);">
+                        شما
+                    </small>
+                </div>
+            `;
+        }
+
+        const pendingTxs =
+            getElement("pendingTxs");
+
+        if (pendingTxs) {
+            pendingTxs.innerHTML = `
+                <p>
+                    نوع خزانه:
+                    Single-Sig
+                </p>
+
+                <p>
+                    Owner:
+                    ${shortAddress(actualOwner)}
+                </p>
+
+                <p>
+                    موجودی خزانه:
+                    ${balance} USDT
+                </p>
+            `;
+        }
+
+        /*
+         * --------------------------------------
+         * نمایش بخش مدیریت
+         * --------------------------------------
+         */
+
+        const noAccessCard =
+            getElement("noAccessCard");
+
+        const fundDetails =
+            getElement("fundDetails");
+
+        if (noAccessCard) {
+            noAccessCard.style.display =
+                "none";
+        }
+
+        if (fundDetails) {
+            fundDetails.style.display =
+                "block";
+        }
+
+        setStatus("", "");
+
+        /*
+         * --------------------------------------
+         * اتصال دکمه برداشت
+         * --------------------------------------
+         */
+
+        const withdrawButton =
+            getElement("btnWithdraw");
+
+        if (withdrawButton) {
+            withdrawButton.onclick =
+                submitWithdrawEvm;
+        }
+
+    } catch (error) {
+
+        console.error(
+            "loadEvmFundData error:",
+            error
+        );
+
+        setStatus(
+            "خطا در خواندن اطلاعات خزانه Polygon: " +
+            getReadableError(error),
+            "error"
+        );
+    }
 }
 
 if (
