@@ -1,39 +1,18 @@
 // js/app.js
-import { NETWORKS, ACTIVE_NETWORKS } from './config/networks.js';
+// Phase 1+2: بدون CLC — استفاده از getFullNetwork / ACTIVE_NETWORKS
+import {
+  NETWORKS,
+  ACTIVE_NETWORKS,
+  getFullNetwork,
+  toTronBase58 as toTronBase58FromConfig
+} from './config/networks.js';
 import { NetworkManager } from './core/NetworkManager.js';
 import { ContractManager } from './core/ContractManager.js';
 import { ProjectManager } from './core/ProjectManager.js';
 
-
-// ============================================
-// نرمال‌سازی آدرس Tron به Base58 (T...)
-// ورودی می‌تواند Base58، hex با 41، یا 0x باشد
-// ============================================
+// نرمال‌سازی آدرس Tron (از helper مشترک config)
 function toTronBase58(address) {
-  if (!address || typeof address !== 'string') return address;
-  const trimmed = address.trim();
-  if (/^T[a-zA-Z0-9]{33}$/.test(trimmed)) return trimmed;
-
-  try {
-    const tronWeb = window.tronWeb;
-    if (!tronWeb || !tronWeb.address || typeof tronWeb.address.fromHex !== 'function') {
-      console.warn('TronWeb برای تبدیل آدرس در دسترس نیست');
-      return trimmed;
-    }
-
-    let hex = trimmed;
-    if (hex.startsWith('0x') || hex.startsWith('0X')) {
-      // 0x + 20 bytes → 41 + 20 bytes
-      hex = '41' + hex.slice(2).toLowerCase();
-    } else if (!hex.toLowerCase().startsWith('41') && /^[a-fA-F0-9]{40}$/.test(hex)) {
-      hex = '41' + hex.toLowerCase();
-    }
-
-    return tronWeb.address.fromHex(hex);
-  } catch (e) {
-    console.warn('خطا در تبدیل آدرس به Base58:', trimmed, e);
-    return trimmed;
-  }
+  return toTronBase58FromConfig(address);
 }
 
 function normalizeAddressesForNetwork(fundAddress, ownerOrMultisig, owners) {
@@ -142,7 +121,7 @@ async function connectToNetwork() {
         await contractManager.initFactory();
 
         const connection = networkManager.getConnection();
-        const network = NETWORKS[networkId];
+        const network = getFullNetwork(networkId) || NETWORKS[networkId];
 
         statusEl.innerHTML = `
             <span style="color: #27ae60;">✅ متصل شد</span>
@@ -482,7 +461,7 @@ async function checkProject() {
             `;
             fundKeys.forEach(networkId => {
                 const fund = allFunds[networkId];
-                const network = NETWORKS[networkId];
+                const network = getFullNetwork(networkId) || NETWORKS[networkId];
                 const isCurrentNetwork = networkId === selectedNetwork;
                 html += `
                     <tr style="${isCurrentNetwork ? 'background:#e8f5e9;' : ''}">
@@ -522,7 +501,7 @@ async function checkProject() {
         // ============================================
         if (hasFundOnCurrentNetwork) {
             // اگر خزانه در شبکه فعلی وجود دارد، دکمه غیرفعال
-            const network = NETWORKS[selectedNetwork];
+            const network = getFullNetwork(selectedNetwork) || NETWORKS[selectedNetwork];
             html += `
                     <button style="padding:8px 16px;background:#95a5a6;color:white;border:none;border-radius:6px;cursor:not-allowed;" disabled>
                         ✅ خزانه در ${network?.name || 'این شبکه'} وجود دارد
@@ -532,7 +511,7 @@ async function checkProject() {
             // اگر خزانه در شبکه فعلی وجود ندارد، دکمه فعال
             html += `
                     <button onclick="window.createFundFromCheck()" style="padding:8px 16px;background:#27ae60;color:white;border:none;border-radius:6px;cursor:pointer;">
-                        🚀 ساخت خزانه در شبکه ${NETWORKS[selectedNetwork]?.name || 'فعلی'}
+                        🚀 ساخت خزانه در شبکه ${(getFullNetwork(selectedNetwork) || NETWORKS[selectedNetwork])?.name || 'فعلی'}
                     </button>
             `;
         }
@@ -540,7 +519,7 @@ async function checkProject() {
         html += `
                 </div>
                 <div style="margin-top:10px;padding:10px;background:#f8f9fa;border-radius:6px;font-size:12px;color:#666;">
-                    💡 شبکه فعلی: ${NETWORKS[selectedNetwork]?.icon || '🌐'} ${NETWORKS[selectedNetwork]?.name || 'نامشخص'}
+                    💡 شبکه فعلی: ${(getFullNetwork(selectedNetwork) || NETWORKS[selectedNetwork])?.icon || '🌐'} ${(getFullNetwork(selectedNetwork) || NETWORKS[selectedNetwork])?.name || 'نامشخص'}
                     ${hasFundOnCurrentNetwork ? ' ✅ خزانه دارد' : ' ⏳ خزانه ندارد'}
                 </div>
             </div>
@@ -598,7 +577,7 @@ async function createFundFromCheck() {
         }
 
         if (projectManager.hasFund(project, selectedNetwork)) {
-            showError(`❌ پروژه ${projectId} در شبکه ${NETWORKS[selectedNetwork]?.name} قبلاً خزانه دارد`);
+            showError(`❌ پروژه ${projectId} در شبکه ${(getFullNetwork(selectedNetwork) || NETWORKS[selectedNetwork])?.name || selectedNetwork} قبلاً خزانه دارد`);
             return;
         }
     } catch (error) {
@@ -758,7 +737,7 @@ async function createFundFromCheck() {
 
 function isValidAddress(address) {
     if (!address) return false;
-    const network = NETWORKS[selectedNetwork];
+    const network = getFullNetwork(selectedNetwork) || NETWORKS[selectedNetwork];
     if (!network) return false;
 
     if (network.type === 'EVM') {
@@ -789,7 +768,7 @@ function showSuccess(projectId, fundAddress, ownerAddress, isMultisig, json) {
     result.style.padding = '20px';
     result.style.borderRadius = '10px';
 
-    const network = NETWORKS[selectedNetwork];
+    const network = getFullNetwork(selectedNetwork) || NETWORKS[selectedNetwork];
 
     result.innerHTML = `
         <h3 style="color: #27ae60; margin-top: 0;">✅ خزانه با موفقیت ساخته شد!</h3>
