@@ -15,6 +15,38 @@ function getTokenDecimals(network) {
     return networks[network]?.tokenDecimals || 6;
 }
 
+/**
+ * آدرس خزانه پروژه برای یک شبکه
+ * اولویت: funds[fundsKeys] → addressField (legacy)
+ */
+function getProjectFundAddress(project, net) {
+    if (!project || !net) return null;
+
+    if (project.funds && typeof project.funds === 'object') {
+        for (const key of (net.fundsKeys || [])) {
+            const fund = project.funds[key];
+            if (fund?.address && fund.address !== 'null' && String(fund.address).trim() !== '') {
+                return fund.address;
+            }
+        }
+    }
+
+    if (net.addressField && project[net.addressField] && project[net.addressField] !== 'null') {
+        return project[net.addressField];
+    }
+
+    // سازگاری خیلی قدیمی فقط برای EVM / Amoy
+    if (net.type === 'EVM' && project.contractAddress && project.contractAddress !== 'null') {
+        return project.contractAddress;
+    }
+
+    return null;
+}
+
+function projectHasFundOnNetwork(project, net) {
+    return Boolean(getProjectFundAddress(project, net));
+}
+
 function optimisticProgressUpdate(donatedAmount) {
     const progressTextEl = document.getElementById('progressText');
     if (!progressTextEl) return;
@@ -64,10 +96,11 @@ function updateButtonState() {
         return;
     }
 
+    const isActive = net.status === 'active' && net.enabled;
     connectBtn.textContent = net.buttonLabel || 'اتصال کیف پول و پرداخت';
-    connectBtn.disabled = !termsConsent?.checked || !net.enabled || !currentContract;
+    connectBtn.disabled = !termsConsent?.checked || !isActive || !currentContract;
 
-    if (!net.enabled) {
+    if (!isActive) {
         connectBtn.textContent = `${net.walletName || net.name} هنوز فعال نیست`;
     } else if (!currentContract) {
         connectBtn.textContent = `خزانه ${net.name} هنوز راه‌اندازی نشده`;
@@ -91,10 +124,7 @@ function selectNetwork(network) {
     const net = networks[network];
     if (!net) return;
 
-    currentContract = projects[net.addressField] || null;
-    if (net.type === 'EVM') {
-        currentContract = currentContract || projects.contractAddress || null;
-    }
+    currentContract = getProjectFundAddress(projects, net);
 
     const qrSection = document.getElementById('qrSection');
     if (qrSection) {
@@ -166,17 +196,18 @@ async function loadProject() {
             networkConfig.getDonationNetworks().forEach(net => {
                 const opt = document.createElement('option');
                 opt.value = net.id;
-                const hasContract = Boolean(foundProject[net.addressField] || (net.type === 'EVM' && foundProject.contractAddress));
-                opt.textContent = `${net.name} — ${net.walletName || 'کیف پول'}${net.enabled && hasContract ? '' : ' (غیرفعال)'}`;
-                opt.disabled = !net.enabled || !hasContract;
+                const hasContract = projectHasFundOnNetwork(foundProject, net);
+                const isActive = net.status === 'active' && net.enabled;
+                opt.textContent = `${net.name} — ${net.walletName || 'کیف پول'}${isActive && hasContract ? '' : ' (غیرفعال)'}`;
+                opt.disabled = !isActive || !hasContract;
                 select.appendChild(opt);
             });
 
-            // انتخاب پیش‌فرض: اول Polygon Amoy اگر خزانه دارد، وگرنه اولین شبکه فعال پروژه
-            const preferred = ['amoy', 'polygon', 'tron'].find(id => {
+            // انتخاب پیش‌فرض: اول Amoy، بعد Tron، بعد اولین گزینه فعال
+            const preferred = ['amoy', 'tron', 'polygon'].find(id => {
                 const net = networks[id];
                 if (!net) return false;
-                return net.enabled && (foundProject[net.addressField] || (net.type === 'EVM' && foundProject.contractAddress));
+                return net.status === 'active' && net.enabled && projectHasFundOnNetwork(foundProject, net);
             });
             const firstEnabled = Array.from(select.options).find(option => !option.disabled)?.value;
             const initialNetwork = preferred || firstEnabled;
