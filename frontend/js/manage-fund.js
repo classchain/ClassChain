@@ -1742,16 +1742,6 @@ Multisig: ${multisigAddress}`
          * ==========================================
          */
 
-        const tokenAllowed =
-            await fundContract
-                .allowedTokens(usdt)
-                .call();
-
-        if (!tokenAllowed) {
-            throw new Error(
-                "USDT در قرارداد خزانه مجاز نیست."
-            );
-        }
 
         /*
          * ==========================================
