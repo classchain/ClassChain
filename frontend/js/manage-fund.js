@@ -575,21 +575,14 @@ function populateNetworkSelect() {
 
         if (!hasAddress) return;
 
+        // فقط شبکه‌های active در لیست قابل انتخاب
+        if (network.status !== "active") return;
+
         const option =
             document.createElement("option");
 
         option.value = network.id;
-
-        option.textContent =
-            `${network.name}${
-                network.status === "active"
-                    ? ""
-                    : " (در انتظار)"
-            }`;
-
-        option.disabled =
-            network.status !== "active";
-
+        option.textContent = network.name;
         select.appendChild(option);
     });
 

@@ -186,10 +186,16 @@ async function loadProjects() {
             const attr = feature.attributes;
             if (!attr) continue;
 
+            // فقط اگر روی حداقل یکی از شبکه‌های فعال واقعاً خزانه دارد
             const hasAnyFund = activeNetworks.some(net => {
-                const addrs = (net.addressFields || []).some(f => attr[f] && attr[f] !== 'null');
-                const hasFunds = attr.funds && Object.keys(attr.funds).length > 0;
-                return addrs || hasFunds;
+                const legacy = (net.addressFields || []).some(
+                    f => attr[f] && attr[f] !== 'null' && String(attr[f]).trim() !== ''
+                );
+                const fromFunds = (net.fundsKeys || []).some(key => {
+                    const fund = attr.funds?.[key];
+                    return fund?.address && fund.address !== 'null' && String(fund.address).trim() !== '';
+                });
+                return legacy || fromFunds;
             });
             if (!hasAnyFund) continue;
 
