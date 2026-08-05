@@ -453,7 +453,7 @@
         "مسئول پروژه": "مجتبي حسيني صديق (0940006243)",
         "شماره تلفن مسئول پروژه": "09153114832",
         "وضعیت راهبری پروژه": "وضعیت دیوار اتمام ساختمان پروژه تایید شد",
-        "contractAddress": null,
+        "contractAddress": "0x4BB0Bfd51DB115A350D29BD1a2F39A4c6c5a7e06",
         "contractAddressMainnet": null,
         "contractAddressTron": null,
         "contractAddressCLC": null,
@@ -465,7 +465,20 @@
         "contractAddressSolana": null,
         "targetAmount(USDT)": 17710,
         "status": null,
-        "raisedAmount": null
+        "raisedAmount": null,
+        "funds": {
+          "polygon_amoy": {
+            "address": "0x4BB0Bfd51DB115A350D29BD1a2F39A4c6c5a7e06",
+            "multisigAddress": null,
+            "owners": [
+              "0x9626438503C8832A65eCc931B124825c417e467e"
+            ],
+            "requiredSignatures": 1,
+            "createdAt": "2026-08-05T10:07:59.108Z",
+            "network": "polygon_amoy",
+            "isMultisig": false
+          }
+        }
       },
       "geometry": {
         "x": 60.11727,
