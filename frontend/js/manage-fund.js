@@ -2265,7 +2265,13 @@ async function loadEvmFundData() {
             }
 
             setStatus("", "");
+            const withdrawButton =
+                getElement("btnWithdraw");
 
+            if (withdrawButton) {
+                withdrawButton.onclick =
+                    submitWithdrawEvm;
+            }
             return;
         }
 
@@ -2386,7 +2392,13 @@ async function loadEvmFundData() {
                 "شما صاحب این خزانه در شبکه انتخاب‌شده نیستید.",
                 "error"
             );
+            const withdrawButton =
+                getElement("btnWithdraw");
 
+            //if (withdrawButton) {
+            //    withdrawButton.onclick =
+            //        submitWithdrawEvm;
+            //}
             return;
         }
 
@@ -2590,6 +2602,295 @@ async function loadEvmFundData() {
         );
     }
 }
+
+async function submitWithdrawEvm() {
+    if (
+        !connection ||
+        connection.type !== "EVM" ||
+        !connection.web3
+    ) {
+        setStatus(
+            "ابتدا به Polygon Amoy متصل شوید.",
+            "error"
+        );
+        return;
+    }
+
+    const web3 = connection.web3;
+    const userAddress = connection.account;
+
+    try {
+        // ======================================
+        // 1. بررسی شبکه
+        // ======================================
+
+        const currentChainId =
+            Number(await web3.eth.getChainId());
+
+        const expectedChainId =
+            Number(selectedNetCfg.chainId);
+
+        if (
+            currentChainId !== expectedChainId
+        ) {
+            throw new Error(
+                `شبکه MetaMask صحیح نیست. Chain ID فعلی: ${currentChainId} - مورد انتظار: ${expectedChainId}`
+            );
+        }
+
+        // ======================================
+        // 2. دریافت ورودی‌ها
+        // ======================================
+
+        const amountInput =
+            getElement("withdrawAmount")
+                ?.value
+                .trim();
+
+        const destinationInput =
+            getElement("withdrawTo")
+                ?.value
+                .trim();
+
+        if (
+            !amountInput ||
+            Number(amountInput) <= 0
+        ) {
+            throw new Error(
+                "مبلغ برداشت معتبر نیست."
+            );
+        }
+
+        if (!destinationInput) {
+            throw new Error(
+                "آدرس مقصد وارد نشده است."
+            );
+        }
+
+        // ======================================
+        // 3. بررسی آدرس مقصد
+        // ======================================
+
+        if (
+            !web3.utils.isAddress(
+                destinationInput
+            )
+        ) {
+            throw new Error(
+                "آدرس مقصد Polygon معتبر نیست."
+            );
+        }
+
+        const destination =
+            web3.utils.toChecksumAddress(
+                destinationInput
+            );
+
+        const fund =
+            web3.utils.toChecksumAddress(
+                fundAddress
+            );
+
+        const usdt =
+            web3.utils.toChecksumAddress(
+                selectedNetCfg.usdtAddress
+            );
+
+        // ======================================
+        // 4. تبدیل مقدار USDT
+        // ======================================
+
+        const decimals =
+            selectedNetCfg.tokenDecimals || 6;
+
+        const amount =
+            parseTokenAmount(
+                amountInput,
+                decimals
+            );
+
+        // ======================================
+        // 5. قرارداد خزانه
+        // ======================================
+
+        const fundContract =
+            new web3.eth.Contract(
+                fundABI,
+                fund
+            );
+
+        // ======================================
+        // 6. بررسی Owner واقعی
+        // ======================================
+
+        const actualOwner =
+            await fundContract.methods
+                .owner()
+                .call();
+
+        // ======================================
+        // 7. این مرحله فقط Single-Sig است
+        // ======================================
+
+        if (
+            !sameAddress(
+                actualOwner,
+                userAddress
+            )
+        ) {
+            throw new Error(
+                "این خزانه Single-Sig نیست. برداشت Multi-Sig در مرحله بعد انجام خواهد شد."
+            );
+        }
+
+        // ======================================
+        // 8. بررسی مجاز بودن USDT
+        // ======================================
+
+        const tokenAllowed =
+            await fundContract.methods
+                .allowedTokens(usdt)
+                .call();
+
+        if (!tokenAllowed) {
+            throw new Error(
+                "USDT در قرارداد خزانه مجاز نیست."
+            );
+        }
+
+        // ======================================
+        // 9. بررسی موجودی خزانه
+        // ======================================
+
+        const rawBalance =
+            await fundContract.methods
+                .balanceOf(usdt)
+                .call();
+
+        const balance =
+            BigInt(
+                String(rawBalance)
+            );
+
+        if (balance < amount) {
+            throw new Error(
+                `موجودی خزانه کافی نیست.
+موجودی: ${formatTokenAmount(
+                    balance,
+                    decimals
+                )} USDT
+درخواست: ${amountInput} USDT`
+            );
+        }
+
+        // ======================================
+        // 10. ارسال برداشت مستقیم
+        // ======================================
+
+        setStatus(
+            "در حال ارسال درخواست برداشت به MetaMask...",
+            "warning"
+        );
+
+        const gasPrice =
+            await web3.eth.getGasPrice();
+
+        const gasEstimate =
+            await fundContract.methods
+                .withdrawToken(
+                    usdt,
+                    destination,
+                    amount.toString()
+                )
+                .estimateGas({
+                    from: userAddress
+                });
+
+        const gasLimit =
+            Math.ceil(
+                Number(gasEstimate) * 1.2
+            );
+
+        console.log(
+            "EVM withdrawal:",
+            {
+                fund,
+                usdt,
+                destination,
+                amount: amount.toString(),
+                gasEstimate,
+                gasLimit,
+                gasPrice
+            }
+        );
+
+        const tx =
+            await fundContract.methods
+                .withdrawToken(
+                    usdt,
+                    destination,
+                    amount.toString()
+                )
+                .send({
+                    from: userAddress,
+                    gas: gasLimit,
+                    gasPrice
+                });
+
+        // ======================================
+        // 11. موفقیت
+        // ======================================
+
+        const txHash =
+            tx?.transactionHash || null;
+
+        if (txHash) {
+            console.log(
+                "Polygon withdrawal TX:",
+                txHash
+            );
+        }
+
+        setStatus(
+            `برداشت با موفقیت انجام شد.${
+                txHash
+                    ? `<br>TX: ${txHash}`
+                    : ""
+            }`,
+            "success"
+        );
+
+        // ======================================
+        // 12. Refresh
+        // ======================================
+
+        await new Promise(
+            resolve =>
+                setTimeout(
+                    resolve,
+                    1500
+                )
+        );
+
+        await loadEvmFundData();
+
+        await loadTotalRaised();
+
+    } catch (error) {
+
+        console.error(
+            "EVM withdrawal error:",
+            error
+        );
+
+        setStatus(
+            "خطا در ثبت برداشت: " +
+            getReadableError(error),
+            "error"
+        );
+    }
+}
+
 if (
     typeof particlesJS ===
     "function"
