@@ -172,15 +172,6 @@
             "network": "polygon_amoy",
             "isMultisig": true
           },
-          "polygon_mainnet": {
-            "address": "0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
-            "multisigAddress": null,
-            "owners": [],
-            "requiredSignatures": 1,
-            "createdAt": null,
-            "network": "polygon_mainnet",
-            "isMultisig": false
-          },
           "tron_nile": {
             "address": null,
             "multisigAddress": null,
@@ -190,15 +181,6 @@
             "network": "tron_nile",
             "isMultisig": false
           },
-          "bsc_mainnet": {
-            "address": "0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
-            "multisigAddress": null,
-            "owners": [],
-            "requiredSignatures": 1,
-            "createdAt": null,
-            "network": "bsc_mainnet",
-            "isMultisig": false
-          }
         }
       }
     },
