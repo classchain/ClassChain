@@ -23,7 +23,7 @@
       tokenDecimals: 6,
       chainId: 80002,
       explorer: 'https://amoy.polygonscan.com',
-      rpc: 'https://polygon-amoy.gateway.tenderly.co',
+      rpc: 'https://rpc-amoy.polygon.technology',
       rpcFallbacks: [
         'https://polygon-amoy.gateway.tenderly.co',
         'https://80002.rpc.thirdweb.com'
