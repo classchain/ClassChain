@@ -161,8 +161,8 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x06Fa75F560BdB98FBBf2c54Ec3eDeA01C1155b88",
-            "multisigAddress": "0x32f84A1cF3222c5f1436899F54dF0f21E9265B32",
+            "address": "0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
+            "multisigAddress": "0x91842d5A313058C343663cd3c39dbCB1d6a73AF9",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -172,38 +172,16 @@
             "network": "polygon_amoy",
             "isMultisig": true
           },
-          "polygon_mainnet": {
-            "address": "0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
-            "multisigAddress": null,
-            "owners": [],
-            "requiredSignatures": 1,
-            "createdAt": null,
-            "network": "polygon_mainnet",
-            "isMultisig": false
-          },
           "tron_nile": {
-            "address": null,
+            "address": "Tx06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
             "multisigAddress": null,
             "owners": [],
             "requiredSignatures": 1,
             "createdAt": null,
             "network": "tron_nile",
             "isMultisig": false
-          },
-          "bsc_mainnet": {
-            "address": "0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
-            "multisigAddress": null,
-            "owners": [],
-            "requiredSignatures": 1,
-            "createdAt": null,
-            "network": "bsc_mainnet",
-            "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 45.16335,
-        "y": 36.48427
       }
     },
     {
@@ -229,8 +207,8 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xe8d63212326a7A57a87AE1b032b4b4a4313137d5",
-            "multisigAddress": "0x0a9E87FC9Cee70068Cb1321e0111b548E9E72554",
+            "address": "0xe8d63212326a7a57A87AE1B032b4b4a4313137d5",
+            "multisigAddress": "0x0a9E87FC9Cee70068cb1321E0111B548e9E72554",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -252,10 +230,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 45.30267,
-        "y": 36.68164
       }
     },
     {
@@ -281,7 +255,7 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xA8dA3ADB7Ed0Da86884e396B88Bd905394Cbc95b",
+            "address": "0xA8dA3ADB7Ed0Da86884E396B88Bd905394Cbc95b",
             "multisigAddress": null,
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e"
@@ -303,10 +277,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 45.30267,
-        "y": 36.68164
       }
     },
     {
@@ -332,7 +302,7 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xaFE2c640598c65F6763622A8eF90CbC79BcB9a8c",
+            "address": "0xaFE2c640598C65F6763622A8eF90CbC79BcB9a8c",
             "multisigAddress": "0xF89A8Bc1B4559A36b6Ff48Fcc2051E75AeF2C99a",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
@@ -355,10 +325,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 45.30267,
-        "y": 36.68164
       }
     },
     {
@@ -407,10 +373,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 45.30267,
-        "y": 36.68164
       }
     },
     {
@@ -436,8 +398,8 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xb4acc41C406c6f8485AD02e476a75baCE003a5AF",
-            "multisigAddress": "0x7afAC68F12279569bCE89b7Dc1Ed9B45b7c09F2E",
+            "address": "0xb4acc41C406C6f8485ad02e476a75BacE003a5AF",
+            "multisigAddress": "0x7afAC68F12279569bce89B7dc1eD9b45b7c09F2E",
             "owners": [
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a",
               "0x9626438503C8832A65eCc931B124825c417e467e"
@@ -448,10 +410,6 @@
             "isMultisig": true
           }
         }
-      },
-      "geometry": {
-        "x": 50.94104,
-        "y": 35.74623
       }
     },
     {
@@ -477,8 +435,8 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x38eF16Cf51b3128f74b3694dE3e815149EA4ACA3",
-            "multisigAddress": "0x7B13E07358fAb07b4D26CE8527c90b10684E11e7",
+            "address": "0x38eF16Cf51B3128f74b3694dE3E815149EA4ACA3",
+            "multisigAddress": "0x7B13E07358faB07b4D26Ce8527c90B10684E11e7",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -501,10 +459,6 @@
             "isMultisig": true
           }
         }
-      },
-      "geometry": {
-        "x": 50.98526,
-        "y": 35.73661
       }
     },
     {
@@ -530,7 +484,7 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x4BB0Bfd51db115A350d29Bd1A2F39a4c6c5a7e06",
+            "address": "0x4BB0Bfd51DB115A350D29BD1a2F39A4c6c5a7e06",
             "multisigAddress": null,
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e"
@@ -552,10 +506,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 60.11727,
-        "y": 34.59248
       }
     },
     {
@@ -581,8 +531,8 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x34C7FD16697Dd3f7751193d77f08FDcb1afe4B69",
-            "multisigAddress": "0x91842d5A313058c343663Cd3c39dbCb1d6a73AF9",
+            "address": "0x34c7fd16697dd3f7751193d77f08fdcb1afe4b69",
+            "multisigAddress": "0x91842d5A313058C343663cd3c39dbCB1d6a73AF9",
             "owners": [],
             "requiredSignatures": 1,
             "createdAt": null,
@@ -590,10 +540,6 @@
             "isMultisig": true
           }
         }
-      },
-      "geometry": {
-        "x": 60.20675,
-        "y": 34.07498
       }
     },
     {
@@ -619,8 +565,8 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x971eC06E81092d0C58Ec5579b18514c72d66eb8f",
-            "multisigAddress": "0x75726D084B8a78f758803096Ff0dC166f7440768",
+            "address": "0x971eC06E81092D0C58EC5579b18514c72d66eb8f",
+            "multisigAddress": "0x75726D084B8A78F758803096ff0dc166f7440768",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -643,10 +589,6 @@
             "isMultisig": true
           }
         }
-      },
-      "geometry": {
-        "x": 61.68207549,
-        "y": 27.13402249
       }
     },
     {
@@ -672,7 +614,7 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xfd616347094f969e4b61ecc968ee09952ADb984B",
+            "address": "0xfd616347094F969E4b61EcC968ee09952ADb984B",
             "multisigAddress": null,
             "owners": [],
             "requiredSignatures": 1,
@@ -681,10 +623,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 61.6826452632875,
-        "y": 26.9510898989993
       }
     },
     {
@@ -730,10 +668,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 61.25938942,
-        "y": 26.66601273
       }
     }
   ]
