@@ -232,8 +232,8 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
-            "multisigAddress": "0x91842d5A313058C343663cd3c39dbCB1d6a73AF9",
+            "address": "0x06Fa75F560BdB98FBBf2c54Ec3eDeA01C1155b88",
+            "multisigAddress": "0x32f84A1cF3222c5f1436899F54dF0f21E9265B32",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -241,7 +241,7 @@
             "requiredSignatures": 2,
             "createdAt": "2026-06-27T09:31:49.709Z",
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           },
           "polygon_mainnet": {
             "address": "0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
@@ -253,7 +253,7 @@
             "isMultisig": false
           },
           "tron_nile": {
-            "address": "Tx06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
+            "address": null,
             "multisigAddress": null,
             "owners": [],
             "requiredSignatures": 1,
@@ -301,8 +301,8 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xe8d63212326a7a57A87AE1B032b4b4a4313137d5",
-            "multisigAddress": null,
+            "address": "0xe8d63212326a7A57a87AE1b032b4b4a4313137d5",
+            "multisigAddress": "0x0a9E87FC9Cee70068Cb1321e0111b548E9E72554",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -310,7 +310,7 @@
             "requiredSignatures": 2,
             "createdAt": "2026-06-29T06:57:35.767Z",
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           },
           "tron_nile": {
             "address": "TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp",
@@ -354,7 +354,7 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xA8dA3ADB7Ed0Da86884E396B88Bd905394Cbc95b",
+            "address": "0xA8dA3ADB7Ed0Da86884e396B88Bd905394Cbc95b",
             "multisigAddress": null,
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e"
@@ -406,8 +406,8 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": null,
-            "multisigAddress": null,
+            "address": "0xaFE2c640598c65F6763622A8eF90CbC79BcB9a8c",
+            "multisigAddress": "0xF89A8Bc1B4559A36b6Ff48Fcc2051E75AeF2C99a",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -415,7 +415,7 @@
             "requiredSignatures": 2,
             "createdAt": "2026-06-29T06:57:35.767Z",
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           },
           "tron_nile": {
             "address": null,
@@ -460,7 +460,7 @@
         "funds": {
           "polygon_amoy": {
             "address": "0x13Ba85205f86927b77FE77632b474926854f9a5D",
-            "multisigAddress": null,
+            "multisigAddress": "0xDE8732EAa3c23824c79BDd61bF83Fb44A225cDd5",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -512,8 +512,8 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xb4acc41C406C6f8485ad02e476a75BacE003a5AF",
-            "multisigAddress": null,
+            "address": "0xb4acc41C406c6f8485AD02e476a75baCE003a5AF",
+            "multisigAddress": "0x7afAC68F12279569bCE89b7Dc1Ed9B45b7c09F2E",
             "owners": [
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a",
               "0x9626438503C8832A65eCc931B124825c417e467e"
@@ -521,7 +521,7 @@
             "requiredSignatures": 1,
             "createdAt": "2026-08-05T10:21:58.874Z",
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           }
         }
       },
@@ -554,8 +554,8 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x38eF16Cf51B3128f74b3694dE3E815149EA4ACA3",
-            "multisigAddress": null,
+            "address": "0x38eF16Cf51b3128f74b3694dE3e815149EA4ACA3",
+            "multisigAddress": "0x7B13E07358fAb07b4D26CE8527c90b10684E11e7",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -563,11 +563,11 @@
             "requiredSignatures": 2,
             "createdAt": "2026-07-29T11:05:01.153Z",
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           },
           "tron_nile": {
             "address": "TJEbRn3Gch6i8VjUCahDejG8V83oXrExc5",
-            "multisigAddress": null,
+            "multisigAddress": "TEXwMtFQqn2BRn54tLNP14Zbx29Bsa6mrb",
             "owners": [
               "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1",
               "TWriCnUmTXBBZNoGRgS9m8iqJMs3efrYHd"
@@ -575,7 +575,7 @@
             "requiredSignatures": 2,
             "createdAt": "2026-08-01T09:20:25.648Z",
             "network": "tron_nile",
-            "isMultisig": false
+            "isMultisig": true
           }
         }
       },
@@ -608,7 +608,7 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x4BB0Bfd51DB115A350D29BD1a2F39A4c6c5a7e06",
+            "address": "0x4BB0Bfd51db115A350d29Bd1A2F39a4c6c5a7e06",
             "multisigAddress": null,
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e"
@@ -660,13 +660,13 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x34c7fd16697dd3f7751193d77f08fdcb1afe4b69",
-            "multisigAddress": null,
+            "address": "0x34C7FD16697Dd3f7751193d77f08FDcb1afe4B69",
+            "multisigAddress": "0x91842d5A313058c343663Cd3c39dbCb1d6a73AF9",
             "owners": [],
             "requiredSignatures": 1,
             "createdAt": null,
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           }
         }
       },
@@ -699,8 +699,8 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x971eC06E81092D0C58EC5579b18514c72d66eb8f",
-            "multisigAddress": null,
+            "address": "0x971eC06E81092d0C58Ec5579b18514c72d66eb8f",
+            "multisigAddress": "0x75726D084B8a78f758803096Ff0dC166f7440768",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -708,11 +708,11 @@
             "requiredSignatures": 2,
             "createdAt": "2026-06-27T08:49:54.576Z",
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           },
           "tron_nile": {
             "address": "TApz2cGHq8dWv4f8VEquZVZFqbwbkt7sNR",
-            "multisigAddress": null,
+            "multisigAddress": "TLejhTxye1RFsokXUX86Ym2wk4TEDJZxdb",
             "owners": [
               "TWriCnUmTXBBZNoGRgS9m8iqJMs3efrYHd",
               "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1"
@@ -720,7 +720,7 @@
             "requiredSignatures": 2,
             "createdAt": "2026-08-05T10:14:49.748Z",
             "network": "tron_nile",
-            "isMultisig": false
+            "isMultisig": true
           }
         }
       },
@@ -753,7 +753,7 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xfd616347094f969e4b61ecc968ee09952adb984b",
+            "address": "0xfd616347094f969e4b61ecc968ee09952ADb984B",
             "multisigAddress": null,
             "owners": [],
             "requiredSignatures": 1,
@@ -803,7 +803,7 @@
             "isMultisig": false
           },
           "polygon_amoy": {
-            "address": "0x63deb2eb87b1fbc52b71f1b3e030e0d04028c332",
+            "address": "0x63deB2eb87b1FBc52b71F1b3e030e0d04028C332",
             "multisigAddress": null,
             "owners": [],
             "requiredSignatures": 1,
