@@ -17,16 +17,6 @@
     "مسئول پروژه": "مسئول پروژه",
     "شماره تلفن مسئول پروژه": "شماره تلفن مسئول پروژه",
     "وضعیت راهبری پروژه": "وضعیت راهبری پروژه",
-    "contractAddress": "contractAddress",
-    "contractAddressMainnet": "contractAddressMainnet",
-    "contractAddressTron": "contractAddressTron",
-    "contractAddressCLC": "contractAddressCLC",
-    "contractAddressEthereum": "contractAddressEthereum",
-    "contractAddressBSC": "contractAddressBSC",
-    "contractAddressArbitrum": "contractAddressArbitrum",
-    "contractAddressOptimism": "contractAddressOptimism",
-    "contractAddressAvalanche": "contractAddressAvalanche",
-    "contractAddressSolana": "contractAddressSolana",
     "targetAmount(USDT)": "targetAmount(USDT)",
     "status": "status",
     "raisedAmount": "raisedAmount"
@@ -130,66 +120,6 @@
       "length": 255
     },
     {
-      "name": "contractAddress",
-      "type": "esriFieldTypeString",
-      "alias": "contractAddress",
-      "length": 255
-    },
-    {
-      "name": "contractAddressMainnet",
-      "type": "esriFieldTypeString",
-      "alias": "contractAddressMainnet",
-      "length": 255
-    },
-    {
-      "name": "contractAddressTron",
-      "type": "esriFieldTypeString",
-      "alias": "contractAddressTron",
-      "length": 255
-    },
-    {
-      "name": "contractAddressCLC",
-      "type": "esriFieldTypeString",
-      "alias": "contractAddressCLC",
-      "length": 255
-    },
-    {
-      "name": "contractAddressEthereum",
-      "type": "esriFieldTypeString",
-      "alias": "contractAddressEthereum",
-      "length": 255
-    },
-    {
-      "name": "contractAddressBSC",
-      "type": "esriFieldTypeString",
-      "alias": "contractAddressBSC",
-      "length": 255
-    },
-    {
-      "name": "contractAddressArbitrum",
-      "type": "esriFieldTypeString",
-      "alias": "contractAddressArbitrum",
-      "length": 255
-    },
-    {
-      "name": "contractAddressOptimism",
-      "type": "esriFieldTypeString",
-      "alias": "contractAddressOptimism",
-      "length": 255
-    },
-    {
-      "name": "contractAddressAvalanche",
-      "type": "esriFieldTypeString",
-      "alias": "contractAddressAvalanche",
-      "length": 255
-    },
-    {
-      "name": "contractAddressSolana",
-      "type": "esriFieldTypeString",
-      "alias": "contractAddressSolana",
-      "length": 255
-    },
-    {
       "name": "targetAmount(USDT)",
       "type": "esriFieldTypeDouble",
       "alias": "targetAmount(USDT)"
@@ -226,14 +156,13 @@
         "مسئول پروژه": "وسيم گلزاريان (2899812246)",
         "شماره تلفن مسئول پروژه": "09149473121",
         "وضعیت راهبری پروژه": "وضعیت دیوار اتمام ساختمان پروژه تایید شد",
-        "contractAddressSolana": null,
         "targetAmount(USDT)": 197090,
         "status": null,
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
-            "multisigAddress": "0x91842d5A313058C343663cd3c39dbCB1d6a73AF9",
+            "address": "0x06Fa75F560BdB98FBBf2c54Ec3eDeA01C1155b88",
+            "multisigAddress": "0x32f84A1cF3222c5f1436899F54dF0f21E9265B32",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -241,19 +170,10 @@
             "requiredSignatures": 2,
             "createdAt": "2026-06-27T09:31:49.709Z",
             "network": "polygon_amoy",
-            "isMultisig": false
-          },
-          "polygon_mainnet": {
-            "address": "0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
-            "multisigAddress": null,
-            "owners": [],
-            "requiredSignatures": 1,
-            "createdAt": null,
-            "network": "polygon_mainnet",
-            "isMultisig": false
+            "isMultisig": true
           },
           "tron_nile": {
-            "address": "Tx06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
+            "address": null,
             "multisigAddress": null,
             "owners": [],
             "requiredSignatures": 1,
@@ -261,20 +181,7 @@
             "network": "tron_nile",
             "isMultisig": false
           },
-          "bsc_mainnet": {
-            "address": "0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
-            "multisigAddress": null,
-            "owners": [],
-            "requiredSignatures": 1,
-            "createdAt": null,
-            "network": "bsc_mainnet",
-            "isMultisig": false
-          }
         }
-      },
-      "geometry": {
-        "x": 45.16335,
-        "y": 36.48427
       }
     },
     {
@@ -295,14 +202,13 @@
         "مسئول پروژه": "ابراهيم رسولي (2890151107)",
         "شماره تلفن مسئول پروژه": "09146377947",
         "وضعیت راهبری پروژه": "وضعیت سفت کاری پروژه تایید شد",
-        "contractAddressSolana": null,
         "targetAmount(USDT)": 11050,
         "status": null,
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xe8d63212326a7a57A87AE1B032b4b4a4313137d5",
-            "multisigAddress": null,
+            "address": "0xe8d63212326a7A57a87AE1b032b4b4a4313137d5",
+            "multisigAddress": "0x0a9E87FC9Cee70068Cb1321e0111b548E9E72554",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -310,7 +216,7 @@
             "requiredSignatures": 2,
             "createdAt": "2026-06-29T06:57:35.767Z",
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           },
           "tron_nile": {
             "address": "TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp",
@@ -324,10 +230,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 45.30267,
-        "y": 36.68164
       }
     },
     {
@@ -348,13 +250,12 @@
         "مسئول پروژه": "ابراهيم رسولي (2890151107)",
         "شماره تلفن مسئول پروژه": "09146377947",
         "وضعیت راهبری پروژه": "وضعیت سفت کاری پروژه تایید شد",
-        "contractAddressSolana": null,
         "targetAmount(USDT)": 11050,
         "status": null,
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xA8dA3ADB7Ed0Da86884E396B88Bd905394Cbc95b",
+            "address": "0xA8dA3ADB7Ed0Da86884e396B88Bd905394Cbc95b",
             "multisigAddress": null,
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e"
@@ -376,10 +277,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 45.30267,
-        "y": 36.68164
       }
     },
     {
@@ -400,14 +297,13 @@
         "مسئول پروژه": "ابراهيم رسولي (2890151107)",
         "شماره تلفن مسئول پروژه": "09146377947",
         "وضعیت راهبری پروژه": "وضعیت سفت کاری پروژه تایید شد",
-        "contractAddressSolana": null,
         "targetAmount(USDT)": 11050,
         "status": null,
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": null,
-            "multisigAddress": null,
+            "address": "0xaFE2c640598c65F6763622A8eF90CbC79BcB9a8c",
+            "multisigAddress": "0xF89A8Bc1B4559A36b6Ff48Fcc2051E75AeF2C99a",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -415,7 +311,7 @@
             "requiredSignatures": 2,
             "createdAt": "2026-06-29T06:57:35.767Z",
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           },
           "tron_nile": {
             "address": null,
@@ -429,10 +325,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 45.30267,
-        "y": 36.68164
       }
     },
     {
@@ -453,14 +345,13 @@
         "مسئول پروژه": "ابراهيم رسولي (2890151107)",
         "شماره تلفن مسئول پروژه": "09146377947",
         "وضعیت راهبری پروژه": "وضعیت سفت کاری پروژه تایید شد",
-        "contractAddressSolana": null,
         "targetAmount(USDT)": 11050,
         "status": null,
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
             "address": "0x13Ba85205f86927b77FE77632b474926854f9a5D",
-            "multisigAddress": null,
+            "multisigAddress": "0xDE8732EAa3c23824c79BDd61bF83Fb44A225cDd5",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -482,10 +373,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 45.30267,
-        "y": 36.68164
       }
     },
     {
@@ -506,14 +393,13 @@
         "مسئول پروژه": "زهرا خادمي جليل (3992333027)",
         "شماره تلفن مسئول پروژه": "09125692443",
         "وضعیت راهبری پروژه": "وضعیت اسکلت و سقف پروژه تایید شد",
-        "contractAddressSolana": null,
         "targetAmount(USDT)": 208350,
         "status": null,
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xb4acc41C406C6f8485ad02e476a75BacE003a5AF",
-            "multisigAddress": null,
+            "address": "0xb4acc41C406c6f8485AD02e476a75baCE003a5AF",
+            "multisigAddress": "0x7afAC68F12279569bCE89b7Dc1Ed9B45b7c09F2E",
             "owners": [
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a",
               "0x9626438503C8832A65eCc931B124825c417e467e"
@@ -521,13 +407,9 @@
             "requiredSignatures": 1,
             "createdAt": "2026-08-05T10:21:58.874Z",
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           }
         }
-      },
-      "geometry": {
-        "x": 50.94104,
-        "y": 35.74623
       }
     },
     {
@@ -548,14 +430,13 @@
         "مسئول پروژه": "غلامرضا كرماجاني (1753426103)",
         "شماره تلفن مسئول پروژه": "09172672095",
         "وضعیت راهبری پروژه": "وضعیت اسکلت و سقف پروژه تایید شد",
-        "contractAddressSolana": null,
         "targetAmount(USDT)": 437500,
         "status": null,
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x38eF16Cf51B3128f74b3694dE3E815149EA4ACA3",
-            "multisigAddress": null,
+            "address": "0x38eF16Cf51b3128f74b3694dE3e815149EA4ACA3",
+            "multisigAddress": "0x7B13E07358fAb07b4D26CE8527c90b10684E11e7",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -563,11 +444,11 @@
             "requiredSignatures": 2,
             "createdAt": "2026-07-29T11:05:01.153Z",
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           },
           "tron_nile": {
             "address": "TJEbRn3Gch6i8VjUCahDejG8V83oXrExc5",
-            "multisigAddress": null,
+            "multisigAddress": "TEXwMtFQqn2BRn54tLNP14Zbx29Bsa6mrb",
             "owners": [
               "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1",
               "TWriCnUmTXBBZNoGRgS9m8iqJMs3efrYHd"
@@ -575,13 +456,9 @@
             "requiredSignatures": 2,
             "createdAt": "2026-08-01T09:20:25.648Z",
             "network": "tron_nile",
-            "isMultisig": false
+            "isMultisig": true
           }
         }
-      },
-      "geometry": {
-        "x": 50.98526,
-        "y": 35.73661
       }
     },
     {
@@ -602,13 +479,12 @@
         "مسئول پروژه": "مجتبي حسيني صديق (0940006243)",
         "شماره تلفن مسئول پروژه": "09153114832",
         "وضعیت راهبری پروژه": "وضعیت دیوار اتمام ساختمان پروژه تایید شد",
-        "contractAddressSolana": null,
         "targetAmount(USDT)": 17710,
         "status": null,
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x4BB0Bfd51DB115A350D29BD1a2F39A4c6c5a7e06",
+            "address": "0x4BB0Bfd51db115A350d29Bd1A2F39a4c6c5a7e06",
             "multisigAddress": null,
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e"
@@ -630,10 +506,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 60.11727,
-        "y": 34.59248
       }
     },
     {
@@ -654,25 +526,20 @@
         "مسئول پروژه": "مجتبي حسيني صديق (0940006243)",
         "شماره تلفن مسئول پروژه": "09153114832",
         "وضعیت راهبری پروژه": "وضعیت سفت کاری پروژه تایید شد",
-        "contractAddressSolana": null,
         "targetAmount(USDT)": 79170,
         "status": null,
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x34c7fd16697dd3f7751193d77f08fdcb1afe4b69",
-            "multisigAddress": null,
+            "address": "0x34C7FD16697Dd3f7751193d77f08FDcb1afe4B69",
+            "multisigAddress": "0x91842d5A313058c343663Cd3c39dbCb1d6a73AF9",
             "owners": [],
             "requiredSignatures": 1,
             "createdAt": null,
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           }
         }
-      },
-      "geometry": {
-        "x": 60.20675,
-        "y": 34.07498
       }
     },
     {
@@ -693,14 +560,13 @@
         "مسئول پروژه": "عبدالواحد هيبت زائي (3590569001)",
         "شماره تلفن مسئول پروژه": "09907383692",
         "وضعیت راهبری پروژه": "وضعیت اسکلت و سقف پروژه تایید شد",
-        "contractAddressSolana": null,
         "targetAmount(USDT)": 27500,
         "status": null,
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x971eC06E81092D0C58EC5579b18514c72d66eb8f",
-            "multisigAddress": null,
+            "address": "0x971eC06E81092d0C58Ec5579b18514c72d66eb8f",
+            "multisigAddress": "0x75726D084B8a78f758803096Ff0dC166f7440768",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -708,11 +574,11 @@
             "requiredSignatures": 2,
             "createdAt": "2026-06-27T08:49:54.576Z",
             "network": "polygon_amoy",
-            "isMultisig": false
+            "isMultisig": true
           },
           "tron_nile": {
             "address": "TApz2cGHq8dWv4f8VEquZVZFqbwbkt7sNR",
-            "multisigAddress": null,
+            "multisigAddress": "TLejhTxye1RFsokXUX86Ym2wk4TEDJZxdb",
             "owners": [
               "TWriCnUmTXBBZNoGRgS9m8iqJMs3efrYHd",
               "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1"
@@ -720,13 +586,9 @@
             "requiredSignatures": 2,
             "createdAt": "2026-08-05T10:14:49.748Z",
             "network": "tron_nile",
-            "isMultisig": false
+            "isMultisig": true
           }
         }
-      },
-      "geometry": {
-        "x": 61.68207549,
-        "y": 27.13402249
       }
     },
     {
@@ -747,13 +609,12 @@
         "مسئول پروژه": "محمد هونك زهي (3701198276)",
         "شماره تلفن مسئول پروژه": "09151997133",
         "وضعیت راهبری پروژه": "وضعیت سفت کاری پروژه تایید شد",
-        "contractAddressSolana": null,
         "targetAmount(USDT)": 44920,
         "status": null,
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0xfd616347094f969e4b61ecc968ee09952adb984b",
+            "address": "0xfd616347094f969e4b61ecc968ee09952ADb984B",
             "multisigAddress": null,
             "owners": [],
             "requiredSignatures": 1,
@@ -762,10 +623,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 61.6826452632875,
-        "y": 26.9510898989993
       }
     },
     {
@@ -786,7 +643,6 @@
         "مسئول پروژه": "مهدي نجفي (3621371397)",
         "شماره تلفن مسئول پروژه": "09155404098",
         "وضعیت راهبری پروژه": "وضعیت نازک کاری پروژه تایید شد",
-        "contractAddressSolana": null,
         "targetAmount(USDT)": 27500,
         "status": null,
         "raisedAmount": null,
@@ -803,7 +659,7 @@
             "isMultisig": false
           },
           "polygon_amoy": {
-            "address": "0x63deb2eb87b1fbc52b71f1b3e030e0d04028c332",
+            "address": "0x63deB2eb87b1FBc52b71F1b3e030e0d04028C332",
             "multisigAddress": null,
             "owners": [],
             "requiredSignatures": 1,
@@ -812,10 +668,6 @@
             "isMultisig": false
           }
         }
-      },
-      "geometry": {
-        "x": 61.25938942,
-        "y": 26.66601273
       }
     }
   ]
