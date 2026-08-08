@@ -363,10 +363,27 @@ fetch('data/Projects.json')
 
                     let financialInfo = '';
 
-                    const hasPolygon = a.contractAddress && a.contractAddress !== 'null' && a.contractAddress !== '';
-                    const hasTronField = a.contractAddressTron && a.contractAddressTron !== 'null' && a.contractAddressTron !== '';
-                    const tronFromFunds = a.funds?.tron_nile?.address || a.funds?.tron?.address || null;
-                    const tronAddress = hasTronField ? a.contractAddressTron : tronFromFunds;
+                    // آدرس خزانه: اول funds (مدل جدید)، بعد Legacy
+                    const amoyAddress =
+                        (a.funds?.polygon_amoy?.address && a.funds.polygon_amoy.address !== 'null'
+                            ? a.funds.polygon_amoy.address
+                            : null) ||
+                        (a.contractAddress && a.contractAddress !== 'null' && a.contractAddress !== ''
+                            ? a.contractAddress
+                            : null);
+
+                    const tronAddress =
+                        (a.funds?.tron_nile?.address && a.funds.tron_nile.address !== 'null'
+                            ? a.funds.tron_nile.address
+                            : null) ||
+                        (a.funds?.tron?.address && a.funds.tron.address !== 'null'
+                            ? a.funds.tron.address
+                            : null) ||
+                        (a.contractAddressTron && a.contractAddressTron !== 'null' && a.contractAddressTron !== ''
+                            ? a.contractAddressTron
+                            : null);
+
+                    const hasPolygon = !!amoyAddress;
 
                     if (hasPolygon || tronAddress) {
                         let fundsHtml = '';
@@ -376,9 +393,9 @@ fetch('data/Projects.json')
                                 <div class="info-item" style="background:rgba(130,71,229,0.15); padding:12px; border-radius:8px; margin-top:10px;">
                                     <span class="info-label">🟣 خزانه Polygon Amoy:</span><br>
                                     <span class="info-value contract-address">
-                                        <a href="https://amoy.polygonscan.com/address/${a.contractAddress}" target="_blank"
+                                        <a href="https://amoy.polygonscan.com/address/${amoyAddress}" target="_blank"
                                            style="color:#8247E5; text-decoration:underline; word-break:break-all;">
-                                            ${a.contractAddress}
+                                            ${amoyAddress}
                                         </a>
                                     </span>
                                 </div>
@@ -461,16 +478,16 @@ fetch('data/Projects.json')
                     `);
 
 					if (hasPolygon || tronAddress) {
-    					currentContractAddress = hasPolygon ? a.contractAddress : tronAddress;
+    					currentContractAddress = hasPolygon ? amoyAddress : tronAddress;
     					const btn = document.getElementById('fixedContributeBtn');
     					if (btn) btn.style.display = 'block';
 
     					// مجموع کمک‌ها از همه شبکه‌ها
     					loadRaisedSummary(a);
 
-    					// لیست donor فعلاً فقط از Amoy (مثل قبل) — اختیاری
+    					// لیست donor فعلاً فقط از Amoy
     					if (hasPolygon) {
-        					loadDonors(a.contractAddress);
+        					loadDonors(amoyAddress);
     					}
 					} else {
     					currentContractAddress = null;
