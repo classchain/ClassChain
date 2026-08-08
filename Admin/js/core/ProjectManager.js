@@ -1,38 +1,12 @@
 // js/core/ProjectManager.js
-// Phase 2: مدل اصلی = funds[networkId]
-// فیلدهای Legacy فقط برای خواندن داده‌های قدیمی و سازگاری موقت با frontend
+// Phase 3: Canonical model = attributes.funds[networkId]
+// Legacy network-specific contract fields are no longer supported.
 
 export class ProjectManager {
   constructor() {
     this.projects = null;
     this.jsonPath = '/ClassChain/frontend/data/Projects.json';
     this.basePath = '/ClassChain/frontend/data/';
-
-    /**
-     * نگاشت موقتی شبکه → فیلد قدیمی در attributes
-     * فقط برای:
-     *  - خواندن پروژه‌هایی که هنوز funds ندارند
-     *  - نوشتن موازی تا frontend (donate/dashboard) نشکند
-     * در فاز بعدی می‌توان این را کامل حذف کرد.
-     */
-    this.networkFieldMapping = {
-      polygon_amoy: 'contractAddress',
-      polygon_mainnet: 'contractAddressMainnet',
-      tron_nile: 'contractAddressTron',
-      tron_mainnet: 'contractAddressTronMainnet',
-      ethereum_mainnet: 'contractAddressEthereum',
-      ethereum_sepolia: 'contractAddressSepolia',
-      bsc_mainnet: 'contractAddressBSC',
-      bsc_testnet: 'contractAddressBSCTestnet',
-      arbitrum_mainnet: 'contractAddressArbitrum',
-      optimism_mainnet: 'contractAddressOptimism',
-      base_mainnet: 'contractAddressBase',
-      avalanche_mainnet: 'contractAddressAvalanche'
-      // CLC حذف شد
-    };
-
-    // فیلد سراسری قدیمی multisig (legacy) — ترجیحاً از funds[network].multisigAddress استفاده شود
-    this.multisigField = 'multisigAddress';
   }
 
   // ============================================
@@ -86,7 +60,7 @@ export class ProjectManager {
 
     console.log(`📊 آمار خزانه‌ها: ${totalFunds} خزانه در مجموع`);
     Object.keys(networkStats).forEach(networkId => {
-      console.log(`   - ${networkId}: ${networkStats[networkId]} خزانه`);
+      console.log(`   - ${networkId}: ${networkStats[networkId]}`);
     });
   }
 
@@ -108,7 +82,8 @@ export class ProjectManager {
 
     if (!project) {
       console.warn(`⚠️ پروژه ${projectId} یافت نشد`);
-      const ids = this.projects.features?.slice(0, 5).map(f => f.attributes?.ProjectID) || [];
+      const ids =
+        this.projects.features?.slice(0, 5).map(f => f.attributes?.ProjectID) || [];
       console.log('📋 ProjectIDهای موجود:', ids);
     }
 
@@ -117,58 +92,40 @@ export class ProjectManager {
 
   // ============================================
   // آدرس خزانه در یک شبکه
-  // اولویت: funds[networkId] → فیلد Legacy
+  // Canonical source: attributes.funds[networkId].address
   // ============================================
   getFundAddress(project, networkId) {
-    if (!project) return null;
+    if (!project || !networkId) return null;
 
-    const attr = project.attributes || {};
+    const fund = project.attributes?.funds?.[networkId];
 
-    // 1) ساختار جدید
-    const funds = attr.funds || {};
-    const fund = funds[networkId];
     if (fund?.address && fund.address !== 'null' && fund.address !== '') {
       return fund.address;
-    }
-
-    // 2) Legacy
-    const field = this.networkFieldMapping[networkId];
-    if (field) {
-      const address = attr[field];
-      if (address && address !== 'null' && address !== '') {
-        return address;
-      }
     }
 
     return null;
   }
 
   // ============================================
-  // آدرس Multisig برای یک شبکه (ترجیحی) یا هر شبکه
+  // آدرس Multisig برای یک شبکه
+  // Canonical source: attributes.funds[networkId].multisigAddress
   // ============================================
   getMultisigAddress(project, networkId = null) {
     if (!project) return null;
-    const attr = project.attributes || {};
-    const funds = attr.funds || {};
+
+    const funds = project.attributes?.funds || {};
 
     if (networkId) {
-      const fund = funds[networkId];
-      if (fund?.multisigAddress && fund.multisigAddress !== 'null' && fund.multisigAddress !== '') {
-        return fund.multisigAddress;
-      }
-    } else {
-      for (const id in funds) {
-        const fund = funds[id];
-        if (fund?.multisigAddress && fund.multisigAddress !== 'null' && fund.multisigAddress !== '') {
-          return fund.multisigAddress;
-        }
-      }
+      const address = funds[networkId]?.multisigAddress;
+      return address && address !== 'null' && address !== '' ? address : null;
     }
 
-    // Legacy سراسری
-    const address = attr[this.multisigField];
-    if (address && address !== 'null' && address !== '') {
-      return address;
+    // اگر networkId مشخص نشده، اولین multisig معتبر را برگردان.
+    for (const id of Object.keys(funds)) {
+      const address = funds[id]?.multisigAddress;
+      if (address && address !== 'null' && address !== '') {
+        return address;
+      }
     }
 
     return null;
@@ -180,18 +137,17 @@ export class ProjectManager {
 
   // ============================================
   // همه خزانه‌های یک پروژه
-  // اولویت با funds؛ Legacy فقط اگر در funds نبود
+  // فقط ساختار canonical: funds[networkId]
   // ============================================
   getAllFunds(project) {
     if (!project) return {};
 
+    const funds = project.attributes?.funds || {};
     const allFunds = {};
-    const attr = project.attributes || {};
 
-    // 1) ساختار جدید
-    const funds = attr.funds || {};
     Object.keys(funds).forEach(networkId => {
       const fund = funds[networkId];
+
       if (fund?.address && fund.address !== 'null' && fund.address !== '') {
         allFunds[networkId] = {
           ...fund,
@@ -201,33 +157,12 @@ export class ProjectManager {
       }
     });
 
-    // 2) Legacy — فقط شبکه‌هایی که هنوز در funds نیستند
-    Object.keys(this.networkFieldMapping).forEach(networkId => {
-      if (allFunds[networkId]) return;
-
-      const field = this.networkFieldMapping[networkId];
-      const address = attr[field];
-      if (address && address !== 'null' && address !== '') {
-        allFunds[networkId] = {
-          address,
-          networkId,
-          field,
-          source: 'legacy',
-          multisigAddress: null,
-          owners: [],
-          requiredSignatures: 1,
-          isMultisig: false
-        };
-      }
-    });
-
     return allFunds;
   }
 
   // ============================================
   // به‌روزرسانی خزانه
-  // اصلی: funds[networkId]
-  // موازی: فیلد Legacy (برای سازگاری موقت frontend)
+  // فقط funds[networkId]
   // ============================================
   async updateProjectFunds(projectId, networkId, fundData) {
     if (!this.projects) {
@@ -239,40 +174,40 @@ export class ProjectManager {
       throw new Error(`پروژه ${projectId} یافت نشد`);
     }
 
-    const attr = project.attributes;
+    if (!networkId) {
+      throw new Error('networkId الزامی است');
+    }
 
-    // --- ساختار اصلی ---
-    if (!attr.funds) {
+    if (!fundData?.address) {
+      throw new Error('آدرس خزانه الزامی است');
+    }
+
+    const attr = project.attributes || (project.attributes = {});
+
+    if (!attr.funds || typeof attr.funds !== 'object') {
       attr.funds = {};
     }
 
     attr.funds[networkId] = {
       address: fundData.address,
       multisigAddress: fundData.multisigAddress || null,
-      owners: fundData.owners || [],
+      owners: Array.isArray(fundData.owners) ? fundData.owners : [],
       requiredSignatures: fundData.requiredSignatures || 1,
       createdAt: fundData.createdAt || new Date().toISOString(),
       network: networkId,
-      isMultisig: !!(fundData.multisigAddress || (fundData.owners && fundData.owners.length > 1))
+      isMultisig: !!(
+        fundData.multisigAddress ||
+        (Array.isArray(fundData.owners) && fundData.owners.length > 1)
+      )
     };
-
-    // --- سازگاری موقت با frontend ---
-    const field = this.networkFieldMapping[networkId];
-    if (field) {
-      attr[field] = fundData.address;
-    }
-
-    if (fundData.multisigAddress) {
-      attr[this.multisigField] = fundData.multisigAddress;
-    }
 
     console.log(`✅ خزانه پروژه ${projectId} در شبکه ${networkId} به‌روز شد`);
     console.log(`   funds[${networkId}].address = ${fundData.address}`);
-    if (field) {
-      console.log(`   legacy ${field} = ${fundData.address}`);
-    }
+
     if (fundData.multisigAddress) {
-      console.log(`   multisig = ${fundData.multisigAddress}`);
+      console.log(
+        `   funds[${networkId}].multisigAddress = ${fundData.multisigAddress}`
+      );
     }
 
     return this.projects;
@@ -285,6 +220,7 @@ export class ProjectManager {
     if (!this.projects) {
       throw new Error('داده‌های پروژه‌ها بارگذاری نشده است');
     }
+
     return JSON.stringify(this.projects, null, 2);
   }
 
@@ -320,7 +256,9 @@ export class ProjectManager {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || errorData.message || 'خطا در آپلود به GitHub');
+        throw new Error(
+          errorData.error || errorData.message || 'خطا در آپلود به GitHub'
+        );
       }
 
       return await response.json();
@@ -341,6 +279,7 @@ export class ProjectManager {
         const data = await response.json();
         return data.sha;
       }
+
       return null;
     } catch (error) {
       return null;
@@ -351,9 +290,7 @@ export class ProjectManager {
     if (!this.projects) return [];
 
     return (
-      this.projects.features?.filter(f => {
-        return this.hasFund(f, networkId);
-      }) || []
+      this.projects.features?.filter(f => this.hasFund(f, networkId)) || []
     );
   }
 
@@ -364,11 +301,11 @@ export class ProjectManager {
 
     if (!project) return 'not_found';
 
-    const address = this.getFundAddress(project, networkId);
-    if (address) return 'active';
+    const fund = project.attributes?.funds?.[networkId];
 
-    const funds = project.attributes?.funds || {};
-    if (funds[networkId] && funds[networkId].address === null) return 'pending';
+    if (fund?.address) return 'active';
+
+    if (fund && fund.address === null) return 'pending';
 
     return 'not_created';
   }
@@ -376,9 +313,11 @@ export class ProjectManager {
   async loadJSONFile(filename) {
     try {
       const response = await fetch(`${this.basePath}${filename}`);
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
+
       return await response.json();
     } catch (error) {
       console.error(`❌ خطا در بارگذاری ${filename}:`, error);
