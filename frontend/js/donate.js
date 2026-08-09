@@ -376,97 +376,70 @@ document.addEventListener('DOMContentLoaded', function() {
                شاخه TRON
                ========================= */
             if (net.type === 'TVM') {
-              const trc20Abi = [
-                {
-                  name: 'approve',
-                  type: 'function',
-                  stateMutability: 'nonpayable',
-                  inputs: [
-                    { name: 'spender', type: 'address' },
-                    { name: 'amount', type: 'uint256' }
-                  ],
-                  outputs: [{ name: '', type: 'bool' }]
-                },
-                {
-                  name: 'balanceOf',
-                  type: 'function',
-                  stateMutability: 'view',
-                  inputs: [{ name: 'account', type: 'address' }],
-                  outputs: [{ name: '', type: 'uint256' }]
-                },
-                {
-                  name: 'allowance',
-                  type: 'function',
-                  stateMutability: 'view',
-                  inputs: [
-                    { name: 'owner', type: 'address' },
-                    { name: 'spender', type: 'address' }
-                  ],
-                  outputs: [{ name: '', type: 'uint256' }]
-                }
-              ];
-
-              const fundDepositABI = [{
-                inputs: [
-                  { name: 'token', type: 'address' },
-                  { name: 'amount', type: 'uint256' }
-                ],
-                name: 'depositToken',
-                outputs: [],
-                stateMutability: 'nonpayable',
-                type: 'function'
-              }];
-
+              /*
+               * مسیر Tron — الگوی پایدار TronLink:
+               * triggerSmartContract → trx.sign → sendRawTransaction
+               *
+               * نسخه قبلی با contract().method().send({ shouldPollResponse:false })
+               * روی بعضی نسخه‌های TronLink خطای "Invalid transaction provided" می‌داد.
+               */
               let approveTxHash = null;
-
-              const extractTronTxId = (result) => {
-                if (!result) return null;
-                if (typeof result === 'string') return result;
-                return (
-                  result.txid ||
-                  result.txID ||
-                  result.transaction?.txID ||
-                  result.transaction?.txid ||
-                  null
-                );
-              };
 
               const readableTronError = (err) => {
                 if (!err) return 'خطای نامشخص';
                 if (typeof err === 'string') return err;
                 if (err.message) return err.message;
                 if (err.error) return String(err.error);
-                try {
-                  return JSON.stringify(err);
-                } catch (_) {
-                  return 'خطای نامشخص';
+                try { return JSON.stringify(err); } catch (_) { return 'خطای نامشخص'; }
+              };
+
+              const sendTronContractCall = async (tronWeb, contractAddress, functionSelector, parameters) => {
+                const from = tronWeb.defaultAddress?.base58;
+                if (!from) {
+                  throw new Error('حساب TronLink یافت نشد. قفل را باز کنید.');
                 }
+
+                const txWrapper = await tronWeb.transactionBuilder.triggerSmartContract(
+                  contractAddress,
+                  functionSelector,
+                  {
+                    feeLimit: 150000000,
+                    callValue: 0
+                  },
+                  parameters,
+                  from
+                );
+
+                if (!txWrapper || txWrapper.result?.result === false) {
+                  const msg = txWrapper?.result?.message
+                    ? tronWeb.toUtf8(txWrapper.result.message)
+                    : (txWrapper?.Error || 'ساخت تراکنش ناموفق بود');
+                  throw new Error(msg);
+                }
+
+                if (!txWrapper.transaction || !txWrapper.transaction.raw_data) {
+                  throw new Error('Invalid transaction provided — شیء تراکنش ساخته نشد');
+                }
+
+                const signedTx = await tronWeb.trx.sign(txWrapper.transaction);
+                const receipt = await tronWeb.trx.sendRawTransaction(signedTx);
+
+                if (receipt && receipt.result === false) {
+                  throw new Error(receipt.message || 'ارسال تراکنش ناموفق بود');
+                }
+
+                return receipt?.txid || receipt?.transaction?.txID || signedTx?.txID || null;
               };
 
               try {
                 const tronWeb = connection.tronWeb || window.tronWeb;
                 if (!tronWeb) {
-                  throw new Error('TronWeb در دسترس نیست. TronLink را باز و روی Nile Testnet بگذارید.');
-                }
-
-                // TronLink باید روی Nile باشد
-                const host = (
-                  tronWeb.fullNode?.host ||
-                  tronWeb.fullNode?.url ||
-                  ''
-                ).toLowerCase();
-                if (host && !host.includes('nile') && !host.includes('127.0.0.1')) {
-                  throw new Error(
-                    'TronLink روی شبکه Nile نیست. از منوی TronLink شبکه را روی Nile Testnet بگذارید و دوباره تلاش کنید.'
-                  );
+                  throw new Error('TronWeb در دسترس نیست. TronLink را نصب و روی Nile Testnet بگذارید.');
                 }
 
                 if (!currentContract || !String(currentContract).startsWith('T')) {
-                  throw new Error(
-                    `آدرس خزانه Tron نامعتبر است: ${currentContract || '(خالی)'}`
-                  );
+                  throw new Error(`آدرس خزانه Tron نامعتبر است: ${currentContract || '(خالی)'}`);
                 }
-
                 if (!net.usdtAddress || !String(net.usdtAddress).startsWith('T')) {
                   throw new Error('آدرس USDT شبکه Tron در تنظیمات نامعتبر است.');
                 }
@@ -477,12 +450,6 @@ document.addEventListener('DOMContentLoaded', function() {
                   throw new Error('مبلغ پرداخت معتبر نیست.');
                 }
 
-                const spendOptions = {
-                  feeLimit: 150000000,
-                  callValue: 0,
-                  shouldPollResponse: false
-                };
-
                 // ====================== مرحله ۱: Approve ======================
                 if (txHash) {
                   txHash.innerHTML = `
@@ -491,12 +458,15 @@ document.addEventListener('DOMContentLoaded', function() {
                   `;
                 }
 
-                // ABI صریح — contract().at() بدون ABI اغلب روی Nile خطا می‌دهد
-                const usdtContract = await tronWeb.contract(trc20Abi, net.usdtAddress);
-                const approveResult = await usdtContract
-                  .approve(currentContract, amount.toString())
-                  .send(spendOptions);
-                approveTxHash = extractTronTxId(approveResult) || approveResult;
+                approveTxHash = await sendTronContractCall(
+                  tronWeb,
+                  net.usdtAddress,
+                  'approve(address,uint256)',
+                  [
+                    { type: 'address', value: currentContract },
+                    { type: 'uint256', value: amount }
+                  ]
+                );
 
                 if (txHash) {
                   txHash.innerHTML = `
@@ -509,11 +479,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 // ====================== مرحله ۲: Deposit ======================
-                const fundContract = await tronWeb.contract(fundDepositABI, currentContract);
-                const depositResult = await fundContract
-                  .depositToken(net.usdtAddress, amount.toString())
-                  .send(spendOptions);
-                const depositTxId = extractTronTxId(depositResult) || depositResult;
+                const depositTxId = await sendTronContractCall(
+                  tronWeb,
+                  currentContract,
+                  'depositToken(address,uint256)',
+                  [
+                    { type: 'address', value: net.usdtAddress },
+                    { type: 'uint256', value: amount }
+                  ]
+                );
 
                 if (txHash) {
                   txHash.innerHTML = `
@@ -541,8 +515,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const msg = readableTronError(err);
                 if (err?.code === 4001 || /denied|cancel|reject/i.test(msg)) {
                   userMessage += '❌ شما تراکنش را لغو کردید.';
-                } else if (/insufficient|balance/i.test(msg)) {
-                  userMessage += '❌ موجودی کیف پول (TRX برای کارمزد یا USDT) کافی نیست.';
+                } else if (/insufficient|balance|energy/i.test(msg)) {
+                  userMessage += '❌ موجودی TRX (کارمزد/انرژی) یا USDT کافی نیست.\n' + msg;
                 } else {
                   userMessage += msg;
                 }
