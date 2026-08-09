@@ -162,7 +162,7 @@
         "funds": {
           "polygon_amoy": {
             "address": "0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
-            "multisigAddress": "0x91842d5A313058C343663cd3c39dbCB1d6a73AF9",
+            "multisigAddress": "0x32f84A1cf3222c5f1436899f54Df0f21E9265B32",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -171,15 +171,6 @@
             "createdAt": "2026-06-27T09:31:49.709Z",
             "network": "polygon_amoy",
             "isMultisig": true
-          },
-          "tron_nile": {
-            "address": "Tx06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88",
-            "multisigAddress": null,
-            "owners": [],
-            "requiredSignatures": 1,
-            "createdAt": null,
-            "network": "tron_nile",
-            "isMultisig": false
           }
         }
       }
@@ -303,7 +294,7 @@
         "funds": {
           "polygon_amoy": {
             "address": "0xaFE2c640598C65F6763622A8eF90CbC79BcB9a8c",
-            "multisigAddress": "0xF89A8Bc1B4559A36b6Ff48Fcc2051E75AeF2C99a",
+            "multisigAddress": "0xF89A8Bc1B4559A36B6FF48fCC2051e75AeF2C99a",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -312,17 +303,6 @@
             "createdAt": "2026-06-29T06:57:35.767Z",
             "network": "polygon_amoy",
             "isMultisig": true
-          },
-          "tron_nile": {
-            "address": null,
-            "multisigAddress": null,
-            "owners": [
-              "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1"
-            ],
-            "requiredSignatures": 1,
-            "createdAt": "2026-08-01T07:36:08.216Z",
-            "network": "tron_nile",
-            "isMultisig": false
           }
         }
       }
@@ -350,8 +330,8 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x13Ba85205f86927b77FE77632b474926854f9a5D",
-            "multisigAddress": "0xDE8732EAa3c23824c79BDd61bF83Fb44A225cDd5",
+            "address": "0x13Ba85205F86927b77fe77632b474926854f9a5D",
+            "multisigAddress": "0xDE8732Eaa3C23824c79BDD61BF83fB44A225cDd5",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
@@ -447,8 +427,8 @@
             "isMultisig": true
           },
           "tron_nile": {
-            "address": "TJEbRn3Gch6i8VjUCahDejG8V83oXrExc5",
-            "multisigAddress": "TEXwMtFQqn2BRn54tLNP14Zbx29Bsa6mrb",
+            "address": "TEXwMtFQqn2BRn54tLNP14Zbx29Bsa6mrb",
+            "multisigAddress": "TJEbRn3Gch6i8VjUCahDejG8V83oXrExc5",
             "owners": [
               "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1",
               "TWriCnUmTXBBZNoGRgS9m8iqJMs3efrYHd"
@@ -531,7 +511,7 @@
         "raisedAmount": null,
         "funds": {
           "polygon_amoy": {
-            "address": "0x34c7fd16697dd3f7751193d77f08fdcb1afe4b69",
+            "address": "0x34C7FD16697dD3f7751193D77F08fDCB1afe4B69",
             "multisigAddress": "0x91842d5A313058C343663cd3c39dbCB1d6a73AF9",
             "owners": [],
             "requiredSignatures": 1,
@@ -577,8 +557,8 @@
             "isMultisig": true
           },
           "tron_nile": {
-            "address": "TApz2cGHq8dWv4f8VEquZVZFqbwbkt7sNR",
-            "multisigAddress": "TLejhTxye1RFsokXUX86Ym2wk4TEDJZxdb",
+            "address": "TLejhTxye1RFsokXUX86Ym2wk4TEDJZxdb",
+            "multisigAddress": "TApz2cGHq8dWv4f8VEquZVZFqbwbkt7sNR",
             "owners": [
               "TWriCnUmTXBBZNoGRgS9m8iqJMs3efrYHd",
               "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1"
@@ -659,7 +639,7 @@
             "isMultisig": false
           },
           "polygon_amoy": {
-            "address": "0x63deB2eb87b1FBc52b71F1b3e030e0d04028C332",
+            "address": "0x63deB2eb87b1fBc52b71F1b3E030E0D04028C332",
             "multisigAddress": null,
             "owners": [],
             "requiredSignatures": 1,
