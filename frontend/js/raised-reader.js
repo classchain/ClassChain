@@ -26,23 +26,29 @@
     return parseFloat(neg ? `-${num}` : num);
   }
 
-  function collectFundAddresses(projectAttributes, netCfg) {
-    const addresses = new Set();
+function collectFundAddresses(projectAttributes, netCfg) {
+  const addresses = new Set();
 
-    if (!projectAttributes || !netCfg?.id) {
-      return [];
-    }
+  if (!projectAttributes || !netCfg) {
+    return [];
+  }
 
-    const funds = projectAttributes.funds;
+  const funds = projectAttributes.funds;
 
-    if (!funds || typeof funds !== 'object') {
-      return [];
-    }
+  if (!funds || typeof funds !== 'object') {
+    return [];
+  }
 
-    const fund = funds[netCfg.id];
+  // کلیدهای رسمی/مجاز این شبکه در Projects.json
+  const fundKeys = Array.isArray(netCfg.fundsKeys)
+    ? netCfg.fundsKeys
+    : [];
+
+  for (const key of fundKeys) {
+    const fund = funds[key];
 
     if (!fund || typeof fund !== 'object') {
-      return [];
+      continue;
     }
 
     const address = fund.address;
@@ -50,9 +56,10 @@
     if (address && String(address).trim()) {
       addresses.add(String(address).trim());
     }
-
-    return Array.from(addresses);
   }
+
+  return Array.from(addresses);
+}
 
   async function readEvmBalance(fundAddress, usdtAddress, rpcUrl, decimals, fallbacks = []) {
     if (typeof Web3 === 'undefined') {
