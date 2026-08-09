@@ -26,19 +26,32 @@
     return parseFloat(neg ? `-${num}` : num);
   }
 
-  function collectFundAddresses(project, netCfg) {
-    const set = new Set();
-    (netCfg.addressFields || []).forEach((f) => {
-      const v = project[f];
-      if (v && v !== 'null' && String(v).trim()) set.add(String(v).trim());
-    });
-    if (project.funds && typeof project.funds === 'object') {
-      (netCfg.fundsKeys || []).forEach((k) => {
-        const addr = project.funds[k]?.address;
-        if (addr && String(addr).trim()) set.add(String(addr).trim());
-      });
+  function collectFundAddresses(projectAttributes, netCfg) {
+    const addresses = new Set();
+
+    if (!projectAttributes || !netCfg?.id) {
+      return [];
     }
-    return Array.from(set);
+
+    const funds = projectAttributes.funds;
+
+    if (!funds || typeof funds !== 'object') {
+      return [];
+    }
+
+    const fund = funds[netCfg.id];
+
+    if (!fund || typeof fund !== 'object') {
+      return [];
+    }
+
+    const address = fund.address;
+
+    if (address && String(address).trim()) {
+      addresses.add(String(address).trim());
+    }
+
+    return Array.from(addresses);
   }
 
   async function readEvmBalance(fundAddress, usdtAddress, rpcUrl, decimals, fallbacks = []) {
@@ -132,65 +145,73 @@
     return hex.toLowerCase();
   }
 
-  /**
-   * @param {object} project - attributes یک پروژه از Projects.json
-   * @returns {Promise<{ total: number, breakdown: Array<{network, networkId, address, amount}> }>}
-   */
-  async function getProjectRaisedUSDT(project) {
-    if (!project) return { total: 0, breakdown: [] };
+/**
+ * @param {object} projectAttributes - attributes یک پروژه از Projects.json
+ * @returns {Promise<{ total: number, breakdown: Array<{network, networkId, address, amount}> }>}
+ */
+async function getProjectRaisedUSDT(projectAttributes) {
+  if (!projectAttributes) return { total: 0, breakdown: [] };
 
-    const config = window.ClassChainNetworkConfig;
-    if (!config || typeof config.getReadNetworks !== 'function') {
-      console.error('ClassChainNetworkConfig لود نشده است. network-config.js را قبل از raised-reader.js قرار دهید.');
-      return { total: 0, breakdown: [] };
-    }
+  const config = window.ClassChainNetworkConfig;
 
-    const readNetworks = config.getReadNetworks();
-    const tasks = [];
-
-    for (const netCfg of readNetworks) {
-      const addresses = collectFundAddresses(project, netCfg);
-      for (const addr of addresses) {
-        tasks.push(
-          (async () => {
-            let amount = 0;
-            if (netCfg.type === 'EVM') {
-              amount = await readEvmBalance(
-                addr,
-                netCfg.usdtAddress,
-                netCfg.rpc,
-                netCfg.tokenDecimals,
-                netCfg.rpcFallbacks || []
-              );
-            } else if (netCfg.type === 'TVM') {
-              amount = await readTronBalance(
-                addr,
-                netCfg.usdtAddress,
-                netCfg.fullHost,
-                netCfg.tokenDecimals
-              );
-            }
-            return {
-              network: netCfg.name,
-              networkId: netCfg.id,
-              address: addr,
-              amount
-            };
-          })()
-        );
-      }
-    }
-
-    const results = await Promise.all(tasks);
-    let total = 0;
-    const breakdown = [];
-    results.forEach((r) => {
-      total += r.amount;
-      breakdown.push(r);
-    });
-
-    return { total, breakdown };
+  if (!config || typeof config.getReadNetworks !== 'function') {
+    console.error(
+      'ClassChainNetworkConfig لود نشده است. network-config.js را قبل از raised-reader.js قرار دهید.'
+    );
+    return { total: 0, breakdown: [] };
   }
+
+  const readNetworks = config.getReadNetworks();
+  const tasks = [];
+
+  for (const netCfg of readNetworks) {
+    const addresses = collectFundAddresses(projectAttributes, netCfg);
+
+    for (const addr of addresses) {
+      tasks.push(
+        (async () => {
+          let amount = 0;
+
+          if (netCfg.type === 'EVM') {
+            amount = await readEvmBalance(
+              addr,
+              netCfg.usdtAddress,
+              netCfg.rpc,
+              netCfg.tokenDecimals,
+              netCfg.rpcFallbacks || []
+            );
+          } else if (netCfg.type === 'TVM') {
+            amount = await readTronBalance(
+              addr,
+              netCfg.usdtAddress,
+              netCfg.fullHost,
+              netCfg.tokenDecimals
+            );
+          }
+
+          return {
+            network: netCfg.name,
+            networkId: netCfg.id,
+            address: addr,
+            amount
+          };
+        })()
+      );
+    }
+  }
+
+  const results = await Promise.all(tasks);
+
+  let total = 0;
+  const breakdown = [];
+
+  results.forEach((result) => {
+    total += result.amount;
+    breakdown.push(result);
+  });
+
+  return { total, breakdown };
+}
 
   window.ClassChainRaisedReader = {
     getProjectRaisedUSDT
