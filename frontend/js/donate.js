@@ -17,34 +17,48 @@ function getTokenDecimals(network) {
 
 /**
  * آدرس خزانه پروژه برای یک شبکه
- * اولویت: funds[fundsKeys] → addressField (legacy)
+ *
+ * Canonical data model:
+ * project.funds[fundKey].address
+ *
+ * fundKey ها از net.fundsKeys می‌آیند.
  */
 function getProjectFundAddress(project, net) {
-    if (!project || !net) return null;
+    if (!project || !net) {
+        return null;
+    }
 
-    if (project.funds && typeof project.funds === 'object') {
-        for (const key of (net.fundsKeys || [])) {
-            const fund = project.funds[key];
-            if (fund?.address && fund.address !== 'null' && String(fund.address).trim() !== '') {
-                return fund.address;
-            }
+    const funds = project.funds;
+
+    if (!funds || typeof funds !== 'object') {
+        return null;
+    }
+
+    for (const key of (net.fundsKeys || [])) {
+        const fund = funds[key];
+
+        if (!fund || typeof fund !== 'object') {
+            continue;
         }
-    }
 
-    if (net.addressField && project[net.addressField] && project[net.addressField] !== 'null') {
-        return project[net.addressField];
-    }
+        const address = fund.address;
 
-    // سازگاری خیلی قدیمی فقط برای EVM / Amoy
-    if (net.type === 'EVM' && project.contractAddress && project.contractAddress !== 'null') {
-        return project.contractAddress;
+        if (
+            address &&
+            address !== 'null' &&
+            String(address).trim() !== ''
+        ) {
+            return String(address).trim();
+        }
     }
 
     return null;
 }
 
 function projectHasFundOnNetwork(project, net) {
-    return Boolean(getProjectFundAddress(project, net));
+    return Boolean(
+        getProjectFundAddress(project, net)
+    );
 }
 
 function optimisticProgressUpdate(donatedAmount) {
