@@ -4,6 +4,33 @@
             this.connection = null;
         }
 
+        // تشخیص موبایل
+        isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // ساخت Deep Link برای MetaMask
+        openInMetaMask() {
+            const currentUrl = window.location.href;
+            // حذف https:// از اول (طبق مستندات MetaMask)
+            const dappUrl = currentUrl.replace(/^https?:\/\//, '');
+            const deepLink = `https://link.metamask.io/dapp/${dappUrl}`;
+            window.location.href = deepLink;
+        }
+
+        // ساخت Deep Link برای TronLink
+        openInTronLink() {
+            const param = {
+                url: window.location.href,
+                action: "open",
+                protocol: "TronLink",
+                version: "1.0"
+            };
+            const encoded = encodeURIComponent(JSON.stringify(param));
+            // native deep link
+            window.location.href = `tronlinkoutside://pull.activity?param=${encoded}`;
+        }
+
         async connect(network) {
             if (!network || !network.enabled) {
                 throw new Error('این شبکه هنوز برای پرداخت فعال نیست');
@@ -21,7 +48,14 @@
         }
 
         async connectEVM(network) {
+            // اگر در موبایل هستیم و MetaMask inject نشده
             if (typeof window.ethereum === 'undefined') {
+                if (this.isMobile()) {
+                    // باز کردن صفحه داخل مرورگر MetaMask
+                    this.openInMetaMask();
+                    // کاربر از اپ خارج می‌شود، پس خطا می‌دهیم تا جریان متوقف شود
+                    throw new Error('در حال باز کردن صفحه داخل MetaMask... لطفاً چند ثانیه صبر کنید و دوباره تلاش کنید.');
+                }
                 throw new Error('لطفاً MetaMask یا کیف پول سازگار با EVM را نصب کنید');
             }
 
@@ -56,21 +90,42 @@
                     params: [{ chainId: `0x${network.chainId.toString(16)}` }]
                 });
             } catch (error) {
+                // اگر شبکه وجود نداشت، می‌توانیم بعداً addEthereumChain اضافه کنیم
                 throw new Error(`شبکه کیف پول با ${network.name} هماهنگ نیست. لطفاً شبکه را تغییر دهید.`);
             }
         }
 
         async connectTVM(network) {
-            const tronWeb = window.tronWeb;
-            if (!tronWeb) {
+            // اگر در موبایل هستیم و TronLink inject نشده
+            if (!window.tronWeb && !window.tron) {
+                if (this.isMobile()) {
+                    this.openInTronLink();
+                    throw new Error('در حال باز کردن صفحه داخل TronLink... لطفاً چند ثانیه صبر کنید و دوباره تلاش کنید.');
+                }
                 throw new Error('لطفاً TronLink را نصب و فعال کنید');
             }
 
-            if (typeof tronWeb.request === 'function') {
+            // پشتیبانی از هر دو حالت قدیمی و جدید TronLink
+            const tronProvider = window.tron || window.tronWeb;
+            let tronWeb = window.tronWeb;
+
+            // اگر فقط window.tron وجود دارد
+            if (window.tron && window.tron.tronWeb) {
+                tronWeb = window.tron.tronWeb;
+            }
+
+            // درخواست دسترسی (نسخه‌های جدید)
+            if (tronProvider && typeof tronProvider.request === 'function') {
+                try {
+                    await tronProvider.request({ method: 'tron_requestAccounts' });
+                } catch (e) {
+                    // بعضی نسخه‌ها این متد را ندارند
+                }
+            } else if (tronWeb && typeof tronWeb.request === 'function') {
                 await tronWeb.request({ method: 'tron_requestAccounts' });
             }
 
-            const account = tronWeb.defaultAddress?.base58;
+            const account = tronWeb?.defaultAddress?.base58;
             if (!account) {
                 throw new Error('TronLink قفل است یا هیچ حسابی انتخاب نشده است');
             }
