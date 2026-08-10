@@ -402,6 +402,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const amount = Math.floor(selectedAmount * (10 ** net.tokenDecimals));
 
                 // ====================== مرحله ۱: Approve ======================
+                if (paymentStatusTitle) {
+                    paymentStatusTitle.textContent = 'در انتظار تأیید شما';
+                }
                 if (txHash) {
                   txHash.innerHTML = `
                     <p><strong>مرحله ۱ از ۲ — اجازه انتقال کمک</strong></p>
@@ -420,11 +423,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (txHash) {
                   txHash.innerHTML = `
-                    //<p style="color: green;">✅ مرحله ۱ موفق: Approve ثبت شد!</p>
-                    //<p><a href="${net.explorer}/transaction/${approveTxHash}" target="_blank">مشاهده Approve</a></p>
-                    //<hr>
-                    //<p><strong>مرحله ۲ از ۲:</strong> واریز به خزانه (Deposit)</p>
-                    //<p>در حال ارسال تراکنش دوم به TronLink...</p>
                     <p style="color: green;">
                         ✓ اجازه انتقال ${selectedAmount} USDT صادر شد.
                     </p>
