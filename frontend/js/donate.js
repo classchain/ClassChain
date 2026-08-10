@@ -145,10 +145,10 @@ function selectNetwork(network) {
         qrSection.style.display = net.type === 'TVM' ? 'block' : 'none';
     }
 
-    const infiniteApprove = document.getElementById('infiniteApprove')?.closest('.infinite-approve');
-    if (infiniteApprove) {
-        infiniteApprove.style.display = net.enabled ? 'block' : 'none';
-    }
+    //const infiniteApprove = document.getElementById('infiniteApprove')?.closest('.infinite-approve');
+    //if (infiniteApprove) {
+    //    infiniteApprove.style.display = net.enabled ? 'block' : 'none';
+    //}
 
     updateButtonState();
 
@@ -358,7 +358,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const txHash = document.getElementById('txHash');
             const successMsg = document.getElementById('successMessage');
             try {
-                if (successMsg) successMsg.style.display = 'block';
                 if (txHash) {
                     txHash.innerHTML = `<p><strong>در حال اتصال به ${net.walletName || 'کیف پول'}...</strong></p>`;
                 }
@@ -369,8 +368,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert(err.message || 'خطا در اتصال کیف پول');
                 return;
             }
-
-            const isInfinite = document.getElementById('infiniteApprove')?.checked || false;
 
             /* =========================
                شاخه TRON
@@ -396,8 +393,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 // ====================== مرحله ۱: Approve ======================
                 if (txHash) {
                   txHash.innerHTML = `
-                    <p><strong>مرحله ۱ از ۲:</strong> تأیید برداشت (Approve)</p>
-                    <p>در حال ارسال تراکنش به TronLink...</p>
+                    <p><strong>مرحله ۱ از ۲ — اجازه انتقال کمک</strong></p>
+                    <p>
+                        TronLink باید اجازه انتقال
+                        <strong>${selectedAmount} USDT</strong>
+                        برای این کمک را صادر کند.
+                    </p>
+                    <p>لطفاً درخواست را در TronLink تأیید کنید.</p>
                   `;
                 }
 
@@ -407,11 +409,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (txHash) {
                   txHash.innerHTML = `
-                    <p style="color: green;">✅ مرحله ۱ موفق: Approve ثبت شد!</p>
-                    <p><a href="${net.explorer}/transaction/${approveTxHash}" target="_blank">مشاهده Approve</a></p>
-                    <hr>
-                    <p><strong>مرحله ۲ از ۲:</strong> واریز به خزانه (Deposit)</p>
-                    <p>در حال ارسال تراکنش دوم به TronLink...</p>
+                    //<p style="color: green;">✅ مرحله ۱ موفق: Approve ثبت شد!</p>
+                    //<p><a href="${net.explorer}/transaction/${approveTxHash}" target="_blank">مشاهده Approve</a></p>
+                    //<hr>
+                    //<p><strong>مرحله ۲ از ۲:</strong> واریز به خزانه (Deposit)</p>
+                    //<p>در حال ارسال تراکنش دوم به TronLink...</p>
+                    <p style="color: green;">
+                        ✓ اجازه انتقال ${selectedAmount} USDT صادر شد.
+                    </p>
+                    <p>
+                        <strong>مرحله ۲ از ۲ — ثبت کمک</strong>
+                    </p>
+                    <p>
+                        اکنون مبلغ ${selectedAmount} USDT به خزانه پروژه منتقل می‌شود.
+                    </p>
+                    <p>
+                        لطفاً تراکنش دوم را در TronLink تأیید کنید.
+                    </p>
                   `;
                 }
 
@@ -519,19 +533,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 const fundContract = new web3.eth.Contract(fundABI, currentContract);
 
                 // ====================== مرحله ۱: Approve ======================
-                const approveAmount = isInfinite
-                    ? web3.utils.toBN('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
-                    : amount;
+                const approveAmount = amount;
 
                 const successMsg = document.getElementById('successMessage');
-                if (successMsg) successMsg.style.display = 'block';
-                if (connectBtn) connectBtn.style.display = 'none';
+                //if (successMsg) successMsg.style.display = 'block';
+                //if (connectBtn) connectBtn.style.display = 'none';
 
                 const txHash = document.getElementById('txHash');
                 if (txHash) {
                     txHash.innerHTML = `
-                        <p><strong>مرحله ۱ از ۲:</strong> ${isInfinite ? 'اجازه دائمی برداشت' : 'تأیید برداشت'} (Approve)</p>
-                        <p>در حال ارسال تراکنش به متامسک...</p>
+                        <p><strong>مرحله ۱ از ۲ — اجازه انتقال کمک</strong></p>
+                        <p>
+                            برای ادامه، کیف پول شما باید اجازه انتقال
+                            <strong>${selectedAmount} USDT</strong>
+                            برای این کمک را صادر کند.
+                        </p>
+                        <p>لطفاً درخواست را در MetaMask تأیید کنید.</p>
                     `;
                 }
 
@@ -550,7 +567,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (txHash) {
                     txHash.innerHTML = `
-                        <p style="color: green;">✅ مرحله ۱ موفق: ${isInfinite ? 'اجازه دائمی' : 'اجازه برداشت'} صادر شد!</p>
+                        <p style="color: green;">
+                            ✓ اجازه انتقال ${selectedAmount} USDT صادر شد.
+                        </p>
+                        <p>
+                            <strong>مرحله ۲ از ۲ — ثبت کمک</strong>
+                        </p>
+                        <p>
+                            اکنون مبلغ ${selectedAmount} USDT به خزانه پروژه منتقل می‌شود.
+                        </p>
+                        <p>
+                            لطفاً تراکنش دوم را در MetaMask تأیید کنید.
+                        </p>
                         <p><a href="${net.explorer}/tx/${approveTxHash}" target="_blank">مشاهده Approve</a></p>
                         <hr>
                         <p><strong>مرحله ۲ از ۲:</strong> واریز به خزانه (Deposit)</p>
@@ -577,7 +605,28 @@ document.addEventListener('DOMContentLoaded', function() {
                     txHash.innerHTML = `
                         <p style="color: green; font-size: 1.15em;">🎉 کمک شما با موفقیت ثبت شد! ❤️</p>
                         <p>مبلغ: <strong>${selectedAmount} USDT</strong></p>
-                        ${isInfinite ? '<p style="color:#10b981">✅ اجازه دائمی فعال شد</p>' : ''}
+                        if (txHash) {
+                            txHash.innerHTML = `
+                                <p style="color: green; font-size: 1.15em;">
+                                    🎉 کمک شما با موفقیت ثبت شد!
+                                </p>
+                                <p>
+                                    مبلغ کمک:
+                                    <strong>${selectedAmount} USDT</strong>
+                                </p>
+                                <p>
+                                    <a href="${net.explorer}/tx/${approveTxHash}" target="_blank">
+                                        مشاهده اجازه انتقال
+                                    </a>
+                                    |
+                                    <a href="${net.explorer}/tx/${depositTxHash}" target="_blank">
+                                        مشاهده تراکنش کمک
+                                    </a>
+                                </p>
+                                <p>از حمایت شما سپاسگزاریم.</p>
+                            `;
+                        }
+                        
                         <p><a href="${net.explorer}/tx/${approveTxHash}" target="_blank">مشاهده Approve</a> |
                            <a href="${net.explorer}/tx/${depositTxHash}" target="_blank">مشاهده Deposit</a></p>
                         <p>ممنون از حمایت شما! ❤️</p>
