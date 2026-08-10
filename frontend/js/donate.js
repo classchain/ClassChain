@@ -448,7 +448,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <p>مبلغ: <strong>${selectedAmount} USDT</strong></p>
                     <p><a href="${net.explorer}/transaction/${approveTxHash}" target="_blank">مشاهده Approve</a> |
                        <a href="${net.explorer}/transaction/${tx}" target="_blank">مشاهده Deposit</a></p>
-                    <p>ممنون از حمایت شما! ❤️</p>
+                    <p>ClassChain از حمایت شما سپاسگزار است! ❤️</p>
                   `;
                 }
 
@@ -655,7 +655,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 مشاهده تراکنش کمک
                             </a>
                         </p>
-                        <p>از حمایت شما سپاسگزاریم.</p>
+                        <p>ClassChain از حمایت شما سپاسگزار است! ❤️</p>
                     `;
                 }
 
