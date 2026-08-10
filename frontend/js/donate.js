@@ -443,7 +443,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   `;
                 }
 
-                const successMsg = document.getElementById('successMessage');
+                //const successMsg = document.getElementById('successMessage');
                 if (successMsg) successMsg.style.display = 'block';
                 if (connectBtn) connectBtn.style.display = 'none';
 
@@ -535,7 +535,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // ====================== مرحله ۱: Approve ======================
                 const approveAmount = amount;
 
-                const successMsg = document.getElementById('successMessage');
+                //const successMsg = document.getElementById('successMessage');
                 //if (successMsg) successMsg.style.display = 'block';
                 //if (connectBtn) connectBtn.style.display = 'none';
 
@@ -579,10 +579,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         <p>
                             لطفاً تراکنش دوم را در MetaMask تأیید کنید.
                         </p>
-                        <p><a href="${net.explorer}/tx/${approveTxHash}" target="_blank">مشاهده Approve</a></p>
-                        <hr>
-                        <p><strong>مرحله ۲ از ۲:</strong> واریز به خزانه (Deposit)</p>
-                        <p>در حال ارسال تراکنش دوم به متامسک...</p>
+                        <p>
+                            <a href="${net.explorer}/tx/${approveTxHash}" target="_blank">
+                                مشاهده تراکنش اجازه انتقال
+                            </a>
+                        </p>
                     `;
                 }
 
@@ -600,37 +601,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 depositTxHash = depositTx.transactionHash;
 
-                // ====================== موفقیت ======================
+                // ====================== موفقیت نهایی ======================
                 if (txHash) {
                     txHash.innerHTML = `
-                        <p style="color: green; font-size: 1.15em;">🎉 کمک شما با موفقیت ثبت شد! ❤️</p>
-                        <p>مبلغ: <strong>${selectedAmount} USDT</strong></p>
-                        if (txHash) {
-                            txHash.innerHTML = `
-                                <p style="color: green; font-size: 1.15em;">
-                                    🎉 کمک شما با موفقیت ثبت شد!
-                                </p>
-                                <p>
-                                    مبلغ کمک:
-                                    <strong>${selectedAmount} USDT</strong>
-                                </p>
-                                <p>
-                                    <a href="${net.explorer}/tx/${approveTxHash}" target="_blank">
-                                        مشاهده اجازه انتقال
-                                    </a>
-                                    |
-                                    <a href="${net.explorer}/tx/${depositTxHash}" target="_blank">
-                                        مشاهده تراکنش کمک
-                                    </a>
-                                </p>
-                                <p>از حمایت شما سپاسگزاریم.</p>
-                            `;
-                        }
-                        
-                        <p><a href="${net.explorer}/tx/${approveTxHash}" target="_blank">مشاهده Approve</a> |
-                           <a href="${net.explorer}/tx/${depositTxHash}" target="_blank">مشاهده Deposit</a></p>
-                        <p>ممنون از حمایت شما! ❤️</p>
+                        <p style="color: green; font-size: 1.15em;">
+                            🎉 کمک شما با موفقیت ثبت شد!
+                        </p>
+                        <p>
+                            مبلغ کمک:
+                            <strong>${selectedAmount} USDT</strong>
+                        </p>
+                        <p>
+                            <a href="${net.explorer}/tx/${approveTxHash}" target="_blank">
+                                مشاهده اجازه انتقال
+                            </a>
+                            |
+                            <a href="${net.explorer}/tx/${depositTxHash}" target="_blank">
+                                مشاهده تراکنش کمک
+                            </a>
+                        </p>
+                        <p>از حمایت شما سپاسگزاریم.</p>
                     `;
+                }
+
+                if (successMsg) {
+                    successMsg.style.display = 'block';
+                }
+
+                if (connectBtn) {
+                    connectBtn.disabled = true;
                 }
 
                 optimisticProgressUpdate(selectedAmount);
