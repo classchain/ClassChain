@@ -357,10 +357,21 @@ document.addEventListener('DOMContentLoaded', function() {
             let connection = null;
             const txHash = document.getElementById('txHash');
             const successMsg = document.getElementById('successMessage');
+            const paymentStatusTitle = document.getElementById('paymentStatusTitle');
             try {
-                if (txHash) {
-                    txHash.innerHTML = `<p><strong>در حال اتصال به ${net.walletName || 'کیف پول'}...</strong></p>`;
+                if (successMsg) {
+                    successMsg.style.display = 'block';
                 }
+
+                if (paymentStatusTitle) {
+                    paymentStatusTitle.textContent =
+                        `در حال اتصال به ${net.walletName || 'کیف پول'}...`;
+                }
+
+                if (txHash) {
+                    txHash.innerHTML = '';
+                }
+                
                 connection = await walletManager.connect(net);
                 updateWalletInfo(connection);
             } catch (err) {
@@ -540,6 +551,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 //if (connectBtn) connectBtn.style.display = 'none';
 
                 const txHash = document.getElementById('txHash');
+                if (paymentStatusTitle) {
+                    paymentStatusTitle.textContent = 'در انتظار تأیید شما';
+                }
                 if (txHash) {
                     txHash.innerHTML = `
                         <p><strong>مرحله ۱ از ۲ — اجازه انتقال کمک</strong></p>
@@ -564,7 +578,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
 
                 approveTxHash = approveTx.transactionHash;
-
+                
+                if (paymentStatusTitle) {
+                    paymentStatusTitle.textContent = 'اجازه انتقال صادر شد';
+                }
                 if (txHash) {
                     txHash.innerHTML = `
                         <p style="color: green;">
@@ -586,7 +603,24 @@ document.addEventListener('DOMContentLoaded', function() {
                         </p>
                     `;
                 }
+                
+                if (paymentStatusTitle) {
+                    paymentStatusTitle.textContent = 'در حال ثبت کمک در شبکه...';
+                }
 
+                if (txHash) {
+                    txHash.innerHTML = `
+                        <p>
+                            <strong>مرحله ۲ از ۲ — ثبت کمک</strong>
+                        </p>
+                        <p>
+                            تراکنش شما ارسال شد.
+                        </p>
+                        <p>
+                            در حال انتظار برای ثبت آن در شبکه...
+                        </p>
+                    `;
+                }
                 // ====================== مرحله ۲: Deposit ======================
                 const depositGas = await fundContract.methods
                     .depositToken(net.usdtAddress, amount)
@@ -602,6 +636,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 depositTxHash = depositTx.transactionHash;
 
                 // ====================== موفقیت نهایی ======================
+                if (paymentStatusTitle) {
+                    paymentStatusTitle.textContent = 'پرداخت با موفقیت ثبت شد';
+                }
                 if (txHash) {
                     txHash.innerHTML = `
                         <p style="color: green; font-size: 1.15em;">
@@ -622,10 +659,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         </p>
                         <p>از حمایت شما سپاسگزاریم.</p>
                     `;
-                }
-
-                if (successMsg) {
-                    successMsg.style.display = 'block';
                 }
 
                 if (connectBtn) {
