@@ -277,8 +277,8 @@ async function loadProject() {
         }
 
         loadProgress(target);
-        loadDonors();
-
+		loadDonorsList();
+		
     } catch (e) {
         console.error("خطا در لود پروژه:", e);
         const title = document.getElementById('projectTitle');
