@@ -280,7 +280,6 @@ async function loadProject() {
         }
 
         loadProgress(target);
-		loadDonorsList();
 		
     } catch (e) {
         console.error("خطا در لود پروژه:", e);
