@@ -287,24 +287,128 @@ async function loadProject() {
 }
 
 // ==================== تابع بارگذاری کمک‌کنندگان ====================
-async function loadDonors() {
-    console.log('📋 بارگذاری لیست کمک‌کنندگان...');
-    const donorsList = document.getElementById('donorsList');
-    if (!donorsList) return;
+//async function loadDonors() {
+//    console.log('📋 بارگذاری لیست کمک‌کنندگان...');
+//    const donorsList = document.getElementById('donorsList');
+//    if (!donorsList) return;
 
     // اگر progress از قبل موجودی نشان داده، پیام خالی نگذار
-    const progressText = document.getElementById('progressText')?.innerText || '';
-    const match = progressText.match(/([\d.]+)\s*USDT/);
-    const raised = match ? parseFloat(match[1]) : 0;
+//    const progressText = document.getElementById('progressText')?.innerText || '';
+//    const match = progressText.match(/([\d.]+)\s*USDT/);
+//    const raised = match ? parseFloat(match[1]) : 0;
 
-    if (raised > 0) {
-        donorsList.innerHTML = '';
+//    if (raised > 0) {
+//        donorsList.innerHTML = '';
+//        return;
+//    }
+
+//    donorsList.innerHTML = '<p style="color: #94a3b8; text-align: center;">هنوز کمک‌کننده‌ای ثبت نشده است</p>';
+//}
+async function loadDonorsList() {
+
+    const container =
+        document.getElementById('donorsList');
+
+    if (!container || !projects) {
         return;
     }
 
-    donorsList.innerHTML = '<p style="color: #94a3b8; text-align: center;">هنوز کمک‌کننده‌ای ثبت نشده است</p>';
+    container.innerHTML = `
+        <div class="donors-loading">
+            در حال دریافت مشارکت‌کنندگان...
+        </div>
+    `;
+
+    try {
+
+        const reader =
+            new ClassChainDonorReader();
+
+        const donors =
+            await reader.load(
+                projects,
+                networks
+            );
+
+        renderDonorsList(donors);
+
+    } catch (error) {
+
+        console.error(
+            'Error loading donors:',
+            error
+        );
+
+        container.innerHTML = `
+            <div class="donors-empty">
+                دریافت فهرست مشارکت‌کنندگان
+                در حال حاضر امکان‌پذیر نیست.
+            </div>
+        `;
+    }
 }
 
+function renderDonorsList(donors) {
+
+    const container =
+        document.getElementById('donorsList');
+
+    if (!container) return;
+
+    if (!donors || donors.length === 0) {
+
+        container.innerHTML = `
+            <div class="donors-empty">
+                هنوز مشارکت‌کننده‌ای ثبت نشده است.
+            </div>
+        `;
+
+        return;
+    }
+
+    container.innerHTML =
+        donors.map((donor, index) => {
+
+            const shortAddress =
+                donor.address.length > 12
+                    ? `${donor.address.slice(0, 6)}...${donor.address.slice(-6)}`
+                    : donor.address;
+
+            return `
+                <div class="donor-item">
+
+                    <div class="donor-rank">
+                        ${index + 1}
+                    </div>
+
+                    <div class="donor-info">
+
+                        <div class="donor-address"
+                             title="${donor.address}">
+                            ${shortAddress}
+                        </div>
+
+                        <div class="donor-network">
+                            ${donor.networks.join(' • ')}
+                        </div>
+
+                    </div>
+
+                    <div class="donor-amount">
+                        ${donor.amount.toLocaleString(
+                            'en-US',
+                            {
+                                maximumFractionDigits: 2
+                            }
+                        )}
+                        USDT
+                    </div>
+
+                </div>
+            `;
+
+        }).join('');
+}
 // ==================== تابع پیشرفت ====================
 async function loadProgress(target = 100000) {
     const fill = document.getElementById('progressFill');
@@ -936,6 +1040,7 @@ if (net.type === 'TVM') {
 
     // بارگذاری اولیه
     loadProject();
+	loadDonorsList();
     updateButtonState();
 });
 
