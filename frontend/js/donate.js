@@ -409,7 +409,7 @@ document.addEventListener('DOMContentLoaded', function() {
                   txHash.innerHTML = `
                     <p><strong>مرحله ۱ از ۲ — اجازه انتقال کمک</strong></p>
                     <p>
-                        TronLink باید اجازه انتقال
+                        برای ادامه، کیف پول شما باید اجازه انتقال
                         <strong>${selectedAmount} USDT</strong>
                         برای این کمک را صادر کند.
                     </p>
@@ -421,6 +421,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const approveTx = await usdtContract.approve(currentContract, amount).send();
                 approveTxHash = approveTx;
 
+                if (paymentStatusTitle) {
+                    paymentStatusTitle.textContent = 'اجازه انتقال صادر شد';
+                }
                 if (txHash) {
                   txHash.innerHTML = `
                     <p style="color: green;">
@@ -436,6 +439,23 @@ document.addEventListener('DOMContentLoaded', function() {
                         لطفاً تراکنش دوم را در TronLink تأیید کنید.
                     </p>
                   `;
+                }
+                if (paymentStatusTitle) {
+                    paymentStatusTitle.textContent = 'در حال ثبت کمک در شبکه...';
+                }
+
+                if (txHash) {
+                    txHash.innerHTML = `
+                        <p>
+                            <strong>مرحله ۲ از ۲ — ثبت کمک</strong>
+                        </p>
+                        <p>
+                            تراکنش شما ارسال شد.
+                        </p>
+                        <p>
+                            در حال انتظار برای ثبت آن در شبکه...
+                        </p>
+                    `;
                 }
 
                 // ====================== مرحله ۲: Deposit ======================
@@ -546,12 +566,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // ====================== مرحله ۱: Approve ======================
                 const approveAmount = amount;
-
-                //const successMsg = document.getElementById('successMessage');
-                //if (successMsg) successMsg.style.display = 'block';
-                //if (connectBtn) connectBtn.style.display = 'none';
-
                 const txHash = document.getElementById('txHash');
+				
                 if (paymentStatusTitle) {
                     paymentStatusTitle.textContent = 'در انتظار تأیید شما';
                 }
