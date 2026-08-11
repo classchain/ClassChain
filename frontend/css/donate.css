@@ -121,6 +121,52 @@ body {
     flex-direction: row;
     gap: 2rem;
 }
+.donors-loading,
+.donors-empty {
+    text-align: center;
+    padding: 12px 8px;
+    font-size: 0.85rem;
+    opacity: 0.7;
+}
+
+.donor-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+}
+
+.donor-rank {
+    min-width: 24px;
+    text-align: center;
+    font-size: 0.75rem;
+    opacity: 0.55;
+}
+
+.donor-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.donor-address {
+    font-size: 0.82rem;
+    font-weight: 600;
+    direction: ltr;
+    text-align: left;
+}
+
+.donor-network {
+    margin-top: 3px;
+    font-size: 0.68rem;
+    opacity: 0.6;
+}
+
+.donor-amount {
+    white-space: nowrap;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
 
 @media (max-width: 768px) {
     .card { flex-direction: column; }
