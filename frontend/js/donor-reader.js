@@ -1,12 +1,7 @@
-/* =========================================================
-   ClassChain Donor Reader
-   Reads successful TokensReceived events from every
-   treasury configured for the current project.
-   ========================================================= */
-
 class ClassChainDonorReader {
 
-    constructor() {
+    constructor(networkConfig) {
+        this.networkConfig = networkConfig;
         this.eventName = 'TokensReceived';
 
         this.eventABI = {
@@ -33,137 +28,81 @@ class ClassChainDonorReader {
         };
     }
 
-
-    /* =====================================================
-       Main
-       ===================================================== */
-
-    async load(project, networkConfigs) {
-
-        const records = [];
+    async load(project) {
 
         if (!project?.funds) {
             return [];
         }
 
-        /*
-         * funds مدل فعلی:
-         *
-         * project.funds[fundKey] = {
-         *     address: "...",
-         *     ...
-         * }
-         */
+        const records = [];
 
-        for (const [fundKey, fund] of Object.entries(project.funds)) {
+        for (const net of Object.values(
+            this.networkConfig.NETWORKS || {}
+        )) {
 
-            if (!fund || typeof fund !== 'object') {
+            if (net.status !== 'active') {
                 continue;
             }
 
             const fundAddress =
-                fund.address;
+                this.getFundAddress(project, net);
 
             if (!fundAddress) {
                 continue;
             }
 
-            const net =
-                networkConfigs?.getNetworkByFundsKey
-                    ? networkConfigs.getNetworkByFundsKey(fundKey)
-                    : this.findNetworkByFundsKey(
-                        fundKey,
-                        networkConfigs
-                    );
-
-            if (!net) {
-                console.warn(
-                    `Network not found for fund key: ${fundKey}`
-                );
-                continue;
-            }
-
-            if (
-                net.status !== 'active' ||
-                net.enabled === false
-            ) {
-                continue;
-            }
-
             try {
 
-                const networkRecords =
-                    await this.loadNetworkDonors(
+                let items = [];
+
+                if (net.type === 'EVM') {
+                    items = await this.readEVM(
                         net,
                         fundAddress
                     );
+                }
 
-                records.push(
-                    ...networkRecords
-                );
+                if (net.type === 'TVM') {
+                    items = await this.readTRON(
+                        net,
+                        fundAddress
+                    );
+                }
+
+                records.push(...items);
 
             } catch (error) {
 
                 console.error(
-                    `Donor reader failed for ${net.id}:`,
+                    `[DonorReader] ${net.id}`,
                     error
                 );
             }
         }
 
-        return this.aggregateDonors(records);
+        return this.aggregate(records);
     }
 
 
-    /* =====================================================
-       Network resolver fallback
-       ===================================================== */
+    getFundAddress(project, net) {
 
-    findNetworkByFundsKey(
-        fundKey,
-        networks
-    ) {
+        for (const fundKey of (
+            net.fundsKeys || []
+        )) {
 
-        const key =
-            String(fundKey).toLowerCase();
+            const fund =
+                project.funds?.[fundKey];
 
-        return Object.values(networks || {})
-            .find(net =>
-                (net.fundsKeys || [])
-                    .some(
-                        fk =>
-                            String(fk).toLowerCase() === key
-                    )
-            ) || null;
-    }
-
-
-    /* =====================================================
-       Network dispatcher
-       ===================================================== */
-
-    async loadNetworkDonors(
-        net,
-        fundAddress
-    ) {
-
-        if (net.type === 'EVM') {
-
-            return this.loadEvmDonors(
-                net,
-                fundAddress
-            );
+            if (
+                fund &&
+                typeof fund === 'object' &&
+                fund.address
+            ) {
+                return fund.address;
+            }
         }
 
-        if (net.type === 'TVM') {
-
-            return this.loadTronDonors(
-                net,
-                fundAddress
-            );
-        }
-
-        return [];
+        return null;
     }
 
 
@@ -171,16 +110,7 @@ class ClassChainDonorReader {
        EVM
        ===================================================== */
 
-    async loadEvmDonors(
-        net,
-        fundAddress
-    ) {
-
-        if (typeof Web3 === 'undefined') {
-            throw new Error(
-                'Web3 is not loaded.'
-            );
-        }
+    async readEVM(net, fundAddress) {
 
         const rpcList = [
             net.rpc,
@@ -199,14 +129,12 @@ class ClassChainDonorReader {
                 await candidate.eth.getBlockNumber();
 
                 web3 = candidate;
-
                 break;
 
             } catch (error) {
 
                 console.warn(
-                    `EVM RPC failed: ${rpc}`,
-                    error
+                    `[DonorReader] RPC failed: ${rpc}`
                 );
             }
         }
@@ -217,7 +145,7 @@ class ClassChainDonorReader {
             );
         }
 
-        const fund =
+        const contract =
             new web3.eth.Contract(
                 [this.eventABI],
                 fundAddress
@@ -227,24 +155,18 @@ class ClassChainDonorReader {
             await web3.eth.getBlockNumber();
 
         /*
-         * اگر deploymentBlock در configuration
-         * وجود داشته باشد از آن استفاده می‌کنیم.
+         * از block مربوط به deployment استفاده می‌کنیم
+         * اگر configuration آن را داشته باشد.
+         * در غیر این صورت از صفر شروع می‌کنیم.
          */
-        const startBlock =
+        let fromBlock =
             Number(net.deploymentBlock || 0);
 
-        const batchSize =
-            Number(
-                net.eventQueryBatchSize || 50000
-            );
+        const batchSize = 5000;
 
         const records = [];
 
-        for (
-            let fromBlock = startBlock;
-            fromBlock <= latestBlock;
-            fromBlock += batchSize
-        ) {
+        while (fromBlock <= latestBlock) {
 
             const toBlock =
                 Math.min(
@@ -253,7 +175,7 @@ class ClassChainDonorReader {
                 );
 
             const events =
-                await fund.getPastEvents(
+                await contract.getPastEvents(
                     this.eventName,
                     {
                         fromBlock,
@@ -269,7 +191,7 @@ class ClassChainDonorReader {
                 const amount =
                     event.returnValues?.amount;
 
-                if (!donor || !amount) {
+                if (!donor || amount == null) {
                     continue;
                 }
 
@@ -277,10 +199,8 @@ class ClassChainDonorReader {
 
                     address: donor,
 
-                    rawAmount: amount,
-
                     amount:
-                        this.formatAmount(
+                        this.toAmount(
                             amount,
                             net.tokenDecimals
                         ),
@@ -300,6 +220,9 @@ class ClassChainDonorReader {
                         )
                 });
             }
+
+            fromBlock =
+                toBlock + 1;
         }
 
         return records;
@@ -307,181 +230,179 @@ class ClassChainDonorReader {
 
 
     /* =====================================================
-       TRON / TVM
-       بدون نیاز به اتصال TronLink
+       TRON
        ===================================================== */
 
-    async loadTronDonors(
-        net,
-        fundAddress
-    ) {
+    async readTRON(net, fundAddress) {
 
         const host =
             net.fullHost ||
-            'https://api.trongrid.io';
+            'https://api.nileex.io';
 
-        const url =
-            `${host}/v1/contracts/${fundAddress}/events` +
-            `?event_name=${encodeURIComponent(this.eventName)}` +
-            `&only_confirmed=true` +
-            `&limit=200` +
-            `&order_by=block_timestamp,desc`;
-
-        const response =
-            await fetch(url);
-
-        if (!response.ok) {
-
-            throw new Error(
-                `TRON event API error: ${response.status}`
-            );
-        }
-
-        const payload =
-            await response.json();
-
-        const events =
-            payload?.data || [];
+        let fingerprint = null;
 
         const records = [];
 
-        for (const event of events) {
+        do {
 
-            /*
-             * فقط Eventهای واقعی قرارداد را قبول می‌کنیم.
-             *
-             * Event TokensReceived فقط در اجرای موفق
-             * depositToken ایجاد می‌شود؛ بنابراین
-             * Depositهای Revert شده Event ندارند.
-             */
+            const params = new URLSearchParams();
 
-            const result =
-                event.result || {};
+            params.set(
+                'event_name',
+                this.eventName
+            );
 
-            const donor =
-                result.donor ||
-                event.donor;
+            params.set(
+                'only_confirmed',
+                'true'
+            );
 
-            const amount =
-                result.amount ||
-                event.amount;
+            params.set(
+                'limit',
+                '200'
+            );
 
-            if (!donor || amount == null) {
-                continue;
+            params.set(
+                'order_by',
+                'block_timestamp,asc'
+            );
+
+            if (fingerprint) {
+                params.set(
+                    'fingerprint',
+                    fingerprint
+                );
             }
 
-            records.push({
+            const url =
+                `${host}/v1/contracts/${fundAddress}/events?${params.toString()}`;
 
-                address:
-                    donor,
+            const response =
+                await fetch(url);
 
-                rawAmount:
-                    amount,
+            if (!response.ok) {
 
-                amount:
-                    this.formatAmount(
-                        amount,
-                        net.tokenDecimals
-                    ),
+                throw new Error(
+                    `TRON API ${response.status}`
+                );
+            }
 
-                network:
-                    net.name || net.id,
+            const payload =
+                await response.json();
 
-                networkId:
-                    net.id,
+            const events =
+                payload?.data || [];
 
-                txHash:
-                    event.transaction_id ||
-                    event.transactionId ||
-                    event.txID ||
-                    null,
+            for (const event of events) {
 
-                blockNumber:
-                    Number(
-                        event.block_number ||
-                        event.blockNumber ||
-                        0
-                    ),
+                const result =
+                    event.result || {};
 
-                timestamp:
-                    event.block_timestamp ||
-                    event.blockTimestamp ||
-                    null
-            });
-        }
+                const donor =
+                    result.donor ??
+                    event.donor;
+
+                const amount =
+                    result.amount ??
+                    event.amount;
+
+                if (!donor || amount == null) {
+                    continue;
+                }
+
+                records.push({
+
+                    address:
+                        donor,
+
+                    amount:
+                        this.toAmount(
+                            amount,
+                            net.tokenDecimals
+                        ),
+
+                    network:
+                        net.name || net.id,
+
+                    networkId:
+                        net.id,
+
+                    txHash:
+                        event.transaction_id ||
+                        event.transactionId ||
+                        null,
+
+                    blockNumber:
+                        Number(
+                            event.block_number || 0
+                        ),
+
+                    timestamp:
+                        event.block_timestamp ||
+                        null
+                });
+            }
+
+            fingerprint =
+                payload?.meta?.fingerprint ||
+                null;
+
+            if (!events.length) {
+                fingerprint = null;
+            }
+
+        } while (fingerprint);
 
         return records;
     }
 
 
     /* =====================================================
-       Aggregate
+       Aggregate by wallet
        ===================================================== */
 
-    aggregateDonors(records) {
+    aggregate(records) {
 
-        const map = new Map();
+        const donors =
+            new Map();
 
-        for (const item of records) {
-
-            if (!item.address) {
-                continue;
-            }
+        for (const record of records) {
 
             const key =
-                item.address.toLowerCase();
+                record.address.toLowerCase();
 
-            if (!map.has(key)) {
+            if (!donors.has(key)) {
 
-                map.set(key, {
+                donors.set(key, {
 
                     address:
-                        item.address,
+                        record.address,
 
                     amount: 0,
 
-                    networks:
-                        new Set(),
+                    networks: new Set(),
 
-                    contributions:
-                        []
+                    contributions: []
                 });
             }
 
             const donor =
-                map.get(key);
+                donors.get(key);
 
             donor.amount +=
-                Number(item.amount);
+                Number(record.amount);
 
             donor.networks.add(
-                item.networkId
+                record.networkId
             );
 
-            donor.contributions.push({
-
-                network:
-                    item.network,
-
-                networkId:
-                    item.networkId,
-
-                amount:
-                    Number(item.amount),
-
-                txHash:
-                    item.txHash,
-
-                blockNumber:
-                    item.blockNumber,
-
-                timestamp:
-                    item.timestamp
-            });
+            donor.contributions.push(
+                record
+            );
         }
 
         return Array.from(
-            map.values()
+            donors.values()
         )
         .map(donor => ({
 
@@ -507,16 +428,9 @@ class ClassChainDonorReader {
     }
 
 
-    /* =====================================================
-       Amount formatter
-       ===================================================== */
+    toAmount(value, decimals = 6) {
 
-    formatAmount(
-        rawAmount,
-        decimals = 6
-    ) {
-
-        return Number(rawAmount) /
+        return Number(value) /
             Math.pow(
                 10,
                 Number(decimals)
