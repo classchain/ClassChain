@@ -1,13 +1,13 @@
 /**
  * ClassChain — Donor Reader
  *
- * منبع تشخیص مشارکت‌کنندگان:
- *   USDT Transfer events
+ * مشارکت‌کنندگان از Transfer Event خود USDT خوانده می‌شوند.
  *
- * مزیت:
- *   - انتقال از طریق depositToken قابل شناسایی است
- *   - انتقال مستقیم USDT به خزانه نیز قابل شناسایی است
- *   - وابسته به TokensReceived قرارداد خزانه نیست
+ * نکته مهم:
+ * - فقط Transfer هایی که مقصدشان Fund پروژه است بررسی می‌شوند.
+ * - از Block 0 شروع نمی‌کنیم.
+ * - برای جلوگیری از گیر کردن صفحه، فقط بازه اخیر شبکه بررسی می‌شود.
+ * - EVM و TRON پشتیبانی می‌شوند.
  */
 
 class ClassChainDonorReader {
@@ -15,29 +15,16 @@ class ClassChainDonorReader {
     constructor(networkConfig) {
         this.networkConfig = networkConfig;
 
-        // استاندارد ERC20 / TRC20
-        this.transferEventABI = {
-            anonymous: false,
-            inputs: [
-                {
-                    indexed: true,
-                    name: 'from',
-                    type: 'address'
-                },
-                {
-                    indexed: true,
-                    name: 'to',
-                    type: 'address'
-                },
-                {
-                    indexed: false,
-                    name: 'value',
-                    type: 'uint256'
-                }
-            ],
-            name: 'Transfer',
-            type: 'event'
-        };
+        /*
+         * تعداد بلاک‌هایی که برای پیدا کردن مشارکت‌کنندگان
+         * بررسی می‌کنیم.
+         *
+         * برای تست فعلی مقدار مناسبی است.
+         */
+        this.lookbackBlocks = 500000;
+
+        this.transferTopic =
+            '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a2df523b3ef';
     }
 
 
@@ -47,31 +34,44 @@ class ClassChainDonorReader {
 
     async load(project) {
 
-        if (!project?.funds) {
-            console.warn('[DonorReader] Project has no funds');
+        if (!project || !project.funds) {
+            console.warn(
+                '[DonorReader] Project has no funds'
+            );
             return [];
         }
 
         const records = [];
 
-        for (const net of Object.values(
-            this.networkConfig.NETWORKS || {}
-        )) {
+        const networks =
+            Object.values(
+                this.networkConfig.NETWORKS || {}
+            );
 
-            if (net.status !== 'active') {
-                continue;
-            }
+        for (const net of networks) {
 
-            if (!net.usdtAddress) {
+            if (
+                net.status !== 'active' ||
+                !net.enabled ||
+                !net.usdtAddress
+            ) {
                 continue;
             }
 
             const fundAddress =
-                this.getFundAddress(project, net);
+                this.getFundAddress(
+                    project,
+                    net
+                );
 
             if (!fundAddress) {
                 continue;
             }
+
+            console.log(
+                `[DonorReader] Reading ${net.id}`,
+                fundAddress
+            );
 
             try {
 
@@ -79,23 +79,28 @@ class ClassChainDonorReader {
 
                 if (net.type === 'EVM') {
 
-                    items = await this.readEVM(
-                        net,
-                        fundAddress
-                    );
+                    items =
+                        await this.readEVM(
+                            net,
+                            fundAddress
+                        );
 
                 } else if (net.type === 'TVM') {
 
-                    items = await this.readTRON(
-                        net,
-                        fundAddress
-                    );
+                    items =
+                        await this.readTRON(
+                            net,
+                            fundAddress
+                        );
                 }
 
                 records.push(...items);
 
             } catch (error) {
 
+                /*
+                 * خطای یک شبکه نباید کل صفحه را متوقف کند.
+                 */
                 console.error(
                     `[DonorReader] ${net.id} failed:`,
                     error
@@ -113,19 +118,33 @@ class ClassChainDonorReader {
 
     getFundAddress(project, net) {
 
-        for (const fundKey of (
-            net.fundsKeys || []
-        )) {
+        const funds =
+            project?.funds;
+
+        if (
+            !funds ||
+            typeof funds !== 'object'
+        ) {
+            return null;
+        }
+
+        for (
+            const key of
+            (net.fundsKeys || [])
+        ) {
 
             const fund =
-                project.funds?.[fundKey];
+                funds[key];
 
             if (
                 fund &&
                 typeof fund === 'object' &&
                 fund.address
             ) {
-                return String(fund.address).trim();
+
+                return String(
+                    fund.address
+                ).trim();
             }
         }
 
@@ -137,45 +156,91 @@ class ClassChainDonorReader {
        EVM
        ===================================================== */
 
-    async readEVM(net, fundAddress) {
+    async readEVM(
+        net,
+        fundAddress
+    ) {
 
         const rpcList = [
             net.rpc,
             ...(net.rpcFallbacks || [])
         ].filter(Boolean);
 
-        let web3 = null;
+        let rpc = null;
 
         /*
          * پیدا کردن RPC سالم
          */
-        for (const rpc of rpcList) {
+        for (const candidate of rpcList) {
 
             try {
 
-                const candidate =
-                    new Web3(rpc);
+                const controller =
+                    new AbortController();
 
-                await candidate.eth.getBlockNumber();
+                const timer =
+                    setTimeout(
+                        () => controller.abort(),
+                        10000
+                    );
 
-                web3 = candidate;
+                const response =
+                    await fetch(
+                        candidate,
+                        {
+                            method: 'POST',
 
-                console.log(
-                    `[DonorReader] EVM RPC OK: ${rpc}`
-                );
+                            headers: {
+                                'Content-Type':
+                                    'application/json'
+                            },
 
-                break;
+                            body: JSON.stringify({
+
+                                jsonrpc: '2.0',
+                                id: 1,
+                                method:
+                                    'eth_blockNumber',
+                                params: []
+
+                            }),
+
+                            signal:
+                                controller.signal
+                        }
+                    );
+
+                clearTimeout(timer);
+
+                if (!response.ok) {
+                    continue;
+                }
+
+                const data =
+                    await response.json();
+
+                if (data.result) {
+
+                    rpc = candidate;
+
+                    console.log(
+                        `[DonorReader] EVM RPC OK: ${candidate}`
+                    );
+
+                    break;
+                }
 
             } catch (error) {
 
                 console.warn(
-                    `[DonorReader] EVM RPC failed: ${rpc}`,
+                    `[DonorReader] RPC failed: ${candidate}`,
                     error
                 );
             }
         }
 
-        if (!web3) {
+        if (!rpc) {
+
             throw new Error(
                 `No working RPC for ${net.id}`
             );
@@ -183,141 +248,204 @@ class ClassChainDonorReader {
 
 
         /*
-         * نکته بسیار مهم:
-         *
-         * Event روی قرارداد USDT خوانده می‌شود،
-         * نه روی Fund Contract.
-         *
-         * بنابراین انتقال مستقیم USDT هم پیدا می‌شود.
+         * آخرین Block
          */
-        const usdtContract =
-            new web3.eth.Contract(
-                [this.transferEventABI],
-                net.usdtAddress
+        const latestHex =
+            await this.rpcCall(
+                rpc,
+                'eth_blockNumber',
+                []
+            );
+
+        const latestBlock =
+            parseInt(
+                latestHex,
+                16
             );
 
 
-        const latestBlock =
-            await web3.eth.getBlockNumber();
+        /*
+         * فقط آخرین 500,000 بلاک
+         *
+         * دیگر از Block 0 شروع نمی‌کنیم.
+         */
+        const fromBlock =
+            Math.max(
+                0,
+                latestBlock -
+                this.lookbackBlocks
+            );
+
+
+        console.log(
+            `[DonorReader] ${net.id}: scanning ${fromBlock} → ${latestBlock}`
+        );
 
 
         /*
-         * اگر deploymentBlock تعریف نشده باشد
-         * از صفر شروع می‌کنیم.
+         * Transfer(address,address,uint256)
+         *
+         * topic0 = keccak256 signature
+         *
+         * topic2 = آدرس مقصد
          */
-        let fromBlock =
-            Number(net.deploymentBlock || 0);
+        const paddedFund =
+            '0x' +
+            String(fundAddress)
+                .toLowerCase()
+                .replace(/^0x/, '')
+                .padStart(
+                    64,
+                    '0'
+                );
 
-
-        /*
-         * برای جلوگیری از محدودیت RPC
-         */
-        const batchSize = 5000;
 
         const records = [];
 
+        /*
+         * بازه‌های کوچک‌تر برای RPC
+         */
+        const batchSize = 10000;
 
-        while (fromBlock <= latestBlock) {
+        for (
+            let start = fromBlock;
+            start <= latestBlock;
+            start += batchSize
+        ) {
 
-            const toBlock =
+            const end =
                 Math.min(
-                    fromBlock + batchSize - 1,
+                    start +
+                    batchSize -
+                    1,
                     latestBlock
                 );
 
-            console.log(
-                `[DonorReader] ${net.id}: blocks ${fromBlock} → ${toBlock}`
-            );
+            try {
+
+                const logs =
+                    await this.rpcCall(
+                        rpc,
+                        'eth_getLogs',
+                        [{
+                            address:
+                                net.usdtAddress,
+
+                            fromBlock:
+                                '0x' +
+                                start.toString(16),
+
+                            toBlock:
+                                '0x' +
+                                end.toString(16),
+
+                            topics: [
+                                this.transferTopic,
+                                null,
+                                paddedFund
+                            ]
+                        }]
+                    );
 
 
-            /*
-             * فقط Transfer های USDT
-             */
-            const events =
-                await usdtContract.getPastEvents(
-                    'Transfer',
-                    {
-                        fromBlock,
-                        toBlock
+                if (
+                    Array.isArray(logs) &&
+                    logs.length
+                ) {
+
+                    console.log(
+                        `[DonorReader] ${net.id}: ${logs.length} transfer(s) found in ${start}-${end}`
+                    );
+                }
+
+
+                for (
+                    const log of
+                    (logs || [])
+                ) {
+
+                    /*
+                     * topic1 = from
+                     * topic2 = to
+                     */
+                    if (
+                        !log.topics ||
+                        log.topics.length < 3
+                    ) {
+                        continue;
                     }
+
+
+                    const from =
+                        '0x' +
+                        log.topics[1]
+                            .slice(-40);
+
+
+                    const to =
+                        '0x' +
+                        log.topics[2]
+                            .slice(-40);
+
+
+                    /*
+                     * مقدار USDT در data
+                     */
+                    const rawValue =
+                        BigInt(
+                            log.data
+                        );
+
+
+                    if (
+                        from.toLowerCase() ===
+                        fundAddress.toLowerCase()
+                    ) {
+                        continue;
+                    }
+
+
+                    records.push({
+
+                        address:
+                            from,
+
+                        amount:
+                            this.toAmount(
+                                rawValue,
+                                net.tokenDecimals
+                            ),
+
+                        network:
+                            net.name ||
+                            net.id,
+
+                        networkId:
+                            net.id,
+
+                        txHash:
+                            log.transactionHash,
+
+                        blockNumber:
+                            parseInt(
+                                log.blockNumber,
+                                16
+                            )
+                    });
+                }
+
+            } catch (error) {
+
+                /*
+                 * اگر یک batch خطا داد،
+                 * بقیه batch ها ادامه پیدا می‌کنند.
+                 */
+                console.warn(
+                    `[DonorReader] ${net.id} batch ${start}-${end} failed:`,
+                    error
                 );
-
-
-            for (const event of events) {
-
-                const values =
-                    event.returnValues || {};
-
-                const from =
-                    values.from;
-
-                const to =
-                    values.to;
-
-                const value =
-                    values.value;
-
-
-                if (!from || !to || value == null) {
-                    continue;
-                }
-
-
-                /*
-                 * فقط انتقال‌هایی که مقصدشان
-                 * خزانه همین پروژه است.
-                 */
-                if (
-                    String(to).toLowerCase() !==
-                    String(fundAddress).toLowerCase()
-                ) {
-                    continue;
-                }
-
-
-                /*
-                 * انتقال از خود خزانه به خودش
-                 * مشارکت محسوب نمی‌شود.
-                 */
-                if (
-                    String(from).toLowerCase() ===
-                    String(fundAddress).toLowerCase()
-                ) {
-                    continue;
-                }
-
-
-                records.push({
-
-                    address: from,
-
-                    amount:
-                        this.toAmount(
-                            value,
-                            net.tokenDecimals
-                        ),
-
-                    network:
-                        net.name || net.id,
-
-                    networkId:
-                        net.id,
-
-                    txHash:
-                        event.transactionHash,
-
-                    blockNumber:
-                        Number(
-                            event.blockNumber || 0
-                        )
-                });
             }
-
-
-            fromBlock =
-                toBlock + 1;
         }
-
 
         return records;
     }
@@ -327,29 +455,46 @@ class ClassChainDonorReader {
        TRON
        ===================================================== */
 
-    async readTRON(net, fundAddress) {
+    async readTRON(
+        net,
+        fundAddress
+    ) {
 
         const host =
             net.fullHost ||
             'https://nile.trongrid.io';
 
-
         const records = [];
 
         let fingerprint = null;
 
-
         /*
-         * بسیار مهم:
-         *
-         * Event از قرارداد USDT خوانده می‌شود،
-         * نه از قرارداد Fund.
+         * جلوگیری از pagination بی‌نهایت
          */
+        let pageCount = 0;
+
+        const maxPages = 20;
+
+
         do {
+
+            pageCount++;
+
+            if (
+                pageCount >
+                maxPages
+            ) {
+
+                console.warn(
+                    '[DonorReader] TRON pagination limit reached'
+                );
+
+                break;
+            }
+
 
             const params =
                 new URLSearchParams();
-
 
             params.set(
                 'event_name',
@@ -386,13 +531,37 @@ class ClassChainDonorReader {
 
 
             console.log(
-                '[DonorReader] TRON events:',
-                url
+                `[DonorReader] TRON page ${pageCount}`
             );
 
 
-            const response =
-                await fetch(url);
+            const controller =
+                new AbortController();
+
+            const timer =
+                setTimeout(
+                    () => controller.abort(),
+                    15000
+                );
+
+
+            let response;
+
+            try {
+
+                response =
+                    await fetch(
+                        url,
+                        {
+                            signal:
+                                controller.signal
+                        }
+                    );
+
+            } finally {
+
+                clearTimeout(timer);
+            }
 
 
             if (!response.ok) {
@@ -406,30 +575,25 @@ class ClassChainDonorReader {
             const payload =
                 await response.json();
 
-
             const events =
                 payload?.data || [];
 
 
-            for (const event of events) {
+            for (
+                const event of events
+            ) {
 
                 const result =
                     event.result || {};
 
 
-                /*
-                 * در TRON معمولاً آدرس‌ها
-                 * به صورت Base58 برمی‌گردند.
-                 */
                 const from =
                     result.from ??
                     event.from;
 
-
                 const to =
                     result.to ??
                     event.to;
-
 
                 const value =
                     result.value ??
@@ -446,8 +610,7 @@ class ClassChainDonorReader {
 
 
                 /*
-                 * فقط انتقال‌هایی که مقصدشان
-                 * خزانه پروژه است.
+                 * فقط انتقال به خزانه پروژه
                  */
                 if (
                     String(to).trim() !==
@@ -458,8 +621,7 @@ class ClassChainDonorReader {
 
 
                 /*
-                 * انتقال از خود خزانه به خودش
-                 * مشارکت محسوب نمی‌شود.
+                 * انتقال خزانه به خودش
                  */
                 if (
                     String(from).trim() ===
@@ -476,12 +638,13 @@ class ClassChainDonorReader {
 
                     amount:
                         this.toAmount(
-                            value,
+                            BigInt(value),
                             net.tokenDecimals
                         ),
 
                     network:
-                        net.name || net.id,
+                        net.name ||
+                        net.id,
 
                     networkId:
                         net.id,
@@ -493,7 +656,8 @@ class ClassChainDonorReader {
 
                     blockNumber:
                         Number(
-                            event.block_number || 0
+                            event.block_number ||
+                            0
                         ),
 
                     timestamp:
@@ -508,6 +672,10 @@ class ClassChainDonorReader {
                 null;
 
 
+            /*
+             * اگر صفحه خالی بود،
+             * pagination تمام شده است.
+             */
             if (!events.length) {
                 fingerprint = null;
             }
@@ -521,6 +689,88 @@ class ClassChainDonorReader {
 
 
     /* =====================================================
+       JSON RPC
+       ===================================================== */
+
+    async rpcCall(
+        rpc,
+        method,
+        params
+    ) {
+
+        const controller =
+            new AbortController();
+
+        const timer =
+            setTimeout(
+                () => controller.abort(),
+                15000
+            );
+
+
+        try {
+
+            const response =
+                await fetch(
+                    rpc,
+                    {
+                        method: 'POST',
+
+                        headers: {
+                            'Content-Type':
+                                'application/json'
+                        },
+
+                        body: JSON.stringify({
+
+                            jsonrpc: '2.0',
+
+                            id:
+                                Date.now(),
+
+                            method,
+
+                            params
+
+                        }),
+
+                        signal:
+                            controller.signal
+                    }
+                );
+
+
+            if (!response.ok) {
+
+                throw new Error(
+                    `RPC HTTP ${response.status}`
+                );
+            }
+
+
+            const data =
+                await response.json();
+
+
+            if (data.error) {
+
+                throw new Error(
+                    data.error.message ||
+                    `RPC error: ${method}`
+                );
+            }
+
+
+            return data.result;
+
+        } finally {
+
+            clearTimeout(timer);
+        }
+    }
+
+
+    /* =====================================================
        AGGREGATE
        ===================================================== */
 
@@ -530,20 +780,15 @@ class ClassChainDonorReader {
             new Map();
 
 
-        for (const record of records) {
+        for (
+            const record of records
+        ) {
 
             if (!record.address) {
                 continue;
             }
 
 
-            /*
-             * برای EVM حروف بزرگ/کوچک مهم نیست.
-             *
-             * برای TRON بهتر است همان آدرس اصلی
-             * نگه داشته شود، ولی کلید Map
-             * case-insensitive باشد.
-             */
             const key =
                 String(
                     record.address
@@ -552,18 +797,21 @@ class ClassChainDonorReader {
 
             if (!donors.has(key)) {
 
-                donors.set(key, {
+                donors.set(
+                    key,
+                    {
+                        address:
+                            record.address,
 
-                    address:
-                        record.address,
+                        amount: 0,
 
-                    amount: 0,
+                        networks:
+                            new Set(),
 
-                    networks:
-                        new Set(),
-
-                    contributions: []
-                });
+                        contributions:
+                            []
+                    }
+                );
             }
 
 
@@ -572,7 +820,9 @@ class ClassChainDonorReader {
 
 
             donor.amount +=
-                Number(record.amount) || 0;
+                Number(
+                    record.amount
+                ) || 0;
 
 
             donor.networks.add(
@@ -608,13 +858,14 @@ class ClassChainDonorReader {
         }))
         .sort(
             (a, b) =>
-                b.amount - a.amount
+                b.amount -
+                a.amount
         );
     }
 
 
     /* =====================================================
-       DECIMALS
+       AMOUNT
        ===================================================== */
 
     toAmount(
@@ -622,21 +873,57 @@ class ClassChainDonorReader {
         decimals = 6
     ) {
 
+        const raw =
+            typeof value === 'bigint'
+                ? value
+                : BigInt(value);
+
+
+        const divisor =
+            10n **
+            BigInt(decimals);
+
+
+        const whole =
+            raw / divisor;
+
+        const fraction =
+            raw % divisor;
+
+
         /*
-         * برای مقادیر معمول USDT امن است.
+         * تبدیل بدون Number برای جلوگیری
+         * از خطای دقت در اعداد بزرگ
          */
-        return Number(value) /
-            Math.pow(
-                10,
-                Number(decimals)
-            );
+        const fractionText =
+            fraction
+                .toString()
+                .padStart(
+                    decimals,
+                    '0'
+                )
+                .replace(
+                    /0+$/,
+                    ''
+                );
+
+
+        if (!fractionText) {
+            return Number(whole);
+        }
+
+
+        return Number(
+            `${whole}.${fractionText}`
+        );
     }
 }
 
 
-/*
- * Global
- */
+/* =========================================================
+   GLOBAL
+   ========================================================= */
+
 window.ClassChainDonorReader =
     ClassChainDonorReader;
 
