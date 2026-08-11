@@ -231,7 +231,10 @@ async function loadProject() {
         }
 
         projects = foundProject;
-
+		// ---------------------------
+		await loadDonorsList();
+		// ---------------------------
+		
         // نمایش نام پروژه
         const titleEl = document.getElementById('projectTitle');
         if (titleEl) titleEl.innerText = foundProject["نام پروژه"] || "پروژه بدون نام";
@@ -322,12 +325,13 @@ async function loadDonorsList() {
     try {
 
         const reader =
-            new ClassChainDonorReader();
+            new ClassChainDonorReader(
+                networkConfig
+            );
 
         const donors =
             await reader.load(
-                projects,
-                networks
+                projects
             );
 
         renderDonorsList(donors);
@@ -335,14 +339,14 @@ async function loadDonorsList() {
     } catch (error) {
 
         console.error(
-            'Error loading donors:',
+            '[Donate] Donor loading failed:',
             error
         );
 
         container.innerHTML = `
             <div class="donors-empty">
-                دریافت فهرست مشارکت‌کنندگان
-                در حال حاضر امکان‌پذیر نیست.
+                دریافت اطلاعات مشارکت‌کنندگان
+                امکان‌پذیر نیست.
             </div>
         `;
     }
@@ -353,9 +357,11 @@ function renderDonorsList(donors) {
     const container =
         document.getElementById('donorsList');
 
-    if (!container) return;
+    if (!container) {
+        return;
+    }
 
-    if (!donors || donors.length === 0) {
+    if (!donors.length) {
 
         container.innerHTML = `
             <div class="donors-empty">
@@ -369,10 +375,33 @@ function renderDonorsList(donors) {
     container.innerHTML =
         donors.map((donor, index) => {
 
+            const address =
+                donor.address;
+
             const shortAddress =
-                donor.address.length > 12
-                    ? `${donor.address.slice(0, 6)}...${donor.address.slice(-6)}`
-                    : donor.address;
+                address.length > 14
+                    ? `${address.slice(0, 7)}...${address.slice(-7)}`
+                    : address;
+
+            const amount =
+                Number(
+                    donor.amount
+                ).toLocaleString(
+                    'en-US',
+                    {
+                        maximumFractionDigits: 2
+                    }
+                );
+
+            const networks =
+                donor.networks
+                    .map(id => {
+                        const net =
+                            networkConfig.NETWORKS?.[id];
+
+                        return net?.name || id;
+                    })
+                    .join(' • ');
 
             return `
                 <div class="donor-item">
@@ -383,25 +412,21 @@ function renderDonorsList(donors) {
 
                     <div class="donor-info">
 
-                        <div class="donor-address"
-                             title="${donor.address}">
+                        <div
+                            class="donor-address"
+                            title="${address}"
+                        >
                             ${shortAddress}
                         </div>
 
                         <div class="donor-network">
-                            ${donor.networks.join(' • ')}
+                            ${networks}
                         </div>
 
                     </div>
 
                     <div class="donor-amount">
-                        ${donor.amount.toLocaleString(
-                            'en-US',
-                            {
-                                maximumFractionDigits: 2
-                            }
-                        )}
-                        USDT
+                        ${amount} USDT
                     </div>
 
                 </div>
@@ -1040,7 +1065,6 @@ if (net.type === 'TVM') {
 
     // بارگذاری اولیه
     loadProject();
-	loadDonorsList();
     updateButtonState();
 });
 
