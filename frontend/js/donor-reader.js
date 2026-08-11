@@ -1,13 +1,16 @@
+
 /**
  * ClassChain — Donor Reader
  *
- * مشارکت‌کنندگان از Transfer Event خود USDT خوانده می‌شوند.
+ * منبع مشارکت‌ها:
+ * فقط Transfer های USDT به آدرس خزانه پروژه
  *
- * نکته مهم:
- * - فقط Transfer هایی که مقصدشان Fund پروژه است بررسی می‌شوند.
- * - از Block 0 شروع نمی‌کنیم.
- * - برای جلوگیری از گیر کردن صفحه، فقط بازه اخیر شبکه بررسی می‌شود.
- * - EVM و TRON پشتیبانی می‌شوند.
+ * بنابراین:
+ * Wallet -> USDT -> Fund
+ * و
+ * Wallet -> depositToken() -> Fund
+ *
+ * هر دو در نهایت به صورت USDT Transfer دیده می‌شوند.
  */
 
 class ClassChainDonorReader {
@@ -16,15 +19,17 @@ class ClassChainDonorReader {
         this.networkConfig = networkConfig;
 
         /*
-         * تعداد بلاک‌هایی که برای پیدا کردن مشارکت‌کنندگان
-         * بررسی می‌کنیم.
-         *
-         * برای تست فعلی مقدار مناسبی است.
+         * استاندارد ERC20 / TRC20:
+         * keccak256("Transfer(address,address,uint256)")
          */
-        this.lookbackBlocks = 500000;
-
         this.transferTopic =
-            '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a2df523b3ef';
+            '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+
+        /*
+         * برای جلوگیری از اسکن بی‌نهایت در RPC
+         */
+        this.evmBatchSize = 10000;
+        this.requestTimeout = 15000;
     }
 
 
@@ -34,10 +39,7 @@ class ClassChainDonorReader {
 
     async load(project) {
 
-        if (!project || !project.funds) {
-            console.warn(
-                '[DonorReader] Project has no funds'
-            );
+        if (!project?.funds) {
             return [];
         }
 
@@ -50,6 +52,9 @@ class ClassChainDonorReader {
 
         for (const net of networks) {
 
+            /*
+             * فقط شبکه‌های فعال
+             */
             if (
                 net.status !== 'active' ||
                 !net.enabled ||
@@ -68,11 +73,6 @@ class ClassChainDonorReader {
                 continue;
             }
 
-            console.log(
-                `[DonorReader] Reading ${net.id}`,
-                fundAddress
-            );
-
             try {
 
                 let items = [];
@@ -82,7 +82,8 @@ class ClassChainDonorReader {
                     items =
                         await this.readEVM(
                             net,
-                            fundAddress
+                            fundAddress,
+                            project
                         );
 
                 } else if (net.type === 'TVM') {
@@ -90,7 +91,8 @@ class ClassChainDonorReader {
                     items =
                         await this.readTRON(
                             net,
-                            fundAddress
+                            fundAddress,
+                            project
                         );
                 }
 
@@ -98,16 +100,16 @@ class ClassChainDonorReader {
 
             } catch (error) {
 
-                /*
-                 * خطای یک شبکه نباید کل صفحه را متوقف کند.
-                 */
                 console.error(
-                    `[DonorReader] ${net.id} failed:`,
+                    `[DonorReader] ${net.id}:`,
                     error
                 );
             }
         }
 
+        /*
+         * یکی کردن مشارکت‌های یک کیف پول
+         */
         return this.aggregate(records);
     }
 
@@ -118,8 +120,7 @@ class ClassChainDonorReader {
 
     getFundAddress(project, net) {
 
-        const funds =
-            project?.funds;
+        const funds = project?.funds;
 
         if (
             !funds ||
@@ -133,18 +134,55 @@ class ClassChainDonorReader {
             (net.fundsKeys || [])
         ) {
 
-            const fund =
-                funds[key];
+            const fund = funds[key];
 
             if (
                 fund &&
                 typeof fund === 'object' &&
                 fund.address
             ) {
-
                 return String(
                     fund.address
                 ).trim();
+            }
+        }
+
+        return null;
+    }
+
+
+    /* =====================================================
+       FIND FUND CREATION TIME
+       ===================================================== */
+
+    getFundCreatedAt(project, net) {
+
+        const funds = project?.funds;
+
+        if (!funds) {
+            return null;
+        }
+
+        for (
+            const key of
+            (net.fundsKeys || [])
+        ) {
+
+            const fund = funds[key];
+
+            if (
+                fund?.createdAt
+            ) {
+                const timestamp =
+                    Date.parse(
+                        fund.createdAt
+                    );
+
+                if (
+                    Number.isFinite(timestamp)
+                ) {
+                    return timestamp;
+                }
             }
         }
 
@@ -158,98 +196,21 @@ class ClassChainDonorReader {
 
     async readEVM(
         net,
-        fundAddress
+        fundAddress,
+        project
     ) {
 
-        const rpcList = [
-            net.rpc,
-            ...(net.rpcFallbacks || [])
-        ].filter(Boolean);
-
-        let rpc = null;
-
-        /*
-         * پیدا کردن RPC سالم
-         */
-        for (const candidate of rpcList) {
-
-            try {
-
-                const controller =
-                    new AbortController();
-
-                const timer =
-                    setTimeout(
-                        () => controller.abort(),
-                        10000
-                    );
-
-                const response =
-                    await fetch(
-                        candidate,
-                        {
-                            method: 'POST',
-
-                            headers: {
-                                'Content-Type':
-                                    'application/json'
-                            },
-
-                            body: JSON.stringify({
-
-                                jsonrpc: '2.0',
-                                id: 1,
-                                method:
-                                    'eth_blockNumber',
-                                params: []
-
-                            }),
-
-                            signal:
-                                controller.signal
-                        }
-                    );
-
-                clearTimeout(timer);
-
-                if (!response.ok) {
-                    continue;
-                }
-
-                const data =
-                    await response.json();
-
-                if (data.result) {
-
-                    rpc = candidate;
-
-                    console.log(
-                        `[DonorReader] EVM RPC OK: ${candidate}`
-                    );
-
-                    break;
-                }
-
-            } catch (error) {
-
-                console.warn(
-                    `[DonorReader] RPC failed: ${candidate}`,
-                    error
-                );
-            }
-        }
+        const rpc =
+            await this.findWorkingRPC(
+                net
+            );
 
         if (!rpc) {
-
             throw new Error(
                 `No working RPC for ${net.id}`
             );
         }
 
-
-        /*
-         * آخرین Block
-         */
         const latestHex =
             await this.rpcCall(
                 rpc,
@@ -263,60 +224,62 @@ class ClassChainDonorReader {
                 16
             );
 
-
         /*
-         * فقط آخرین 500,000 بلاک
+         * createdAt خزانه از Projects.json
          *
-         * دیگر از Block 0 شروع نمی‌کنیم.
+         * به جای 500,000 بلاک،
+         * از زمان ایجاد خزانه شروع می‌کنیم.
          */
-        const fromBlock =
-            Math.max(
-                0,
-                latestBlock -
-                this.lookbackBlocks
+        const createdAt =
+            this.getFundCreatedAt(
+                project,
+                net
             );
 
+        let fromBlock = 0;
+
+        if (createdAt) {
+
+            fromBlock =
+                await this.findBlockByTimestamp(
+                    rpc,
+                    createdAt
+                );
+        }
 
         console.log(
-            `[DonorReader] ${net.id}: scanning ${fromBlock} → ${latestBlock}`
+            `[DonorReader] ${net.id}: ${fromBlock} → ${latestBlock}`
         );
 
 
         /*
-         * Transfer(address,address,uint256)
-         *
-         * topic0 = keccak256 signature
-         *
-         * topic2 = آدرس مقصد
+         * آدرس خزانه به topic indexed تبدیل می‌شود
          */
         const paddedFund =
             '0x' +
-            String(fundAddress)
+            fundAddress
                 .toLowerCase()
                 .replace(/^0x/, '')
-                .padStart(
-                    64,
-                    '0'
-                );
+                .padStart(64, '0');
 
 
         const records = [];
 
-        /*
-         * بازه‌های کوچک‌تر برای RPC
-         */
-        const batchSize = 10000;
 
+        /*
+         * فقط USDT Transfer هایی که
+         * مقصدشان Fund است.
+         */
         for (
             let start = fromBlock;
             start <= latestBlock;
-            start += batchSize
+            start += this.evmBatchSize
         ) {
 
             const end =
                 Math.min(
                     start +
-                    batchSize -
+                    this.evmBatchSize -
                     1,
                     latestBlock
                 );
@@ -348,26 +311,11 @@ class ClassChainDonorReader {
                     );
 
 
-                if (
-                    Array.isArray(logs) &&
-                    logs.length
-                ) {
-
-                    console.log(
-                        `[DonorReader] ${net.id}: ${logs.length} transfer(s) found in ${start}-${end}`
-                    );
-                }
-
-
                 for (
                     const log of
                     (logs || [])
                 ) {
 
-                    /*
-                     * topic1 = from
-                     * topic2 = to
-                     */
                     if (
                         !log.topics ||
                         log.topics.length < 3
@@ -376,11 +324,14 @@ class ClassChainDonorReader {
                     }
 
 
+                    /*
+                     * topic[1] = from
+                     * topic[2] = to
+                     */
                     const from =
                         '0x' +
                         log.topics[1]
                             .slice(-40);
-
 
                     const to =
                         '0x' +
@@ -389,20 +340,30 @@ class ClassChainDonorReader {
 
 
                     /*
-                     * مقدار USDT در data
+                     * کنترل نهایی مقصد
                      */
-                    const rawValue =
-                        BigInt(
-                            log.data
-                        );
+                    if (
+                        to.toLowerCase() !==
+                        fundAddress.toLowerCase()
+                    ) {
+                        continue;
+                    }
 
 
+                    /*
+                     * اگر خزانه خودش انتقال داده،
+                     * مشارکت محسوب نمی‌شود.
+                     */
                     if (
                         from.toLowerCase() ===
                         fundAddress.toLowerCase()
                     ) {
                         continue;
                     }
+
+
+                    const rawValue =
+                        BigInt(log.data);
 
 
                     records.push({
@@ -436,12 +397,8 @@ class ClassChainDonorReader {
 
             } catch (error) {
 
-                /*
-                 * اگر یک batch خطا داد،
-                 * بقیه batch ها ادامه پیدا می‌کنند.
-                 */
                 console.warn(
-                    `[DonorReader] ${net.id} batch ${start}-${end} failed:`,
+                    `[DonorReader] ${net.id} batch ${start}-${end}:`,
                     error
                 );
             }
@@ -452,12 +409,86 @@ class ClassChainDonorReader {
 
 
     /* =====================================================
+       FIND BLOCK BY TIMESTAMP
+       ===================================================== */
+
+    async findBlockByTimestamp(
+        rpc,
+        targetTimestamp
+    ) {
+
+        let latest =
+            parseInt(
+                await this.rpcCall(
+                    rpc,
+                    'eth_blockNumber',
+                    []
+                ),
+                16
+            );
+
+        let low = 0;
+        let high = latest;
+
+
+        /*
+         * Binary Search
+         *
+         * هدف:
+         * پیدا کردن اولین بلاکی که timestamp
+         * آن >= زمان ایجاد خزانه است.
+         */
+        while (low < high) {
+
+            const mid =
+                Math.floor(
+                    (low + high) / 2
+                );
+
+            const block =
+                await this.rpcCall(
+                    rpc,
+                    'eth_getBlockByNumber',
+                    [
+                        '0x' +
+                        mid.toString(16),
+                        false
+                    ]
+                );
+
+            if (!block) {
+                break;
+            }
+
+            const timestamp =
+                parseInt(
+                    block.timestamp,
+                    16
+                ) * 1000;
+
+
+            if (
+                timestamp <
+                targetTimestamp
+            ) {
+                low = mid + 1;
+            } else {
+                high = mid;
+            }
+        }
+
+        return low;
+    }
+
+
+    /* =====================================================
        TRON
        ===================================================== */
 
     async readTRON(
         net,
-        fundAddress
+        fundAddress,
+        project
     ) {
 
         const host =
@@ -468,27 +499,19 @@ class ClassChainDonorReader {
 
         let fingerprint = null;
 
-        /*
-         * جلوگیری از pagination بی‌نهایت
-         */
-        let pageCount = 0;
+        let page = 0;
 
-        const maxPages = 20;
+        const maxPages = 100;
 
 
         do {
 
-            pageCount++;
+            page++;
 
-            if (
-                pageCount >
-                maxPages
-            ) {
-
+            if (page > maxPages) {
                 console.warn(
-                    '[DonorReader] TRON pagination limit reached'
+                    '[DonorReader] TRON page limit reached'
                 );
-
                 break;
             }
 
@@ -517,6 +540,24 @@ class ClassChainDonorReader {
             );
 
 
+            /*
+             * از زمان ایجاد خزانه شروع کن.
+             */
+            const createdAt =
+                this.getFundCreatedAt(
+                    project,
+                    net
+                );
+
+            if (createdAt) {
+
+                params.set(
+                    'min_timestamp',
+                    String(createdAt)
+                );
+            }
+
+
             if (fingerprint) {
 
                 params.set(
@@ -530,38 +571,10 @@ class ClassChainDonorReader {
                 `${host}/v1/contracts/${net.usdtAddress}/events?${params.toString()}`;
 
 
-            console.log(
-                `[DonorReader] TRON page ${pageCount}`
-            );
-
-
-            const controller =
-                new AbortController();
-
-            const timer =
-                setTimeout(
-                    () => controller.abort(),
-                    15000
+            const response =
+                await this.fetchWithTimeout(
+                    url
                 );
-
-
-            let response;
-
-            try {
-
-                response =
-                    await fetch(
-                        url,
-                        {
-                            signal:
-                                controller.signal
-                        }
-                    );
-
-            } finally {
-
-                clearTimeout(timer);
-            }
 
 
             if (!response.ok) {
@@ -610,7 +623,7 @@ class ClassChainDonorReader {
 
 
                 /*
-                 * فقط انتقال به خزانه پروژه
+                 * فقط واریز به خزانه
                  */
                 if (
                     String(to).trim() !==
@@ -621,7 +634,7 @@ class ClassChainDonorReader {
 
 
                 /*
-                 * انتقال خزانه به خودش
+                 * برداشت از خزانه مشارکت نیست
                  */
                 if (
                     String(from).trim() ===
@@ -672,10 +685,6 @@ class ClassChainDonorReader {
                 null;
 
 
-            /*
-             * اگر صفحه خالی بود،
-             * pagination تمام شده است.
-             */
             if (!events.length) {
                 fingerprint = null;
             }
@@ -689,7 +698,48 @@ class ClassChainDonorReader {
 
 
     /* =====================================================
-       JSON RPC
+       FIND WORKING RPC
+       ===================================================== */
+
+    async findWorkingRPC(net) {
+
+        const rpcList = [
+            net.rpc,
+            ...(net.rpcFallbacks || [])
+        ].filter(Boolean);
+
+
+        for (
+            const rpc of rpcList
+        ) {
+
+            try {
+
+                const result =
+                    await this.rpcCall(
+                        rpc,
+                        'eth_blockNumber',
+                        []
+                    );
+
+                if (result) {
+                    return rpc;
+                }
+
+            } catch (error) {
+
+                console.warn(
+                    `[DonorReader] RPC failed: ${rpc}`
+                );
+            }
+        }
+
+        return null;
+    }
+
+
+    /* =====================================================
+       RPC CALL
        ===================================================== */
 
     async rpcCall(
@@ -704,7 +754,7 @@ class ClassChainDonorReader {
         const timer =
             setTimeout(
                 () => controller.abort(),
-                15000
+                this.requestTimeout
             );
 
 
@@ -731,7 +781,6 @@ class ClassChainDonorReader {
                             method,
 
                             params
-
                         }),
 
                         signal:
@@ -756,7 +805,7 @@ class ClassChainDonorReader {
 
                 throw new Error(
                     data.error.message ||
-                    `RPC error: ${method}`
+                    'RPC error'
                 );
             }
 
@@ -771,7 +820,40 @@ class ClassChainDonorReader {
 
 
     /* =====================================================
-       AGGREGATE
+       FETCH WITH TIMEOUT
+       ===================================================== */
+
+    async fetchWithTimeout(url) {
+
+        const controller =
+            new AbortController();
+
+        const timer =
+            setTimeout(
+                () => controller.abort(),
+                this.requestTimeout
+            );
+
+
+        try {
+
+            return await fetch(
+                url,
+                {
+                    signal:
+                        controller.signal
+                }
+            );
+
+        } finally {
+
+            clearTimeout(timer);
+        }
+    }
+
+
+    /* =====================================================
+       AGGREGATE DONORS
        ===================================================== */
 
     aggregate(records) {
@@ -789,6 +871,12 @@ class ClassChainDonorReader {
             }
 
 
+            /*
+             * EVM case-insensitive
+             *
+             * TRON نیز به صورت رشته‌ای
+             * به عنوان آدرس یکتا نگه داشته می‌شود.
+             */
             const key =
                 String(
                     record.address
@@ -803,7 +891,8 @@ class ClassChainDonorReader {
                         address:
                             record.address,
 
-                        amount: 0,
+                        amount:
+                            0,
 
                         networks:
                             new Set(),
@@ -865,7 +954,7 @@ class ClassChainDonorReader {
 
 
     /* =====================================================
-       AMOUNT
+       TOKEN AMOUNT
        ===================================================== */
 
     toAmount(
@@ -891,10 +980,6 @@ class ClassChainDonorReader {
             raw % divisor;
 
 
-        /*
-         * تبدیل بدون Number برای جلوگیری
-         * از خطای دقت در اعداد بزرگ
-         */
         const fractionText =
             fraction
                 .toString()
@@ -920,10 +1005,9 @@ class ClassChainDonorReader {
 }
 
 
-/* =========================================================
-   GLOBAL
-   ========================================================= */
-
+/*
+ * Global
+ */
 window.ClassChainDonorReader =
     ClassChainDonorReader;
 
