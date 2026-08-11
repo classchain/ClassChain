@@ -1,36 +1,54 @@
+/**
+ * ClassChain — Donor Reader
+ *
+ * منبع تشخیص مشارکت‌کنندگان:
+ *   USDT Transfer events
+ *
+ * مزیت:
+ *   - انتقال از طریق depositToken قابل شناسایی است
+ *   - انتقال مستقیم USDT به خزانه نیز قابل شناسایی است
+ *   - وابسته به TokensReceived قرارداد خزانه نیست
+ */
+
 class ClassChainDonorReader {
 
     constructor(networkConfig) {
         this.networkConfig = networkConfig;
-        this.eventName = 'TokensReceived';
 
-        this.eventABI = {
+        // استاندارد ERC20 / TRC20
+        this.transferEventABI = {
             anonymous: false,
             inputs: [
                 {
                     indexed: true,
-                    name: 'token',
+                    name: 'from',
                     type: 'address'
                 },
                 {
                     indexed: true,
-                    name: 'donor',
+                    name: 'to',
                     type: 'address'
                 },
                 {
                     indexed: false,
-                    name: 'amount',
+                    name: 'value',
                     type: 'uint256'
                 }
             ],
-            name: 'TokensReceived',
+            name: 'Transfer',
             type: 'event'
         };
     }
 
+
+    /* =====================================================
+       MAIN
+       ===================================================== */
+
     async load(project) {
 
         if (!project?.funds) {
+            console.warn('[DonorReader] Project has no funds');
             return [];
         }
 
@@ -41,6 +59,10 @@ class ClassChainDonorReader {
         )) {
 
             if (net.status !== 'active') {
+                continue;
+            }
+
+            if (!net.usdtAddress) {
                 continue;
             }
 
@@ -56,13 +78,14 @@ class ClassChainDonorReader {
                 let items = [];
 
                 if (net.type === 'EVM') {
+
                     items = await this.readEVM(
                         net,
                         fundAddress
                     );
-                }
 
-                if (net.type === 'TVM') {
+                } else if (net.type === 'TVM') {
+
                     items = await this.readTRON(
                         net,
                         fundAddress
@@ -74,7 +97,7 @@ class ClassChainDonorReader {
             } catch (error) {
 
                 console.error(
-                    `[DonorReader] ${net.id}`,
+                    `[DonorReader] ${net.id} failed:`,
                     error
                 );
             }
@@ -83,6 +106,10 @@ class ClassChainDonorReader {
         return this.aggregate(records);
     }
 
+
+    /* =====================================================
+       FUND ADDRESS
+       ===================================================== */
 
     getFundAddress(project, net) {
 
@@ -98,7 +125,7 @@ class ClassChainDonorReader {
                 typeof fund === 'object' &&
                 fund.address
             ) {
-                return fund.address;
+                return String(fund.address).trim();
             }
         }
 
@@ -119,6 +146,9 @@ class ClassChainDonorReader {
 
         let web3 = null;
 
+        /*
+         * پیدا کردن RPC سالم
+         */
         for (const rpc of rpcList) {
 
             try {
@@ -129,12 +159,18 @@ class ClassChainDonorReader {
                 await candidate.eth.getBlockNumber();
 
                 web3 = candidate;
+
+                console.log(
+                    `[DonorReader] EVM RPC OK: ${rpc}`
+                );
+
                 break;
 
             } catch (error) {
 
                 console.warn(
-                    `[DonorReader] RPC failed: ${rpc}`
+                    `[DonorReader] EVM RPC failed: ${rpc}`,
+                    error
                 );
             }
         }
@@ -145,26 +181,41 @@ class ClassChainDonorReader {
             );
         }
 
-        const contract =
+
+        /*
+         * نکته بسیار مهم:
+         *
+         * Event روی قرارداد USDT خوانده می‌شود،
+         * نه روی Fund Contract.
+         *
+         * بنابراین انتقال مستقیم USDT هم پیدا می‌شود.
+         */
+        const usdtContract =
             new web3.eth.Contract(
-                [this.eventABI],
-                fundAddress
+                [this.transferEventABI],
+                net.usdtAddress
             );
+
 
         const latestBlock =
             await web3.eth.getBlockNumber();
 
+
         /*
-         * از block مربوط به deployment استفاده می‌کنیم
-         * اگر configuration آن را داشته باشد.
-         * در غیر این صورت از صفر شروع می‌کنیم.
+         * اگر deploymentBlock تعریف نشده باشد
+         * از صفر شروع می‌کنیم.
          */
         let fromBlock =
             Number(net.deploymentBlock || 0);
 
+
+        /*
+         * برای جلوگیری از محدودیت RPC
+         */
         const batchSize = 5000;
 
         const records = [];
+
 
         while (fromBlock <= latestBlock) {
 
@@ -174,34 +225,75 @@ class ClassChainDonorReader {
                     latestBlock
                 );
 
+            console.log(
+                `[DonorReader] ${net.id}: blocks ${fromBlock} → ${toBlock}`
+            );
+
+
+            /*
+             * فقط Transfer های USDT
+             */
             const events =
-                await contract.getPastEvents(
-                    this.eventName,
+                await usdtContract.getPastEvents(
+                    'Transfer',
                     {
                         fromBlock,
                         toBlock
                     }
                 );
 
+
             for (const event of events) {
 
-                const donor =
-                    event.returnValues?.donor;
+                const values =
+                    event.returnValues || {};
 
-                const amount =
-                    event.returnValues?.amount;
+                const from =
+                    values.from;
 
-                if (!donor || amount == null) {
+                const to =
+                    values.to;
+
+                const value =
+                    values.value;
+
+
+                if (!from || !to || value == null) {
                     continue;
                 }
 
+
+                /*
+                 * فقط انتقال‌هایی که مقصدشان
+                 * خزانه همین پروژه است.
+                 */
+                if (
+                    String(to).toLowerCase() !==
+                    String(fundAddress).toLowerCase()
+                ) {
+                    continue;
+                }
+
+
+                /*
+                 * انتقال از خود خزانه به خودش
+                 * مشارکت محسوب نمی‌شود.
+                 */
+                if (
+                    String(from).toLowerCase() ===
+                    String(fundAddress).toLowerCase()
+                ) {
+                    continue;
+                }
+
+
                 records.push({
 
-                    address: donor,
+                    address: from,
 
                     amount:
                         this.toAmount(
-                            amount,
+                            value,
                             net.tokenDecimals
                         ),
 
@@ -221,9 +313,11 @@ class ClassChainDonorReader {
                 });
             }
 
+
             fromBlock =
                 toBlock + 1;
         }
+
 
         return records;
     }
@@ -237,19 +331,29 @@ class ClassChainDonorReader {
 
         const host =
             net.fullHost ||
-            'https://api.nileex.io';
+            'https://nile.trongrid.io';
 
-        let fingerprint = null;
 
         const records = [];
 
+        let fingerprint = null;
+
+
+        /*
+         * بسیار مهم:
+         *
+         * Event از قرارداد USDT خوانده می‌شود،
+         * نه از قرارداد Fund.
+         */
         do {
 
-            const params = new URLSearchParams();
+            const params =
+                new URLSearchParams();
+
 
             params.set(
                 'event_name',
-                this.eventName
+                'Transfer'
             );
 
             params.set(
@@ -267,18 +371,29 @@ class ClassChainDonorReader {
                 'block_timestamp,asc'
             );
 
+
             if (fingerprint) {
+
                 params.set(
                     'fingerprint',
                     fingerprint
                 );
             }
 
+
             const url =
-                `${host}/v1/contracts/${fundAddress}/events?${params.toString()}`;
+                `${host}/v1/contracts/${net.usdtAddress}/events?${params.toString()}`;
+
+
+            console.log(
+                '[DonorReader] TRON events:',
+                url
+            );
+
 
             const response =
                 await fetch(url);
+
 
             if (!response.ok) {
 
@@ -287,37 +402,81 @@ class ClassChainDonorReader {
                 );
             }
 
+
             const payload =
                 await response.json();
 
+
             const events =
                 payload?.data || [];
+
 
             for (const event of events) {
 
                 const result =
                     event.result || {};
 
-                const donor =
-                    result.donor ??
-                    event.donor;
 
-                const amount =
-                    result.amount ??
-                    event.amount;
+                /*
+                 * در TRON معمولاً آدرس‌ها
+                 * به صورت Base58 برمی‌گردند.
+                 */
+                const from =
+                    result.from ??
+                    event.from;
 
-                if (!donor || amount == null) {
+
+                const to =
+                    result.to ??
+                    event.to;
+
+
+                const value =
+                    result.value ??
+                    event.value;
+
+
+                if (
+                    !from ||
+                    !to ||
+                    value == null
+                ) {
                     continue;
                 }
+
+
+                /*
+                 * فقط انتقال‌هایی که مقصدشان
+                 * خزانه پروژه است.
+                 */
+                if (
+                    String(to).trim() !==
+                    String(fundAddress).trim()
+                ) {
+                    continue;
+                }
+
+
+                /*
+                 * انتقال از خود خزانه به خودش
+                 * مشارکت محسوب نمی‌شود.
+                 */
+                if (
+                    String(from).trim() ===
+                    String(fundAddress).trim()
+                ) {
+                    continue;
+                }
+
 
                 records.push({
 
                     address:
-                        donor,
+                        from,
 
                     amount:
                         this.toAmount(
-                            amount,
+                            value,
                             net.tokenDecimals
                         ),
 
@@ -343,22 +502,26 @@ class ClassChainDonorReader {
                 });
             }
 
+
             fingerprint =
                 payload?.meta?.fingerprint ||
                 null;
+
 
             if (!events.length) {
                 fingerprint = null;
             }
 
+
         } while (fingerprint);
+
 
         return records;
     }
 
 
     /* =====================================================
-       Aggregate by wallet
+       AGGREGATE
        ===================================================== */
 
     aggregate(records) {
@@ -366,10 +529,26 @@ class ClassChainDonorReader {
         const donors =
             new Map();
 
+
         for (const record of records) {
 
+            if (!record.address) {
+                continue;
+            }
+
+
+            /*
+             * برای EVM حروف بزرگ/کوچک مهم نیست.
+             *
+             * برای TRON بهتر است همان آدرس اصلی
+             * نگه داشته شود، ولی کلید Map
+             * case-insensitive باشد.
+             */
             const key =
-                record.address.toLowerCase();
+                String(
+                    record.address
+                ).toLowerCase();
+
 
             if (!donors.has(key)) {
 
@@ -380,26 +559,32 @@ class ClassChainDonorReader {
 
                     amount: 0,
 
-                    networks: new Set(),
+                    networks:
+                        new Set(),
 
                     contributions: []
                 });
             }
 
+
             const donor =
                 donors.get(key);
 
+
             donor.amount +=
-                Number(record.amount);
+                Number(record.amount) || 0;
+
 
             donor.networks.add(
                 record.networkId
             );
 
+
             donor.contributions.push(
                 record
             );
         }
+
 
         return Array.from(
             donors.values()
@@ -428,8 +613,18 @@ class ClassChainDonorReader {
     }
 
 
-    toAmount(value, decimals = 6) {
+    /* =====================================================
+       DECIMALS
+       ===================================================== */
 
+    toAmount(
+        value,
+        decimals = 6
+    ) {
+
+        /*
+         * برای مقادیر معمول USDT امن است.
+         */
         return Number(value) /
             Math.pow(
                 10,
@@ -439,5 +634,9 @@ class ClassChainDonorReader {
 }
 
 
+/*
+ * Global
+ */
 window.ClassChainDonorReader =
     ClassChainDonorReader;
+
