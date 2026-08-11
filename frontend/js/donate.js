@@ -421,9 +421,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 const approveTx = await usdtContract.approve(currentContract, amount).send();
                 approveTxHash = approveTx;
 
-                if (paymentStatusTitle) {
-                    paymentStatusTitle.textContent = 'اجازه انتقال صادر شد';
-                }
+                //if (paymentStatusTitle) {
+                //    paymentStatusTitle.textContent = 'اجازه انتقال صادر شد';
+                //}
                 if (txHash) {
                   txHash.innerHTML = `
                     <p style="color: green;">
@@ -440,23 +440,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     </p>
                   `;
                 }
-                if (paymentStatusTitle) {
-                    paymentStatusTitle.textContent = 'در حال ثبت کمک در شبکه...';
-                }
+                //if (paymentStatusTitle) {
+                //    paymentStatusTitle.textContent = 'در حال ثبت کمک در شبکه...';
+                //}
 
-                if (txHash) {
-                    txHash.innerHTML = `
-                        <p>
-                            <strong>مرحله ۲ از ۲ — ثبت کمک</strong>
-                        </p>
-                        <p>
-                            تراکنش شما ارسال شد.
-                        </p>
-                        <p>
-                            در حال انتظار برای ثبت آن در شبکه...
-                        </p>
-                    `;
-                }
+                //if (txHash) {
+                //    txHash.innerHTML = `
+                //        <p>
+                //            <strong>مرحله ۲ از ۲ — ثبت کمک</strong>
+                //        </p>
+                //        <p>
+                //            تراکنش شما ارسال شد.
+                //        </p>
+                //        <p>
+                //            در حال انتظار برای ثبت آن در شبکه...
+                //        </p>
+                //    `;
+                //}
 
                 // ====================== مرحله ۲: Deposit ======================
                 const fundContract = await tronWeb.contract(fundDepositABI, currentContract);
