@@ -441,7 +441,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // ====================== مرحله ۲: Deposit ======================
                 const fundContract = await tronWeb.contract(fundDepositABI, currentContract);
                 const tx = await fundContract.depositToken(net.usdtAddress, amount).send();
-
+                  
+                if (paymentStatusTitle) {
+                    paymentStatusTitle.textContent = 'پرداخت با موفقیت ثبت شد';
+                }
                 if (txHash) {
                   txHash.innerHTML = `
                     <p style="color: green; font-size: 1.15em;">🎉 کمک شما با موفقیت ثبت شد! ❤️</p>
