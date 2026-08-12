@@ -1,543 +1,1648 @@
 /**
- * ClassChain — Donor Reader (v2)
+ * ClassChain — Donor Reader
  *
- * منبع اصلی:
- *   event TokensReceived(address indexed token, address indexed donor, uint256 amount)
- *   روی قرارداد SchoolTokenFund
+ * منبع حقیقت:
  *
- * منبع ثانویه (fallback):
- *   Transfer USDT با to = fund  (واریز مستقیم بدون depositToken)
+ *     Official USDT Transfer events
  *
- * خروجی:
- *   [{ address, amount, networks, contributions }]
+ * تعریف مشارکت:
+ *
+ *     USDT transfer
+ *          from = donor
+ *          to   = project Fund
+ *
+ * بنابراین:
+ *
+ *     depositToken()
+ *     USDT.transfer()
+ *
+ * هر دو از طریق Transfer event شناسایی می‌شوند.
+ *
+ * TokensReceived عمداً در این Reader استفاده نمی‌شود.
  */
 
 class ClassChainDonorReader {
 
     constructor(networkConfig) {
-        this.networkConfig = networkConfig;
 
-        // keccak256("TokensReceived(address,address,uint256)")
-        this.tokensReceivedTopic =
-            '0x0af1239547617509a79d1ff0ee4be9ca943bc8410cb0b282dda97d27995a0acd';
+        this.networkConfig =
+            networkConfig || {};
 
-        // keccak256("Transfer(address,address,uint256)")
+        /*
+         * keccak256(
+         *   "Transfer(address,address,uint256)"
+         * )
+         */
         this.transferTopic =
             '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
-        this.evmBatchSize = 5000;
-        this.requestTimeout = 15000;
 
-        // اگر true باشد، Transfer مستقیم USDT هم اضافه می‌شود
-        this.includeDirectTransfers = true;
+        /*
+         * حداکثر زمان انتظار هر RPC request
+         */
+        this.requestTimeout =
+            15000;
+
+
+        /*
+         * اندازه اولیه batch.
+         *
+         * اگر RPC این مقدار را قبول نکند،
+         * به صورت خودکار کوچک می‌شود.
+         */
+        this.initialBatchSize =
+            50000;
+
+
+        /*
+         * حداقل batch
+         */
+        this.minBatchSize =
+            1000;
+
+
+        /*
+         * حداکثر batch
+         */
+        this.maxBatchSize =
+            100000;
     }
+
 
     /* =====================================================
        MAIN
        ===================================================== */
 
     async load(project) {
-        if (!project?.funds) return [];
+
+        if (
+            !project ||
+            !project.funds
+        ) {
+            return [];
+        }
+
+
+        const networks =
+            Object.values(
+                this.networkConfig.NETWORKS || {}
+            );
+
+
+        /*
+         * شبکه‌ها را موازی می‌خوانیم.
+         *
+         * خرابی یک شبکه نباید جلوی شبکه دیگر را بگیرد.
+         */
+        const results =
+            await Promise.allSettled(
+
+                networks.map(
+                    async net => {
+
+                        if (
+                            net.status !== 'active' ||
+                            !net.enabled
+                        ) {
+                            return [];
+                        }
+
+
+                        const fundAddress =
+                            this.getFundAddress(
+                                project,
+                                net
+                            );
+
+
+                        if (!fundAddress) {
+                            return [];
+                        }
+
+
+                        try {
+
+                            console.log(
+                                `[DonorReader] شروع ${net.id}`
+                            );
+
+                            let records = [];
+
+
+                            if (
+                                net.type === 'EVM'
+                            ) {
+
+                                records =
+                                    await this.readEVM(
+                                        net,
+                                        fundAddress,
+                                        project
+                                    );
+
+                            } else if (
+                                net.type === 'TVM'
+                            ) {
+
+                                records =
+                                    await this.readTRON(
+                                        net,
+                                        fundAddress,
+                                        project
+                                    );
+                            }
+
+
+                            console.log(
+                                `[DonorReader] ${net.id}: ` +
+                                `${records.length} contribution events`
+                            );
+
+
+                            return records;
+
+                        } catch (error) {
+
+                            console.error(
+                                `[DonorReader] ${net.id} failed:`,
+                                error
+                            );
+
+                            /*
+                             * شکست یک شبکه نباید
+                             * نتیجه شبکه‌های دیگر را حذف کند.
+                             */
+                            return [];
+                        }
+                    }
+                )
+            );
+
 
         const records = [];
-        const networks = Object.values(this.networkConfig.NETWORKS || {});
 
-        for (const net of networks) {
-            if (net.status !== 'active' || !net.enabled) continue;
 
-            const fundAddress = this.getFundAddress(project, net);
-            if (!fundAddress) continue;
+        for (
+            const result of results
+        ) {
 
-            try {
-                let items = [];
+            if (
+                result.status === 'fulfilled' &&
+                Array.isArray(result.value)
+            ) {
 
-                if (net.type === 'EVM') {
-                    items = await this.readEVM(net, fundAddress, project);
-                } else if (net.type === 'TVM') {
-                    items = await this.readTRON(net, fundAddress, project);
-                }
-
-                records.push(...items);
-            } catch (error) {
-                console.error(`[DonorReader] ${net.id}:`, error);
+                records.push(
+                    ...result.value
+                );
             }
         }
 
-        return this.aggregate(records);
+
+        console.log(
+            `[DonorReader] total raw records: ${records.length}`
+        );
+
+
+        return this.aggregate(
+            records
+        );
     }
 
+
     /* =====================================================
-       FUND HELPERS
+       FUND
        ===================================================== */
 
     getFundAddress(project, net) {
-        const funds = project?.funds;
-        if (!funds || typeof funds !== 'object') return null;
 
-        for (const key of (net.fundsKeys || [])) {
-            const fund = funds[key];
-            if (fund && typeof fund === 'object' && fund.address) {
-                return String(fund.address).trim();
+        const funds =
+            project?.funds;
+
+
+        if (
+            !funds ||
+            typeof funds !== 'object'
+        ) {
+            return null;
+        }
+
+
+        for (
+            const key of
+            (net.fundsKeys || [])
+        ) {
+
+            const fund =
+                funds[key];
+
+
+            if (
+                !fund ||
+                typeof fund !== 'object'
+            ) {
+                continue;
+            }
+
+
+            if (
+                fund.address &&
+                String(
+                    fund.address
+                ).trim() !== ''
+            ) {
+
+                return String(
+                    fund.address
+                ).trim();
             }
         }
+
+
         return null;
     }
+
 
     getFundCreatedAt(project, net) {
-        const funds = project?.funds;
-        if (!funds) return null;
 
-        for (const key of (net.fundsKeys || [])) {
-            const fund = funds[key];
-            if (fund?.createdAt) {
-                const ts = Date.parse(fund.createdAt);
-                if (Number.isFinite(ts)) return ts;
+        const funds =
+            project?.funds;
+
+
+        if (
+            !funds ||
+            typeof funds !== 'object'
+        ) {
+            return null;
+        }
+
+
+        for (
+            const key of
+            (net.fundsKeys || [])
+        ) {
+
+            const fund =
+                funds[key];
+
+
+            if (!fund?.createdAt) {
+                continue;
+            }
+
+
+            const timestamp =
+                Date.parse(
+                    fund.createdAt
+                );
+
+
+            if (
+                Number.isFinite(timestamp)
+            ) {
+
+                return timestamp;
             }
         }
+
+
         return null;
     }
+
 
     /* =====================================================
        EVM
        ===================================================== */
 
-    async readEVM(net, fundAddress, project) {
-        const rpc = await this.findWorkingRPC(net);
-        if (!rpc) throw new Error(`No working RPC for ${net.id}`);
+    async readEVM(
+        net,
+        fundAddress,
+        project
+    ) {
 
-        const latestHex = await this.rpcCall(rpc, 'eth_blockNumber', []);
-        const latestBlock = parseInt(latestHex, 16);
+        if (!net.usdtAddress) {
 
-        let fromBlock = 0;
-        const createdAt = this.getFundCreatedAt(project, net);
-        if (createdAt) {
-            fromBlock = await this.findBlockByTimestamp(rpc, createdAt);
+            throw new Error(
+                `USDT address not configured for ${net.id}`
+            );
         }
 
-        console.log(`[DonorReader] ${net.id}: blocks ${fromBlock} → ${latestBlock}`);
 
-        const records = [];
-
-        // 1) TokensReceived روی خود fund
-        const eventRecords = await this.scanEvmLogs({
-            rpc,
-            address: fundAddress,
-            fromBlock,
-            latestBlock,
-            topics: [this.tokensReceivedTopic],
-            parseLog: (log) => this.parseTokensReceivedLog(log, net, fundAddress)
-        });
-        records.push(...eventRecords);
-
-        // 2) Transfer مستقیم USDT به fund (اختیاری)
-        if (this.includeDirectTransfers && net.usdtAddress) {
-            const paddedFund =
-                '0x' + fundAddress.toLowerCase().replace(/^0x/, '').padStart(64, '0');
-
-            const transferRecords = await this.scanEvmLogs({
-                rpc,
-                address: net.usdtAddress,
-                fromBlock,
-                latestBlock,
-                topics: [this.transferTopic, null, paddedFund],
-                parseLog: (log) => this.parseUsdtTransferLog(log, net, fundAddress)
-            });
-
-            // dedupe با TokensReceived بر اساس txHash+address
-            const seen = new Set(
-                records.map(r => `\( {(r.txHash || '').toLowerCase()}: \){(r.address || '').toLowerCase()}`)
+        const rpc =
+            await this.findWorkingRPC(
+                net
             );
 
-            for (const r of transferRecords) {
-                const key = `\( {(r.txHash || '').toLowerCase()}: \){(r.address || '').toLowerCase()}`;
-                if (!seen.has(key)) {
-                    records.push(r);
-                    seen.add(key);
-                }
-            }
+
+        if (!rpc) {
+
+            throw new Error(
+                `No working RPC for ${net.id}`
+            );
         }
 
-        return records;
-    }
 
-    async scanEvmLogs({ rpc, address, fromBlock, latestBlock, topics, parseLog }) {
-        const records = [];
+        /*
+         * آخرین بلاک
+         */
+        const latestHex =
+            await this.rpcCall(
+                rpc,
+                'eth_blockNumber',
+                []
+            );
 
-        for (let start = fromBlock; start <= latestBlock; start += this.evmBatchSize) {
-            const end = Math.min(start + this.evmBatchSize - 1, latestBlock);
+
+        const latestBlock =
+            parseInt(
+                latestHex,
+                16
+            );
+
+
+        /*
+         * اگر createdAt موجود باشد،
+         * فقط برای کاهش حجم scan استفاده می‌شود.
+         *
+         * صحت داده به createdAt وابسته نیست.
+         */
+        let fromBlock = 0;
+
+
+        const createdAt =
+            this.getFundCreatedAt(
+                project,
+                net
+            );
+
+
+        if (createdAt) {
 
             try {
-                const logs = await this.rpcCall(rpc, 'eth_getLogs', [{
-                    address,
-                    fromBlock: '0x' + start.toString(16),
-                    toBlock: '0x' + end.toString(16),
-                    topics
-                }]);
 
-                for (const log of (logs || [])) {
-                    const parsed = parseLog(log);
-                    if (parsed) records.push(parsed);
-                }
+                fromBlock =
+                    await this.findBlockByTimestamp(
+                        rpc,
+                        createdAt
+                    );
+
             } catch (error) {
-                console.warn(`[DonorReader] batch \( {start}- \){end}:`, error);
+
+                console.warn(
+                    `[DonorReader] ${net.id}: ` +
+                    `timestamp lookup failed; scanning from block 0`
+                );
+
+                fromBlock = 0;
             }
         }
+
+
+        /*
+         * اگر fromBlock از latest بزرگ‌تر شد،
+         * چیزی برای scan نداریم.
+         */
+        if (
+            fromBlock > latestBlock
+        ) {
+            return [];
+        }
+
+
+        console.log(
+            `[DonorReader] ${net.id}: ` +
+            `scanning ${fromBlock} → ${latestBlock}`
+        );
+
+
+        /*
+         * Fund address باید در topic[2] باشد:
+         *
+         * Transfer(
+         *     address indexed from,
+         *     address indexed to,
+         *     uint256 value
+         * )
+         */
+
+        const paddedFund =
+            this.padAddressTopic(
+                fundAddress
+            );
+
+
+        return await this.scanEvmLogs({
+            rpc,
+            tokenAddress:
+                net.usdtAddress,
+            fromBlock,
+            latestBlock,
+            topics: [
+                this.transferTopic,
+                null,
+                paddedFund
+            ],
+            net,
+            fundAddress
+        });
+    }
+
+
+    /* =====================================================
+       EVM LOG SCANNER
+       ===================================================== */
+
+    async scanEvmLogs({
+        rpc,
+        tokenAddress,
+        fromBlock,
+        latestBlock,
+        topics,
+        net,
+        fundAddress
+    }) {
+
+        const records = [];
+
+
+        let start =
+            fromBlock;
+
+
+        let batchSize =
+            this.initialBatchSize;
+
+
+        while (
+            start <= latestBlock
+        ) {
+
+            const end =
+                Math.min(
+                    start + batchSize - 1,
+                    latestBlock
+                );
+
+
+            try {
+
+                console.log(
+                    `[DonorReader] EVM batch ` +
+                    `${start} → ${end}`
+                );
+
+
+                const logs =
+                    await this.rpcCall(
+                        rpc,
+                        'eth_getLogs',
+                        [{
+                            address:
+                                tokenAddress,
+
+                            fromBlock:
+                                '0x' +
+                                start.toString(16),
+
+                            toBlock:
+                                '0x' +
+                                end.toString(16),
+
+                            topics
+                        }]
+                    );
+
+
+                for (
+                    const log of
+                    (logs || [])
+                ) {
+
+                    const record =
+                        this.parseEvmTransfer(
+                            log,
+                            net,
+                            fundAddress
+                        );
+
+
+                    if (record) {
+
+                        records.push(
+                            record
+                        );
+                    }
+                }
+
+
+                /*
+                 * اگر batch موفق بود،
+                 * کمی بزرگ‌ترش می‌کنیم.
+                 */
+                if (
+                    batchSize <
+                    this.maxBatchSize
+                ) {
+
+                    batchSize =
+                        Math.min(
+                            Math.floor(
+                                batchSize * 1.5
+                            ),
+                            this.maxBatchSize
+                        );
+                }
+
+
+                start =
+                    end + 1;
+
+            } catch (error) {
+
+                console.warn(
+                    `[DonorReader] EVM batch failed ` +
+                    `${start} → ${end}:`,
+                    error
+                );
+
+
+                /*
+                 * اگر RPC به خاطر بزرگ بودن
+                 * بازه خطا داد، batch را نصف می‌کنیم.
+                 */
+                if (
+                    batchSize >
+                    this.minBatchSize
+                ) {
+
+                    batchSize =
+                        Math.max(
+                            Math.floor(
+                                batchSize / 2
+                            ),
+                            this.minBatchSize
+                        );
+
+
+                    console.log(
+                        `[DonorReader] reducing batch to ${batchSize}`
+                    );
+
+                    continue;
+                }
+
+
+                /*
+                 * اگر حتی کوچک‌ترین batch هم
+                 * شکست خورد، از آن عبور می‌کنیم
+                 * تا صفحه برای همیشه گیر نکند.
+                 */
+                console.error(
+                    `[DonorReader] skipping block range ` +
+                    `${start} → ${end}`
+                );
+
+
+                start =
+                    end + 1;
+            }
+        }
+
 
         return records;
     }
 
-    /**
-     * TokensReceived(token indexed, donor indexed, amount)
-     * topics[1] = token, topics[2] = donor, data = amount
-     */
-    parseTokensReceivedLog(log, net, fundAddress) {
-        if (!log.topics || log.topics.length < 3) return null;
 
-        const donor = '0x' + log.topics[2].slice(-40);
-        const token = '0x' + log.topics[1].slice(-40);
+    /* =====================================================
+       EVM TRANSFER PARSER
+       ===================================================== */
 
-        // فقط USDT (اگر تعریف شده)
-        if (net.usdtAddress && token.toLowerCase() !== net.usdtAddress.toLowerCase()) {
+    parseEvmTransfer(
+        log,
+        net,
+        fundAddress
+    ) {
+
+        if (
+            !log?.topics ||
+            log.topics.length < 3
+        ) {
             return null;
         }
 
-        if (donor.toLowerCase() === fundAddress.toLowerCase()) return null;
 
-        const rawValue = BigInt(log.data || '0x0');
+        /*
+         * topics[1] = from
+         * topics[2] = to
+         */
+        const from =
+            this.topicToAddress(
+                log.topics[1]
+            );
+
+
+        const to =
+            this.topicToAddress(
+                log.topics[2]
+            );
+
+
+        /*
+         * فقط انتقال به Fund
+         */
+        if (
+            to.toLowerCase() !==
+            fundAddress.toLowerCase()
+        ) {
+            return null;
+        }
+
+
+        /*
+         * برداشت از Fund نباید مشارکت محسوب شود.
+         */
+        if (
+            from.toLowerCase() ===
+            fundAddress.toLowerCase()
+        ) {
+            return null;
+        }
+
+
+        /*
+         * مقدار USDT
+         */
+        const rawValue =
+            BigInt(
+                log.data || '0x0'
+            );
+
+
+        if (
+            rawValue <= 0n
+        ) {
+            return null;
+        }
+
 
         return {
-            address: donor,
-            amount: this.toAmount(rawValue, net.tokenDecimals),
-            network: net.name || net.id,
-            networkId: net.id,
-            txHash: log.transactionHash,
-            blockNumber: parseInt(log.blockNumber, 16),
-            source: 'TokensReceived'
+
+            address:
+                from,
+
+            amount:
+                this.toAmount(
+                    rawValue,
+                    net.tokenDecimals || 6
+                ),
+
+            network:
+                net.name || net.id,
+
+            networkId:
+                net.id,
+
+            txHash:
+                log.transactionHash ||
+                null,
+
+            logIndex:
+                log.logIndex != null
+                    ? parseInt(
+                        log.logIndex,
+                        16
+                    )
+                    : null,
+
+            blockNumber:
+                log.blockNumber
+                    ? parseInt(
+                        log.blockNumber,
+                        16
+                    )
+                    : 0,
+
+            source:
+                'Transfer'
         };
     }
 
-    /**
-     * Transfer(from indexed, to indexed, value)
-     * topics[1] = from, topics[2] = to
-     */
-    parseUsdtTransferLog(log, net, fundAddress) {
-        if (!log.topics || log.topics.length < 3) return null;
-
-        const from = '0x' + log.topics[1].slice(-40);
-        const to = '0x' + log.topics[2].slice(-40);
-
-        if (to.toLowerCase() !== fundAddress.toLowerCase()) return null;
-        if (from.toLowerCase() === fundAddress.toLowerCase()) return null;
-
-        const rawValue = BigInt(log.data || '0x0');
-
-        return {
-            address: from,
-            amount: this.toAmount(rawValue, net.tokenDecimals),
-            network: net.name || net.id,
-            networkId: net.id,
-            txHash: log.transactionHash,
-            blockNumber: parseInt(log.blockNumber, 16),
-            source: 'Transfer'
-        };
-    }
 
     /* =====================================================
        FIND BLOCK BY TIMESTAMP
        ===================================================== */
 
-    async findBlockByTimestamp(rpc, targetTimestamp) {
-        let latest = parseInt(
-            await this.rpcCall(rpc, 'eth_blockNumber', []),
-            16
-        );
+    async findBlockByTimestamp(
+        rpc,
+        targetTimestamp
+    ) {
+
+        let latest =
+            parseInt(
+                await this.rpcCall(
+                    rpc,
+                    'eth_blockNumber',
+                    []
+                ),
+                16
+            );
+
 
         let low = 0;
         let high = latest;
 
-        while (low < high) {
-            const mid = Math.floor((low + high) / 2);
-            const block = await this.rpcCall(
-                rpc,
-                'eth_getBlockByNumber',
-                ['0x' + mid.toString(16), false]
-            );
 
-            if (!block) break;
+        while (
+            low < high
+        ) {
 
-            const timestamp = parseInt(block.timestamp, 16) * 1000;
+            const mid =
+                Math.floor(
+                    (low + high) / 2
+                );
 
-            if (timestamp < targetTimestamp) {
-                low = mid + 1;
+
+            const block =
+                await this.rpcCall(
+                    rpc,
+                    'eth_getBlockByNumber',
+                    [
+                        '0x' +
+                        mid.toString(16),
+                        false
+                    ]
+                );
+
+
+            if (!block) {
+
+                throw new Error(
+                    `Block ${mid} not available`
+                );
+            }
+
+
+            const timestamp =
+                parseInt(
+                    block.timestamp,
+                    16
+                ) * 1000;
+
+
+            if (
+                timestamp <
+                targetTimestamp
+            ) {
+
+                low =
+                    mid + 1;
+
             } else {
-                high = mid;
+
+                high =
+                    mid;
             }
         }
 
+
         return low;
     }
+
 
     /* =====================================================
        TRON
        ===================================================== */
 
-    async readTRON(net, fundAddress, project) {
-        const host = net.fullHost || 'https://nile.trongrid.io';
-        const records = [];
+    async readTRON(
+        net,
+        fundAddress,
+        project
+    ) {
 
-        // 1) TokensReceived روی fund
-        const eventRecords = await this.fetchTronEvents({
-            host,
-            contract: fundAddress,
-            eventName: 'TokensReceived',
-            project,
-            net,
-            filter: (event) => this.parseTronTokensReceived(event, net, fundAddress)
-        });
-        records.push(...eventRecords);
+        if (!net.usdtAddress) {
 
-        // 2) Transfer مستقیم USDT
-        if (this.includeDirectTransfers && net.usdtAddress) {
-            const transferRecords = await this.fetchTronEvents({
-                host,
-                contract: net.usdtAddress,
-                eventName: 'Transfer',
-                project,
-                net,
-                filter: (event) => this.parseTronUsdtTransfer(event, net, fundAddress)
-            });
-
-            const seen = new Set(
-                records.map(r => `\( {(r.txHash || '').toLowerCase()}: \){(r.address || '').toLowerCase()}`)
+            throw new Error(
+                `USDT address not configured for ${net.id}`
             );
-
-            for (const r of transferRecords) {
-                const key = `\( {(r.txHash || '').toLowerCase()}: \){(r.address || '').toLowerCase()}`;
-                if (!seen.has(key)) {
-                    records.push(r);
-                    seen.add(key);
-                }
-            }
         }
 
-        return records;
+
+        const host =
+            net.fullHost ||
+            'https://nile.trongrid.io';
+
+
+        const createdAt =
+            this.getFundCreatedAt(
+                project,
+                net
+            );
+
+
+        const minTimestamp =
+            createdAt
+                ? String(createdAt)
+                : null;
+
+
+        console.log(
+            `[DonorReader] TRON ${net.id}: ` +
+            `reading USDT Transfer events`
+        );
+
+
+        return await this.fetchTronTransferEvents({
+
+            host,
+
+            usdtAddress:
+                net.usdtAddress,
+
+            fundAddress,
+
+            net,
+
+            minTimestamp
+        });
     }
 
-    async fetchTronEvents({ host, contract, eventName, project, net, filter }) {
-        const records = [];
-        let fingerprint = null;
-        let page = 0;
-        const maxPages = 100;
 
-        const createdAt = this.getFundCreatedAt(project, net);
+    /* =====================================================
+       TRON TRANSFER EVENTS
+       ===================================================== */
+
+    async fetchTronTransferEvents({
+        host,
+        usdtAddress,
+        fundAddress,
+        net,
+        minTimestamp
+    }) {
+
+        const records = [];
+
+
+        let fingerprint =
+            null;
+
+
+        let page =
+            0;
+
+
+        /*
+         * safety limit
+         */
+        const maxPages =
+            200;
+
 
         do {
+
             page++;
-            if (page > maxPages) {
-                console.warn('[DonorReader] TRON page limit reached');
+
+
+            if (
+                page >
+                maxPages
+            ) {
+
+                console.warn(
+                    '[DonorReader] TRON page limit reached'
+                );
+
                 break;
             }
 
-            const params = new URLSearchParams();
-            params.set('event_name', eventName);
-            params.set('only_confirmed', 'true');
-            params.set('limit', '200');
-            params.set('order_by', 'block_timestamp,asc');
 
-            if (createdAt) {
-                params.set('min_timestamp', String(createdAt));
+            const params =
+                new URLSearchParams();
+
+
+            params.set(
+                'event_name',
+                'Transfer'
+            );
+
+
+            params.set(
+                'only_confirmed',
+                'true'
+            );
+
+
+            params.set(
+                'limit',
+                '200'
+            );
+
+
+            params.set(
+                'order_by',
+                'block_timestamp,asc'
+            );
+
+
+            if (minTimestamp) {
+
+                params.set(
+                    'min_timestamp',
+                    minTimestamp
+                );
             }
+
+
             if (fingerprint) {
-                params.set('fingerprint', fingerprint);
+
+                params.set(
+                    'fingerprint',
+                    fingerprint
+                );
             }
 
-            const url = `\( {host}/v1/contracts/ \){contract}/events?${params.toString()}`;
-            const response = await this.fetchWithTimeout(url);
+
+            const url =
+                `${host}/v1/contracts/` +
+                `${usdtAddress}/events?` +
+                params.toString();
+
+
+            console.log(
+                `[DonorReader] TRON page ${page}`
+            );
+
+
+            const response =
+                await this.fetchWithTimeout(
+                    url
+                );
+
 
             if (!response.ok) {
-                throw new Error(`TRON API ${response.status}`);
+
+                throw new Error(
+                    `TRON API ${response.status}`
+                );
             }
 
-            const payload = await response.json();
-            const events = payload?.data || [];
 
-            for (const event of events) {
-                const parsed = filter(event);
-                if (parsed) records.push(parsed);
+            const payload =
+                await response.json();
+
+
+            const events =
+                Array.isArray(
+                    payload?.data
+                )
+                    ? payload.data
+                    : [];
+
+
+            for (
+                const event of events
+            ) {
+
+                const record =
+                    this.parseTronTransfer(
+                        event,
+                        net,
+                        fundAddress
+                    );
+
+
+                if (record) {
+
+                    records.push(
+                        record
+                    );
+                }
             }
 
-            fingerprint = payload?.meta?.fingerprint || null;
-            if (!events.length) fingerprint = null;
 
-        } while (fingerprint);
+            fingerprint =
+                payload?.meta?.fingerprint ||
+                null;
+
+
+            if (
+                events.length === 0
+            ) {
+
+                fingerprint =
+                    null;
+            }
+
+
+        } while (
+            fingerprint
+        );
+
 
         return records;
     }
 
-    parseTronTokensReceived(event, net, fundAddress) {
-        const result = event.result || {};
-        const donor = result.donor ?? result[1];
-        const token = result.token ?? result[0];
-        const value = result.amount ?? result[2] ?? result.value;
 
-        if (!donor || value == null) return null;
+    /* =====================================================
+       TRON TRANSFER PARSER
+       ===================================================== */
+
+    parseTronTransfer(
+        event,
+        net,
+        fundAddress
+    ) {
+
+        const result =
+            event?.result || {};
+
+
+        const from =
+            result.from ??
+            event.from;
+
+
+        const to =
+            result.to ??
+            event.to;
+
+
+        const value =
+            result.value ??
+            event.value;
+
 
         if (
-            net.usdtAddress &&
-            token &&
-            String(token).trim() !== String(net.usdtAddress).trim()
+            !from ||
+            !to ||
+            value == null
         ) {
             return null;
         }
 
-        if (String(donor).trim() === String(fundAddress).trim()) return null;
+
+        /*
+         * فقط انتقال به Fund
+         */
+        if (
+            String(to).trim() !==
+            String(fundAddress).trim()
+        ) {
+            return null;
+        }
+
+
+        /*
+         * برداشت از Fund
+         */
+        if (
+            String(from).trim() ===
+            String(fundAddress).trim()
+        ) {
+            return null;
+        }
+
+
+        let rawValue;
+
+
+        try {
+
+            rawValue =
+                BigInt(value);
+
+        } catch (error) {
+
+            console.warn(
+                '[DonorReader] invalid TRON value:',
+                value
+            );
+
+            return null;
+        }
+
+
+        if (
+            rawValue <= 0n
+        ) {
+            return null;
+        }
+
 
         return {
-            address: donor,
-            amount: this.toAmount(BigInt(value), net.tokenDecimals),
-            network: net.name || net.id,
-            networkId: net.id,
-            txHash: event.transaction_id || event.transactionId || null,
-            blockNumber: Number(event.block_number || 0),
-            timestamp: event.block_timestamp || null,
-            source: 'TokensReceived'
+
+            address:
+                String(from).trim(),
+
+            amount:
+                this.toAmount(
+                    rawValue,
+                    net.tokenDecimals || 6
+                ),
+
+            network:
+                net.name || net.id,
+
+            networkId:
+                net.id,
+
+            txHash:
+                event.transaction_id ||
+                event.transactionId ||
+                null,
+
+            eventIndex:
+                event.event_index ??
+                event.eventIndex ??
+                null,
+
+            blockNumber:
+                Number(
+                    event.block_number || 0
+                ),
+
+            timestamp:
+                event.block_timestamp ||
+                null,
+
+            source:
+                'Transfer'
         };
     }
 
-    parseTronUsdtTransfer(event, net, fundAddress) {
-        const result = event.result || {};
-        const from = result.from ?? event.from;
-        const to = result.to ?? event.to;
-        const value = result.value ?? event.value;
-
-        if (!from || !to || value == null) return null;
-        if (String(to).trim() !== String(fundAddress).trim()) return null;
-        if (String(from).trim() === String(fundAddress).trim()) return null;
-
-        return {
-            address: from,
-            amount: this.toAmount(BigInt(value), net.tokenDecimals),
-            network: net.name || net.id,
-            networkId: net.id,
-            txHash: event.transaction_id || event.transactionId || null,
-            blockNumber: Number(event.block_number || 0),
-            timestamp: event.block_timestamp || null,
-            source: 'Transfer'
-        };
-    }
 
     /* =====================================================
-       RPC / FETCH
+       RPC
        ===================================================== */
 
     async findWorkingRPC(net) {
-        const rpcList = [net.rpc, ...(net.rpcFallbacks || [])].filter(Boolean);
 
-        for (const rpc of rpcList) {
+        const rpcList = [
+            net.rpc,
+            ...(net.rpcFallbacks || [])
+        ]
+            .filter(Boolean);
+
+
+        for (
+            const rpc of rpcList
+        ) {
+
             try {
-                const result = await this.rpcCall(rpc, 'eth_blockNumber', []);
-                if (result) return rpc;
+
+                const result =
+                    await this.rpcCall(
+                        rpc,
+                        'eth_blockNumber',
+                        []
+                    );
+
+
+                if (result) {
+
+                    console.log(
+                        `[DonorReader] working RPC: ${rpc}`
+                    );
+
+                    return rpc;
+                }
+
             } catch (error) {
-                console.warn(`[DonorReader] RPC failed: ${rpc}`);
+
+                console.warn(
+                    `[DonorReader] RPC failed: ${rpc}`
+                );
             }
         }
+
+
         return null;
     }
 
-    async rpcCall(rpc, method, params) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), this.requestTimeout);
+
+    async rpcCall(
+        rpc,
+        method,
+        params
+    ) {
+
+        const controller =
+            new AbortController();
+
+
+        const timer =
+            setTimeout(
+                () => controller.abort(),
+                this.requestTimeout
+            );
+
 
         try {
-            const response = await fetch(rpc, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    jsonrpc: '2.0',
-                    id: Date.now(),
-                    method,
-                    params
-                }),
-                signal: controller.signal
-            });
 
-            if (!response.ok) throw new Error(`RPC HTTP ${response.status}`);
+            const response =
+                await fetch(
+                    rpc,
+                    {
+                        method:
+                            'POST',
 
-            const data = await response.json();
-            if (data.error) throw new Error(data.error.message || 'RPC error');
+                        headers: {
+                            'Content-Type':
+                                'application/json'
+                        },
+
+                        body:
+                            JSON.stringify({
+                                jsonrpc:
+                                    '2.0',
+
+                                id:
+                                    Date.now(),
+
+                                method,
+
+                                params
+                            }),
+
+                        signal:
+                            controller.signal
+                    }
+                );
+
+
+            if (
+                !response.ok
+            ) {
+
+                throw new Error(
+                    `RPC HTTP ${response.status}`
+                );
+            }
+
+
+            const data =
+                await response.json();
+
+
+            if (
+                data.error
+            ) {
+
+                throw new Error(
+                    data.error.message ||
+                    'RPC error'
+                );
+            }
+
 
             return data.result;
+
         } finally {
-            clearTimeout(timer);
+
+            clearTimeout(
+                timer
+            );
         }
     }
 
-    async fetchWithTimeout(url) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), this.requestTimeout);
+
+    /* =====================================================
+       TRON / HTTP
+       ===================================================== */
+
+    async fetchWithTimeout(
+        url
+    ) {
+
+        const controller =
+            new AbortController();
+
+
+        const timer =
+            setTimeout(
+                () => controller.abort(),
+                this.requestTimeout
+            );
+
 
         try {
-            return await fetch(url, { signal: controller.signal });
+
+            return await fetch(
+                url,
+                {
+                    signal:
+                        controller.signal
+                }
+            );
+
         } finally {
-            clearTimeout(timer);
+
+            clearTimeout(
+                timer
+            );
         }
     }
+
 
     /* =====================================================
        AGGREGATE
        ===================================================== */
 
     aggregate(records) {
-        const donors = new Map();
 
-        for (const record of records) {
-            if (!record.address) continue;
+        /*
+         * اول eventهای تکراری را حذف می‌کنیم.
+         *
+         * EVM:
+         *     networkId + txHash + logIndex
+         *
+         * TRON:
+         *     networkId + txHash + eventIndex
+         *
+         * اگر index موجود نباشد،
+         * fallback به txHash + address + amount
+         */
+        const unique =
+            new Map();
 
-            const key = String(record.address).toLowerCase();
 
-            if (!donors.has(key)) {
-                donors.set(key, {
-                    address: record.address,
-                    amount: 0,
-                    networks: new Set(),
-                    contributions: []
-                });
+        for (
+            const record of records
+        ) {
+
+            if (
+                !record ||
+                !record.address
+            ) {
+                continue;
             }
 
-            const donor = donors.get(key);
-            donor.amount += Number(record.amount) || 0;
-            donor.networks.add(record.networkId);
-            donor.contributions.push(record);
+
+            const network =
+                String(
+                    record.networkId ||
+                    ''
+                ).toLowerCase();
+
+
+            const txHash =
+                String(
+                    record.txHash ||
+                    ''
+                ).toLowerCase();
+
+
+            let eventIndex =
+                '';
+
+
+            if (
+                record.logIndex != null
+            ) {
+
+                eventIndex =
+                    `log:${record.logIndex}`;
+
+            } else if (
+                record.eventIndex != null
+            ) {
+
+                eventIndex =
+                    `event:${record.eventIndex}`;
+            }
+
+
+            const fallback =
+                [
+                    String(
+                        record.address
+                    ).toLowerCase(),
+
+                    String(
+                        record.amount
+                    )
+                ].join(':');
+
+
+            const key =
+                [
+                    network,
+                    txHash,
+                    eventIndex ||
+                    fallback
+                ].join(':');
+
+
+            if (
+                !unique.has(key)
+            ) {
+
+                unique.set(
+                    key,
+                    record
+                );
+            }
         }
 
-        return Array.from(donors.values())
-            .map(donor => ({
-                address: donor.address,
-                amount: donor.amount,
-                networks: Array.from(donor.networks),
-                contributions: donor.contributions
-            }))
-            .sort((a, b) => b.amount - a.amount);
+
+        /*
+         * سپس مشارکت‌ها را
+         * بر اساس wallet aggregate می‌کنیم.
+         */
+        const donors =
+            new Map();
+
+
+        for (
+            const record of
+            unique.values()
+        ) {
+
+            const addressKey =
+                String(
+                    record.address
+                ).toLowerCase();
+
+
+            if (
+                !donors.has(
+                    addressKey
+                )
+            ) {
+
+                donors.set(
+                    addressKey,
+                    {
+                        address:
+                            record.address,
+
+                        amount:
+                            0,
+
+                        networks:
+                            new Set(),
+
+                        contributions:
+                            []
+                    }
+                );
+            }
+
+
+            const donor =
+                donors.get(
+                    addressKey
+                );
+
+
+            donor.amount +=
+                Number(
+                    record.amount
+                ) || 0;
+
+
+            donor.networks.add(
+                record.networkId
+            );
+
+
+            donor.contributions.push(
+                record
+            );
+        }
+
+
+        return Array
+            .from(
+                donors.values()
+            )
+            .map(
+                donor => ({
+                    address:
+                        donor.address,
+
+                    amount:
+                        donor.amount,
+
+                    networks:
+                        Array.from(
+                            donor.networks
+                        ),
+
+                    contributions:
+                        donor.contributions
+                })
+            )
+            .sort(
+                (a, b) =>
+                    b.amount -
+                    a.amount
+            );
     }
+
 
     /* =====================================================
        AMOUNT
        ===================================================== */
 
-    toAmount(value, decimals = 6) {
-        const raw = typeof value === 'bigint' ? value : BigInt(value);
-        const divisor = 10n ** BigInt(decimals);
-        const whole = raw / divisor;
-        const fraction = raw % divisor;
+    toAmount(
+        value,
+        decimals = 6
+    ) {
 
-        const fractionText = fraction
-            .toString()
-            .padStart(decimals, '0')
-            .replace(/0+$/, '');
+        const raw =
+            typeof value === 'bigint'
+                ? value
+                : BigInt(value);
 
-        if (!fractionText) return Number(whole);
-        return Number(`\( {whole}. \){fractionText}`);
+
+        const divisor =
+            10n **
+            BigInt(decimals);
+
+
+        const whole =
+            raw /
+            divisor;
+
+
+        const fraction =
+            raw %
+            divisor;
+
+
+        const fractionText =
+            fraction
+                .toString()
+                .padStart(
+                    decimals,
+                    '0'
+                )
+                .replace(
+                    /0+$/,
+                    ''
+                );
+
+
+        /*
+         * برای UI مقدار decimal برمی‌گردانیم.
+         *
+         * در مرحله بعد می‌توانیم
+         * aggregation را نیز BigInt کنیم.
+         */
+        if (
+            !fractionText
+        ) {
+
+            return Number(
+                whole
+            );
+        }
+
+
+        return Number(
+            `${whole}.${fractionText}`
+        );
+    }
+
+
+    /* =====================================================
+       ADDRESS HELPERS
+       ===================================================== */
+
+    topicToAddress(
+        topic
+    ) {
+
+        return (
+            '0x' +
+            String(topic)
+                .slice(-40)
+        );
+    }
+
+
+    padAddressTopic(
+        address
+    ) {
+
+        return (
+            '0x' +
+            String(address)
+                .replace(
+                    /^0x/,
+                    ''
+                )
+                .toLowerCase()
+                .padStart(
+                    64,
+                    '0'
+                )
+        );
     }
 }
 
-window.ClassChainDonorReader = ClassChainDonorReader;
+
+/*
+ * Export global
+ */
+window.ClassChainDonorReader =
+    ClassChainDonorReader;
