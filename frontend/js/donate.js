@@ -198,93 +198,295 @@ function selectNetwork(network) {
 }
 
 // ==================== تابع بارگذاری پروژه ====================
-async function loadProject() {
-    const urlParams = new URLSearchParams(window.location.search);
-    const projectId = urlParams.get('project');
+// async function loadProject() {
+// ==================== بارگذاری اطلاعات پایه پروژه ====================
+
+async function loadProjectData() {
+
+    const urlParams =
+        new URLSearchParams(window.location.search);
+
+    const projectId =
+        urlParams.get('project');
 
     if (!projectId) {
-        const title = document.getElementById('projectTitle');
-        if (title) title.innerText = "پروژه یافت نشد";
-        return;
+
+        const title =
+            document.getElementById('projectTitle');
+
+        if (title) {
+            title.innerText =
+                'پروژه یافت نشد';
+        }
+
+        throw new Error(
+            'شناسه پروژه در URL وجود ندارد'
+        );
     }
 
     try {
-        const response = await fetch('data/Projects.json');
+
+        const response =
+            await fetch('data/Projects.json');
+
         if (!response.ok) {
-            throw new Error('فایل Projects.json پیدا نشد');
+
+            throw new Error(
+                'فایل Projects.json پیدا نشد'
+            );
         }
-        const data = await response.json();
+
+        const data =
+            await response.json();
 
         let foundProject = null;
-        if (data.features && Array.isArray(data.features)) {
-            data.features.forEach(feature => {
-                if (feature.attributes && feature.attributes.ProjectID === projectId) {
-                    foundProject = feature.attributes;
+
+        if (
+            data.features &&
+            Array.isArray(data.features)
+        ) {
+
+            for (
+                const feature of data.features
+            ) {
+
+                if (
+                    feature.attributes &&
+                    String(
+                        feature.attributes.ProjectID
+                    ) === String(projectId)
+                ) {
+
+                    foundProject =
+                        feature.attributes;
+
+                    break;
                 }
-            });
+            }
         }
 
         if (!foundProject) {
-            const title = document.getElementById('projectTitle');
-            if (title) title.innerText = "پروژه یافت نشد";
-            return;
+
+            const title =
+                document.getElementById(
+                    'projectTitle'
+                );
+
+            if (title) {
+                title.innerText =
+                    'پروژه یافت نشد';
+            }
+
+            throw new Error(
+                `پروژه ${projectId} پیدا نشد`
+            );
         }
 
-        projects = foundProject;
-		// ---------------------------
-		await loadDonorsList();
-		// ---------------------------
-		
-        // نمایش نام پروژه
-        const titleEl = document.getElementById('projectTitle');
-        if (titleEl) titleEl.innerText = foundProject["نام پروژه"] || "پروژه بدون نام";
+        /*
+         * این متغیر منبع مشترک هر دو مسیر است.
+         *
+         * مسیر مالی:
+         *     projects -> Fund addresses -> Balance
+         *
+         * مسیر مشارکت:
+         *     projects -> Fund addresses -> DonorReader
+         */
+        projects =
+            foundProject;
 
-        const descEl = document.getElementById('projectDesc');
+
+        // ============================
+        // اطلاعات اصلی پروژه
+        // ============================
+
+        const titleEl =
+            document.getElementById(
+                'projectTitle'
+            );
+
+        if (titleEl) {
+
+            titleEl.innerText =
+                foundProject['نام پروژه'] ||
+                'پروژه بدون نام';
+        }
+
+
+        const descEl =
+            document.getElementById(
+                'projectDesc'
+            );
+
         if (descEl) {
-            descEl.innerText = `${foundProject.استان || ''} - ${foundProject.منطقه || ''} | ${foundProject["تعداد کلاس"] || 0} کلاس`;
+
+            descEl.innerText =
+                `${foundProject.استان || ''} - ` +
+                `${foundProject.منطقه || ''} | ` +
+                `${foundProject['تعداد کلاس'] || 0} کلاس`;
         }
 
-        const target = foundProject["targetAmount(USDT)"] || 0;
 
-        // پر کردن منوی شبکه
-        const select = document.getElementById('networkSelect');
+        // ============================
+        // Target
+        // ============================
+
+        const target =
+            Number(
+                foundProject[
+                    'targetAmount(USDT)'
+                ]
+            ) || 0;
+
+
+        // ============================
+        // شبکه‌ها
+        // ============================
+
+        const select =
+            document.getElementById(
+                'networkSelect'
+            );
+
         if (select) {
-            select.innerHTML = '';
-            networkConfig.getDonationNetworks().forEach(net => {
-                const opt = document.createElement('option');
-                opt.value = net.id;
-                const hasContract = projectHasFundOnNetwork(foundProject, net);
-                const isActive = net.status === 'active' && net.enabled;
-                opt.textContent = `${net.name} — ${net.walletName || 'کیف پول'}${isActive && hasContract ? '' : ' (غیرفعال)'}`;
-                opt.disabled = !isActive || !hasContract;
-                select.appendChild(opt);
-            });
 
-            // انتخاب پیش‌فرض: اول Amoy، بعد Tron، بعد اولین گزینه فعال
-            const preferred = ['amoy', 'tron', 'polygon'].find(id => {
-                const net = networks[id];
-                if (!net) return false;
-                return net.status === 'active' && net.enabled && projectHasFundOnNetwork(foundProject, net);
-            });
-            const firstEnabled = Array.from(select.options).find(option => !option.disabled)?.value;
-            const initialNetwork = preferred || firstEnabled;
+            select.innerHTML = '';
+
+            const donationNetworks =
+                networkConfig
+                    .getDonationNetworks();
+
+            donationNetworks.forEach(
+                net => {
+
+                    const opt =
+                        document.createElement(
+                            'option'
+                        );
+
+                    opt.value =
+                        net.id;
+
+                    const hasFund =
+                        projectHasFundOnNetwork(
+                            foundProject,
+                            net
+                        );
+
+                    const isActive =
+                        net.status === 'active' &&
+                        net.enabled;
+
+                    opt.textContent =
+                        `${net.name} — ` +
+                        `${net.walletName || 'کیف پول'}` +
+                        `${
+                            isActive && hasFund
+                                ? ''
+                                : ' (غیرفعال)'
+                        }`;
+
+                    opt.disabled =
+                        !isActive ||
+                        !hasFund;
+
+                    select.appendChild(
+                        opt
+                    );
+                }
+            );
+
+
+            /*
+             * ترتیب انتخاب پیش‌فرض
+             */
+            const preferred =
+                [
+                    'amoy',
+                    'tron',
+                    'polygon'
+                ].find(
+                    id => {
+
+                        const net =
+                            networks[id];
+
+                        if (!net) {
+                            return false;
+                        }
+
+                        return (
+                            net.status === 'active' &&
+                            net.enabled &&
+                            projectHasFundOnNetwork(
+                                foundProject,
+                                net
+                            )
+                        );
+                    }
+                );
+
+
+            const firstEnabled =
+                Array.from(
+                    select.options
+                ).find(
+                    option =>
+                        !option.disabled
+                );
+
+
+            const initialNetwork =
+                preferred ||
+                firstEnabled?.value ||
+                null;
+
 
             if (initialNetwork) {
-                select.value = initialNetwork;
-                selectNetwork(initialNetwork);
+
+                select.value =
+                    initialNetwork;
+
+                selectNetwork(
+                    initialNetwork
+                );
+
             } else {
-                selectedNetwork = null;
-                currentContract = null;
+
+                selectedNetwork =
+                    null;
+
+                currentContract =
+                    null;
+
                 updateButtonState();
             }
         }
 
-        loadProgress(target);
-		
-    } catch (e) {
-        console.error("خطا در لود پروژه:", e);
-        const title = document.getElementById('projectTitle');
-        if (title) title.innerText = "خطا در بارگذاری پروژه";
+
+        return {
+            project: foundProject,
+            target: target
+        };
+
+    } catch (error) {
+
+        console.error(
+            '[Donate] خطا در بارگذاری اطلاعات پروژه:',
+            error
+        );
+
+        const title =
+            document.getElementById(
+                'projectTitle'
+            );
+
+        if (title) {
+
+            title.innerText =
+                'خطا در بارگذاری پروژه';
+        }
+
+        throw error;
     }
 }
 
@@ -306,20 +508,55 @@ async function loadProject() {
 
 //    donorsList.innerHTML = '<p style="color: #94a3b8; text-align: center;">هنوز کمک‌کننده‌ای ثبت نشده است</p>';
 //}
+// ==================== بارگذاری مشارکت‌کنندگان ====================
+
 async function loadDonorsList() {
 
     const container =
-        document.getElementById('donorsList');
+        document.getElementById(
+            'donorsList'
+        );
 
-    if (!container || !projects) {
+    if (!container) {
         return;
     }
+
 
     container.innerHTML = `
         <div class="donors-loading">
             در حال دریافت مشارکت‌کنندگان...
         </div>
     `;
+
+
+    /*
+     * این تابع فقط بعد از آماده شدن projects
+     * اجرا می‌شود.
+     *
+     * هیچ وابستگی به:
+     * - balance
+     * - progress
+     * - target
+     * - wallet
+     *
+     * ندارد.
+     */
+
+    if (
+        !projects ||
+        typeof projects !== 'object'
+    ) {
+
+        container.innerHTML = `
+            <div class="donors-empty">
+                اطلاعات پروژه برای دریافت
+                مشارکت‌کنندگان آماده نیست.
+            </div>
+        `;
+
+        return;
+    }
+
 
     try {
 
@@ -328,12 +565,18 @@ async function loadDonorsList() {
                 networkConfig
             );
 
+
         const donors =
             await reader.load(
                 projects
             );
 
-        renderDonorsList(donors);
+
+        renderDonorsList(
+            Array.isArray(donors)
+                ? donors
+                : []
+        );
 
     } catch (error) {
 
@@ -351,16 +594,24 @@ async function loadDonorsList() {
     }
 }
 
+// ==================== نمایش مشارکت‌کنندگان ====================
+
 function renderDonorsList(donors) {
 
     const container =
-        document.getElementById('donorsList');
+        document.getElementById(
+            'donorsList'
+        );
 
     if (!container) {
         return;
     }
 
-    if (!donors.length) {
+
+    if (
+        !Array.isArray(donors) ||
+        donors.length === 0
+    ) {
 
         container.innerHTML = `
             <div class="donors-empty">
@@ -371,101 +622,196 @@ function renderDonorsList(donors) {
         return;
     }
 
+
     container.innerHTML =
-        donors.map((donor, index) => {
+        donors
+            .map(
+                (donor, index) => {
 
-            const address =
-                donor.address;
+                    const address =
+                        String(
+                            donor.address || ''
+                        );
 
-            const shortAddress =
-                address.length > 14
-                    ? `${address.slice(0, 7)}...${address.slice(-7)}`
-                    : address;
 
-            const amount =
-                Number(
-                    donor.amount
-                ).toLocaleString(
-                    'en-US',
-                    {
-                        maximumFractionDigits: 2
-                    }
-                );
+                    const shortAddress =
+                        address.length > 14
+                            ? `${address.slice(0, 7)}...${address.slice(-7)}`
+                            : address;
 
-            const networks =
-                donor.networks
-                    .map(id => {
-                        const net =
-                            networkConfig.NETWORKS?.[id];
 
-                        return net?.name || id;
-                    })
-                    .join(' • ');
+                    const amount =
+                        Number(
+                            donor.amount
+                        ) || 0;
 
-            return `
-                <div class="donor-item">
 
-                    <div class="donor-rank">
-                        ${index + 1}
-                    </div>
+                    const networksText =
+                        Array.isArray(
+                            donor.networks
+                        )
+                            ? donor.networks
+                                .map(
+                                    id => {
 
-                    <div class="donor-info">
+                                        const net =
+                                            networkConfig
+                                                .NETWORKS?.[
+                                                    id
+                                                ];
 
-                        <div
-                            class="donor-address"
-                            title="${address}"
-                        >
-                            ${shortAddress}
+                                        return (
+                                            net?.name ||
+                                            id
+                                        );
+                                    }
+                                )
+                                .join(' • ')
+                            : '';
+
+
+                    return `
+                        <div class="donor-item">
+
+                            <div class="donor-rank">
+                                ${index + 1}
+                            </div>
+
+                            <div class="donor-info">
+
+                                <div
+                                    class="donor-address"
+                                    title="${address}"
+                                >
+                                    ${shortAddress}
+                                </div>
+
+                                <div class="donor-network">
+                                    ${networksText}
+                                </div>
+
+                            </div>
+
+                            <div class="donor-amount">
+                                ${amount.toLocaleString(
+                                    'en-US',
+                                    {
+                                        maximumFractionDigits: 2
+                                    }
+                                )} USDT
+                            </div>
+
                         </div>
-
-                        <div class="donor-network">
-                            ${networks}
-                        </div>
-
-                    </div>
-
-                    <div class="donor-amount">
-                        ${amount} USDT
-                    </div>
-
-                </div>
-            `;
-
-        }).join('');
+                    `;
+                }
+            )
+            .join('');
 }
-// ==================== تابع پیشرفت ====================
-async function loadProgress(target = 100000) {
-    const fill = document.getElementById('progressFill');
-    const text = document.getElementById('progressText');
+// ==================== بارگذاری وضعیت مالی پروژه ====================
+
+async function loadProjectFinancials(
+    target = null
+) {
+
+    const fill =
+        document.getElementById(
+            'progressFill'
+        );
+
+    const text =
+        document.getElementById(
+            'progressText'
+        );
+
 
     if (text) {
-        text.innerText = 'در حال خواندن موجودی از زنجیره...';
+
+        text.innerText =
+            'در حال خواندن موجودی از زنجیره...';
     }
+
 
     let totalRaised = 0;
+
     try {
-        if (window.ClassChainRaisedReader && projects) {
-            const result = await window.ClassChainRaisedReader.getProjectRaisedUSDT(projects);
-            totalRaised = result.total || 0;
-            console.log('موجودی خزانه‌ها:', result.breakdown);
+
+        if (
+            window.ClassChainRaisedReader &&
+            projects
+        ) {
+
+            const result =
+                await window
+                    .ClassChainRaisedReader
+                    .getProjectRaisedUSDT(
+                        projects
+                    );
+
+            totalRaised =
+                Number(
+                    result?.total
+                ) || 0;
+
+            console.log(
+                '[Donate] موجودی خزانه‌ها:',
+                result?.breakdown
+            );
         }
-    } catch (e) {
-        console.error('خطا در خواندن raised:', e);
+
+    } catch (error) {
+
+        console.error(
+            '[Donate] خطا در خواندن موجودی خزانه:',
+            error
+        );
+
+        if (text) {
+
+            text.innerText =
+                'خواندن موجودی خزانه امکان‌پذیر نیست.';
+        }
+
+        return;
     }
 
-    const percent = target > 0 ? Math.min((totalRaised / target) * 100, 100) : 0;
 
-    if (fill) fill.style.width = percent + '%';
+    const projectTarget =
+        target !== null
+            ? Number(target) || 0
+            : Number(
+                projects?.[
+                    'targetAmount(USDT)'
+                ]
+            ) || 0;
+
+
+    const percent =
+        projectTarget > 0
+            ? Math.min(
+                (
+                    totalRaised /
+                    projectTarget
+                ) * 100,
+                100
+            )
+            : 0;
+
+
+    if (fill) {
+
+        fill.style.width =
+            percent + '%';
+    }
+
+
     if (text) {
+
         text.innerText =
-            `${totalRaised.toFixed(2)} USDT از ${Number(target).toLocaleString('fa-IR')} USDT جمع شده (${percent.toFixed(1)}%)`;
-    }
-    const donorsList = document.getElementById('donorsList');
-    if (donorsList && totalRaised > 0) {
-        const t = (donorsList.textContent || '').trim();
-        if (t.includes('هنوز کمک') || t.includes('اولین')) {
-            donorsList.innerHTML = '';
-        }
+            `${totalRaised.toFixed(2)} USDT ` +
+            `از ` +
+            `${projectTarget.toLocaleString('fa-IR')} USDT ` +
+            `جمع شده ` +
+            `(${percent.toFixed(1)}%)`;
     }
 }
 
@@ -1061,10 +1407,79 @@ if (net.type === 'TVM') {
             }
         };
     }
+// ==================== بارگذاری اولیه ====================
 
+async function initializeDonatePage() {
+
+    /*
+     * مرحله اول:
+     *
+     * فقط اطلاعات Projects.json
+     * باید آماده شود.
+     */
+    let projectData;
+
+    try {
+
+        projectData =
+            await loadProjectData();
+
+    } catch (error) {
+
+        console.error(
+            '[Donate] Initialization failed:',
+            error
+        );
+
+        updateButtonState();
+
+        return;
+    }
+
+
+    /*
+     * مرحله دوم:
+     *
+     * دو مسیر کاملاً مستقل.
+     *
+     * شکست یکی نباید دیگری را متوقف کند.
+     */
+    const financialTask =
+        loadProjectFinancials(
+            projectData.target
+        );
+
+
+    const donorsTask =
+        loadDonorsList();
+
+
+    /*
+     * عمداً Promise.allSettled
+     * استفاده می‌کنیم.
+     *
+     * بنابراین:
+     *
+     * Financial ❌
+     * Donors    ✅
+     *
+     * یا:
+     *
+     * Financial ✅
+     * Donors    ❌
+     *
+     * هر دو حالت ممکن است.
+     */
+    await Promise.allSettled([
+        financialTask,
+        donorsTask
+    ]);
+}
+initializeDonatePage();
+updateButtonState();
     // بارگذاری اولیه
-    loadProject();
-    updateButtonState();
+//    loadProject();
+//    updateButtonState();
 });
 
 // ==================== فعال‌سازی particles ====================
