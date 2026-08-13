@@ -113,7 +113,30 @@ async function checkOwnershipOnNetwork(projectAttributes, netCfg, userAddr, addr
     // ============================================================
     const fundEntries = [];
 
-    for (const key of (netCfg.fundsKeys || [])) {
+const fundKey =
+    netCfg.fundsKey;
+
+const fundInfo =
+    funds[fundKey];
+
+if (
+    !fundInfo ||
+    typeof fundInfo !== 'object' ||
+    !fundInfo.address
+) {
+    return {
+        isOwner: false
+    };
+}
+
+const fundEntries = [
+    {
+        key: fundKey,
+        fundInfo
+    }
+];
+
+        
         const fundInfo = funds[key];
 
         if (!fundInfo || typeof fundInfo !== 'object') {
@@ -158,7 +181,7 @@ async function checkOwnershipOnNetwork(projectAttributes, netCfg, userAddr, addr
             const fundAddr = fundInfo.address;
 
             try {
-                const web3 = new Web3(netCfg.rpc);
+                const web3 = new Web3(netCfg.rpcUrl);
                 const fundContract = new web3.eth.Contract(
                     fundABI,
                     fundAddr
@@ -221,6 +244,8 @@ async function checkOwnershipOnNetwork(projectAttributes, netCfg, userAddr, addr
 
 // ==================== بارگذاری پروژه‌ها ====================
 async function loadProjects() {
+    await window.ClassChainNetworkConfig.ready;
+
     try {
         document.getElementById('loading').innerHTML =
             '<p>در حال بارگذاری لیست پروژه‌ها...</p>';
@@ -268,7 +293,21 @@ async function loadProjects() {
 
             // بررسی اینکه پروژه حداقل یک خزانه فعال دارد
             const hasAnyFund = activeNetworks.some(net => {
-                return (net.fundsKeys || []).some(key => {
+                return const key =
+    net.fundsKey;
+
+const fund =
+    funds[key];
+
+return (
+    fund &&
+    typeof fund === 'object' &&
+    fund.address &&
+    String(
+        fund.address
+    ).trim() !== '' &&
+    fund.address !== 'null'
+);
                     const fund = funds[key];
 
                     return (
