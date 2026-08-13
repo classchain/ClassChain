@@ -177,7 +177,7 @@ function collectFundAddresses(
  */
 async function getProjectRaisedUSDT(projectAttributes) {
   if (!projectAttributes) return { total: 0, breakdown: [] };
-
+}
 const config =
     window.ClassChainNetworkConfig;
 
@@ -193,11 +193,7 @@ if (!config) {
 }
 
 await config.ready;
-    console.error(
-      'ClassChainNetworkConfig لود نشده است. network-config.js را قبل از raised-reader.js قرار دهید.'
-    );
-    return { total: 0, breakdown: [] };
-  }
+
 
   const readNetworks = config.getReadNetworks();
   const tasks = [];
