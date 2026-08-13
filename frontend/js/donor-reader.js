@@ -74,6 +74,7 @@ class ClassChainDonorReader {
        ===================================================== */
 
     async load(project) {
+        await this.networkConfig.ready
 
         if (
             !project ||
@@ -213,100 +214,89 @@ class ClassChainDonorReader {
        FUND
        ===================================================== */
 
-    getFundAddress(project, net) {
+    getFundAddress(
+    project,
+    net
+) {
 
-        const funds =
-            project?.funds;
+    const funds =
+        project?.funds;
 
-
-        if (
-            !funds ||
-            typeof funds !== 'object'
-        ) {
-            return null;
-        }
-
-
-        for (
-            const key of
-            (net.fundsKeys || [])
-        ) {
-
-            const fund =
-                funds[key];
-
-
-            if (
-                !fund ||
-                typeof fund !== 'object'
-            ) {
-                continue;
-            }
-
-
-            if (
-                fund.address &&
-                String(
-                    fund.address
-                ).trim() !== ''
-            ) {
-
-                return String(
-                    fund.address
-                ).trim();
-            }
-        }
-
-
+    if (
+        !funds ||
+        typeof funds !== 'object'
+    ) {
         return null;
     }
 
+    const key =
+        net.fundsKey;
 
-    getFundCreatedAt(project, net) {
-
-        const funds =
-            project?.funds;
-
-
-        if (
-            !funds ||
-            typeof funds !== 'object'
-        ) {
-            return null;
-        }
-
-
-        for (
-            const key of
-            (net.fundsKeys || [])
-        ) {
-
-            const fund =
-                funds[key];
-
-
-            if (!fund?.createdAt) {
-                continue;
-            }
-
-
-            const timestamp =
-                Date.parse(
-                    fund.createdAt
-                );
-
-
-            if (
-                Number.isFinite(timestamp)
-            ) {
-
-                return timestamp;
-            }
-        }
-
-
+    if (!key) {
         return null;
     }
+
+    const fund =
+        funds[key];
+
+    if (
+        !fund ||
+        typeof fund !== 'object'
+    ) {
+        return null;
+    }
+
+    if (
+        !fund.address ||
+        String(fund.address).trim() === ''
+    ) {
+        return null;
+    }
+
+    return String(
+        fund.address
+    ).trim();
+}
+
+
+    getFundCreatedAt(
+    project,
+    net
+) {
+
+    const funds =
+        project?.funds;
+
+    if (
+        !funds ||
+        typeof funds !== 'object'
+    ) {
+        return null;
+    }
+
+    const key =
+        net.fundsKey;
+
+    if (!key) {
+        return null;
+    }
+
+    const fund =
+        funds[key];
+
+    if (!fund?.createdAt) {
+        return null;
+    }
+
+    const timestamp =
+        Date.parse(
+            fund.createdAt
+        );
+
+    return Number.isFinite(timestamp)
+        ? timestamp
+        : null;
+}
 
 
     /* =====================================================
