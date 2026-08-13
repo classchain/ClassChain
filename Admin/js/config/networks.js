@@ -2,13 +2,15 @@
  * Admin Network Configuration Adapter
  *
  * Source of Truth:
- * ../../shared/network-config.js
+ * ../../../shared/network-config.js
  */
 
 import {
-
     NETWORKS,
     DEPLOYMENTS,
+
+    FACTORY_ABI,
+    TRON_FACTORY_ABI,
 
     getNetworkById,
     getDeployment,
@@ -18,16 +20,17 @@ import {
     getTokenDecimals,
 
     getRpcUrls,
-
     getActiveNetworks
 
 } from '../../../shared/network-config.js';
 
 
 export {
-
     NETWORKS,
     DEPLOYMENTS,
+
+    FACTORY_ABI,
+    TRON_FACTORY_ABI,
 
     getNetworkById,
     getDeployment,
@@ -37,15 +40,13 @@ export {
     getTokenDecimals,
 
     getRpcUrls,
-
     getActiveNetworks
-
 };
 
 
-/*
- * Compatibility helpers used by Admin.
- */
+export const ACTIVE_NETWORKS =
+    getActiveNetworks();
+
 
 export function getExplorerUrl(
     networkId,
@@ -53,9 +54,7 @@ export function getExplorerUrl(
 ) {
 
     const network =
-        getNetworkById(
-            networkId
-        );
+        getNetworkById(networkId);
 
     if (
         !network ||
@@ -76,9 +75,7 @@ export function isValidAddress(
 ) {
 
     const network =
-        getNetworkById(
-            networkId
-        );
+        getNetworkById(networkId);
 
     if (
         !network ||
@@ -87,35 +84,87 @@ export function isValidAddress(
         return false;
     }
 
-
     if (
-        network.type ===
-        'EVM'
+        network.type === 'EVM'
     ) {
 
         return /^0x[a-fA-F0-9]{40}$/
             .test(address);
     }
 
-
     if (
-        network.type ===
-        'TVM'
+        network.type === 'TVM'
     ) {
 
         return /^T[a-zA-Z0-9]{33}$/
             .test(address);
     }
 
-
     return false;
 }
 
 
-/*
- * Existing Admin code expects ACTIVE_NETWORKS
- * as an array.
- */
+export function toTronBase58(
+    address
+) {
 
-export const ACTIVE_NETWORKS =
-    getActiveNetworks();
+    if (
+        !address ||
+        typeof address !== 'string'
+    ) {
+        return address;
+    }
+
+    if (
+        /^T[a-zA-Z0-9]{33}$/
+            .test(address)
+    ) {
+        return address;
+    }
+
+    try {
+
+        const tronWeb =
+            window.tronWeb;
+
+        if (
+            !tronWeb?.address
+        ) {
+
+            console.warn(
+                'TronWeb در دسترس نیست.'
+            );
+
+            return address;
+        }
+
+        let hex =
+            address;
+
+        if (
+            hex.startsWith('0x') ||
+            hex.startsWith('0X')
+        ) {
+
+            hex =
+                '41' +
+                hex
+                    .slice(2)
+                    .toLowerCase();
+        }
+
+        return tronWeb.address.fromHex(
+            hex
+        );
+
+    } catch (error) {
+
+        console.warn(
+            'خطا در تبدیل آدرس Tron:',
+            address,
+            error
+        );
+
+        return address;
+    }
+}
