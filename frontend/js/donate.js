@@ -63,37 +63,61 @@ function getTokenDecimals(network) {
  *
  * fundKey ها از net.fundsKeys می‌آیند.
  */
-function getProjectFundAddress(project, net) {
-    if (!project || !net) {
+function getProjectFundAddress(
+    project,
+    net
+) {
+
+    if (
+        !project ||
+        !net
+    ) {
         return null;
     }
 
-    const funds = project.funds;
+    const funds =
+        project.funds;
 
-    if (!funds || typeof funds !== 'object') {
+    if (
+        !funds ||
+        typeof funds !== 'object'
+    ) {
         return null;
     }
 
-    for (const key of (net.fundsKeys || [])) {
-        const fund = funds[key];
+    const key =
+        net.fundsKey;
 
-        if (!fund || typeof fund !== 'object') {
-            continue;
-        }
-
-        const address = fund.address;
-
-        if (
-            address &&
-            address !== 'null' &&
-            String(address).trim() !== ''
-        ) {
-            return String(address).trim();
-        }
+    if (!key) {
+        return null;
     }
 
-    return null;
-}
+    const fund =
+        funds[key];
+
+    if (
+        !fund ||
+        typeof fund !== 'object'
+    ) {
+        return null;
+    }
+
+    const address =
+        fund.address;
+
+    if (
+        !address ||
+        address === 'null' ||
+        String(address).trim() === ''
+    ) {
+        return null;
+    }
+
+    return String(
+        address
+    ).trim();
+
+
 
 function projectHasFundOnNetwork(project, net) {
     return Boolean(
@@ -399,32 +423,30 @@ async function loadProjectData() {
             /*
              * ترتیب انتخاب پیش‌فرض
              */
-            const preferred =
-                [
-                    'amoy',
-                    'tron',
-                    'polygon'
-                ].find(
-                    id => {
+			const preferred =
+    			[
+        			'polygon_amoy',
+        			'tron_nile'
+   			 	].find(
+        			id => {
 
-                        const net =
-                            networks[id];
+           				 const net =
+                		networks[id];
 
-                        if (!net) {
-                            return false;
-                        }
+            			if (!net) {
+                			return false;
+            			}
 
-                        return (
-                            net.status === 'active' &&
-                            net.enabled &&
-                            projectHasFundOnNetwork(
-                                foundProject,
-                                net
-                            )
-                        );
-                    }
-                );
-
+           				return (
+                			net.status === 'active' &&
+                			net.enabled &&
+                			projectHasFundOnNetwork(
+                    			foundProject,
+                    			net
+                			)
+            			);
+        			}
+    			);
 
             const firstEnabled =
                 Array.from(
@@ -1410,7 +1432,9 @@ if (net.type === 'TVM') {
 // ==================== بارگذاری اولیه ====================
 
 async function initializeDonatePage() {
+    await networkConfig.ready;
 
+    let projectData;
     /*
      * مرحله اول:
      *
