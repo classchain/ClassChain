@@ -176,12 +176,16 @@ function collectFundAddresses(
  * @returns {Promise<{ total: number, breakdown: Array<{network, networkId, address, amount}> }>}
  */
 async function getProjectRaisedUSDT(projectAttributes) {
-  if (!projectAttributes) return { total: 0, breakdown: [] };
-}
-const config =
+  if (!projectAttributes) {
+    return {
+      total: 0, 
+      breakdown: [] 
+    };
+  }
+  const config =
     window.ClassChainNetworkConfig;
 
-if (!config) {
+  if (!config) {
     console.error(
         'ClassChainNetworkConfig لود نشده است.'
     );
@@ -190,10 +194,8 @@ if (!config) {
         total: 0,
         breakdown: []
     };
-}
-
-await config.ready;
-
+  }
+  await config.ready;
 
   const readNetworks = config.getReadNetworks();
   const tasks = [];
