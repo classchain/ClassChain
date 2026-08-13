@@ -178,9 +178,21 @@ function collectFundAddresses(
 async function getProjectRaisedUSDT(projectAttributes) {
   if (!projectAttributes) return { total: 0, breakdown: [] };
 
-  const config = window.ClassChainNetworkConfig;
+const config =
+    window.ClassChainNetworkConfig;
 
-  if (!config || typeof config.getReadNetworks !== 'function') {
+if (!config) {
+    console.error(
+        'ClassChainNetworkConfig لود نشده است.'
+    );
+
+    return {
+        total: 0,
+        breakdown: []
+    };
+}
+
+await config.ready;
     console.error(
       'ClassChainNetworkConfig لود نشده است. network-config.js را قبل از raised-reader.js قرار دهید.'
     );
