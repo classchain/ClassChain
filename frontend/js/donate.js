@@ -116,7 +116,7 @@ function getProjectFundAddress(
     return String(
         address
     ).trim();
-
+}
 
 
 function projectHasFundOnNetwork(project, net) {
