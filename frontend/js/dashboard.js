@@ -1,531 +1,1419 @@
 let userAddress = null;
 let userAddressType = null; // 'EVM' | 'TVM'
 
+
+/*
+ * ============================================================
+ * ABI فقط برای بررسی مالکیت EVM
+ * ============================================================
+ */
+
 const fundABI = [
-    { "inputs": [{ "internalType": "address", "name": "token", "type": "address" }], "name": "balanceOf", "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
-    { "inputs": [], "name": "owner", "outputs": [{ "internalType": "address", "name": "", "type": "address" }], "stateMutability": "view", "type": "function" }
+    {
+        inputs: [],
+        name: "owner",
+        outputs: [
+            {
+                internalType: "address",
+                name: "",
+                type: "address"
+            }
+        ],
+        stateMutability: "view",
+        type: "function"
+    }
 ];
+
 
 const multisigABI = [
-    { "inputs": [], "name": "getOwners", "outputs": [{ "internalType": "address[]", "name": "", "type": "address[]" }], "stateMutability": "view", "type": "function" }
+    {
+        inputs: [],
+        name: "getOwners",
+        outputs: [
+            {
+                internalType: "address[]",
+                name: "",
+                type: "address[]"
+            }
+        ],
+        stateMutability: "view",
+        type: "function"
+    }
 ];
 
-// ==================== اتصال MetaMask ====================
+
+/*
+ * ============================================================
+ * ابزارهای عمومی
+ * ============================================================
+ */
+
+function getElement(id) {
+    return document.getElementById(id);
+}
+
+
+function normalizeAddress(address) {
+    return String(address || "").trim();
+}
+
+
+function sameAddress(a, b) {
+
+    if (!a || !b) {
+        return false;
+    }
+
+    return (
+        normalizeAddress(a).toLowerCase() ===
+        normalizeAddress(b).toLowerCase()
+    );
+}
+
+
+function shortAddress(address, start = 8, end = 6) {
+
+    const value = normalizeAddress(address);
+
+    if (!value) {
+        return "";
+    }
+
+    if (value.length <= start + end + 3) {
+        return value;
+    }
+
+    return (
+        value.slice(0, start) +
+        "..." +
+        value.slice(-end)
+    );
+}
+
+
+/*
+ * ============================================================
+ * MetaMask
+ * ============================================================
+ */
+
 async function connectMetaMask() {
-    console.log('کلیک روی MetaMask');
-    if (typeof window.ethereum === 'undefined') {
-        alert('لطفاً افزونه MetaMask را نصب کنید.');
+
+    console.log("[Dashboard] MetaMask clicked");
+
+    if (
+        typeof window.ethereum === "undefined"
+    ) {
+        alert(
+            "لطفاً افزونه MetaMask را نصب کنید."
+        );
+
         return;
     }
 
     try {
-        let accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        if (accounts.length === 0) {
-            accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+        let accounts =
+            await window.ethereum.request({
+                method: "eth_accounts"
+            });
+
+        if (
+            !accounts ||
+            accounts.length === 0
+        ) {
+
+            accounts =
+                await window.ethereum.request({
+                    method: "eth_requestAccounts"
+                });
         }
 
-        if (!accounts || accounts.length === 0) {
-            alert('هیچ حسابی انتخاب نشد.');
+        if (
+            !accounts ||
+            accounts.length === 0
+        ) {
+
+            alert(
+                "هیچ حسابی انتخاب نشد."
+            );
+
             return;
         }
 
-        userAddress = accounts[0];
-        userAddressType = 'EVM';
+        userAddress =
+            normalizeAddress(accounts[0]);
 
-        document.getElementById('accountDisplay').textContent =
-            `وصل شد (MetaMask): ${userAddress.slice(0, 8)}...${userAddress.slice(-6)}`;
+        userAddressType =
+            "EVM";
 
-        document.getElementById('connectSection').style.display = 'none';
-        document.getElementById('loading').style.display = 'block';
+        const accountDisplay =
+            getElement("accountDisplay");
+
+        if (accountDisplay) {
+
+            accountDisplay.textContent =
+                `وصل شد (MetaMask): ${shortAddress(
+                    userAddress,
+                    8,
+                    6
+                )}`;
+        }
+
+        const connectSection =
+            getElement("connectSection");
+
+        if (connectSection) {
+            connectSection.style.display =
+                "none";
+        }
+
+        const loading =
+            getElement("loading");
+
+        if (loading) {
+            loading.style.display =
+                "block";
+        }
 
         await loadProjects();
 
-    } catch (err) {
-        console.error('خطا در اتصال MetaMask:', err);
-        if (err.code === 4001) {
-            alert('اتصال MetaMask لغو شد.');
+    } catch (error) {
+
+        console.error(
+            "[Dashboard] MetaMask error:",
+            error
+        );
+
+        if (error?.code === 4001) {
+
+            alert(
+                "اتصال MetaMask لغو شد."
+            );
+
         } else {
-            alert('خطا در اتصال MetaMask: ' + (err.message || 'مشکل ناشناخته'));
+
+            alert(
+                "خطا در اتصال MetaMask: " +
+                (
+                    error?.message ||
+                    "مشکل ناشناخته"
+                )
+            );
         }
     }
 }
 
-// ==================== اتصال TronLink ====================
+
+/*
+ * ============================================================
+ * TronLink
+ * ============================================================
+ */
+
 async function connectTronLink() {
-    console.log('کلیک روی TronLink');
-    const tronWeb = window.tronWeb;
+
+    console.log("[Dashboard] TronLink clicked");
+
+    const tronWeb =
+        window.tronWeb;
 
     if (!tronWeb) {
-        alert('لطفاً افزونه TronLink را نصب و فعال کنید.');
+
+        alert(
+            "لطفاً افزونه TronLink را نصب و فعال کنید."
+        );
+
         return;
     }
 
     try {
-        if (typeof tronWeb.request === 'function') {
-            await tronWeb.request({ method: 'tron_requestAccounts' });
+
+        if (
+            typeof tronWeb.request ===
+            "function"
+        ) {
+
+            await tronWeb.request({
+                method:
+                    "tron_requestAccounts"
+            });
         }
 
-        // کمی صبر برای آپدیت شدن defaultAddress
-        await new Promise(r => setTimeout(r, 300));
+        /*
+         * TronLink ممکن است بعد از request
+         * کمی زمان لازم داشته باشد تا
+         * defaultAddress به‌روزرسانی شود.
+         */
 
-        const account = tronWeb.defaultAddress?.base58;
+        await new Promise(
+            resolve =>
+                setTimeout(resolve, 300)
+        );
+
+        const account =
+            tronWeb
+                .defaultAddress
+                ?.base58;
+
         if (!account) {
-            alert('TronLink قفل است یا هیچ حسابی انتخاب نشده. لطفاً قفل را باز کنید و دوباره امتحان کنید.');
+
+            alert(
+                "TronLink قفل است یا هیچ حسابی انتخاب نشده است."
+            );
+
             return;
         }
 
-        userAddress = account;
-        userAddressType = 'TVM';
+        userAddress =
+            normalizeAddress(account);
 
-        document.getElementById('accountDisplay').textContent =
-            `وصل شد (TronLink): ${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+        userAddressType =
+            "TVM";
 
-        document.getElementById('connectSection').style.display = 'none';
-        document.getElementById('loading').style.display = 'block';
+        const accountDisplay =
+            getElement("accountDisplay");
+
+        if (accountDisplay) {
+
+            accountDisplay.textContent =
+                `وصل شد (TronLink): ${shortAddress(
+                    userAddress,
+                    6,
+                    4
+                )}`;
+        }
+
+        const connectSection =
+            getElement("connectSection");
+
+        if (connectSection) {
+            connectSection.style.display =
+                "none";
+        }
+
+        const loading =
+            getElement("loading");
+
+        if (loading) {
+            loading.style.display =
+                "block";
+        }
 
         await loadProjects();
 
-    } catch (err) {
-        console.error('خطا در اتصال TronLink:', err);
-        if (err.code === 4001 || (err.message && err.message.toLowerCase().includes('cancel'))) {
-            alert('اتصال TronLink لغو شد.');
+    } catch (error) {
+
+        console.error(
+            "[Dashboard] TronLink error:",
+            error
+        );
+
+        if (
+            error?.code === 4001 ||
+            (
+                error?.message &&
+                error.message
+                    .toLowerCase()
+                    .includes("cancel")
+            )
+        ) {
+
+            alert(
+                "اتصال TronLink لغو شد."
+            );
+
         } else {
-            alert('خطا در اتصال TronLink: ' + (err.message || 'مشکل ناشناخته'));
+
+            alert(
+                "خطا در اتصال TronLink: " +
+                (
+                    error?.message ||
+                    "مشکل ناشناخته"
+                )
+            );
         }
     }
 }
 
-// ==================== چک مالکیت روی یک شبکه ====================
-async function checkOwnershipOnNetwork(projectAttributes, netCfg, userAddr, addrType) {
-    if (!projectAttributes || !netCfg || !userAddr) {
-        return { isOwner: false };
-    }
 
-    const funds = projectAttributes.funds;
+/*
+ * ============================================================
+ * بررسی مالکیت یک خزانه
+ *
+ * Source of Truth:
+ * Projects.json
+ *
+ * fund:
+ * {
+ *   address,
+ *   owners,
+ *   multisigAddress,
+ *   requiredSignatures,
+ *   ...
+ * }
+ * ============================================================
+ */
 
-    if (!funds || typeof funds !== 'object') {
-        return { isOwner: false };
-    }
-
-    // ============================================================
-    // 1. اطلاعات Canonical از Projects.json
-    //    attributes.funds[fundKey]
-    // ============================================================
-    const fundEntries = [];
-
-const fundKey =
-    netCfg.fundsKey;
-
-const fundInfo =
-    funds[fundKey];
-
-if (
-    !fundInfo ||
-    typeof fundInfo !== 'object' ||
-    !fundInfo.address
+async function checkOwnershipOnNetwork(
+    projectAttributes,
+    netCfg,
+    userAddr,
+    addrType
 ) {
+
+    if (
+        !projectAttributes ||
+        !netCfg ||
+        !userAddr
+    ) {
+        return {
+            isOwner: false
+        };
+    }
+
+
+    /*
+     * شبکه باید با نوع کیف پول سازگار باشد.
+     */
+
+    if (
+        netCfg.type === "EVM" &&
+        addrType !== "EVM"
+    ) {
+
+        return {
+            isOwner: false
+        };
+    }
+
+    if (
+        netCfg.type === "TVM" &&
+        addrType !== "TVM"
+    ) {
+
+        return {
+            isOwner: false
+        };
+    }
+
+
+    const funds =
+        projectAttributes.funds;
+
+    if (
+        !funds ||
+        typeof funds !== "object"
+    ) {
+
+        return {
+            isOwner: false
+        };
+    }
+
+
+    /*
+     * Canonical key
+     *
+     * network-config.js:
+     * fundsKey === networkId
+     */
+
+    const fundKey =
+        netCfg.fundsKey;
+
+    if (!fundKey) {
+
+        return {
+            isOwner: false
+        };
+    }
+
+
+    const fund =
+        funds[fundKey];
+
+    if (
+        !fund ||
+        typeof fund !== "object"
+    ) {
+
+        return {
+            isOwner: false
+        };
+    }
+
+
+    const fundAddress =
+        normalizeAddress(
+            fund.address
+        );
+
+    if (!fundAddress) {
+
+        return {
+            isOwner: false
+        };
+    }
+
+
+    /*
+     * ========================================================
+     * مرحله اول:
+     * مالکیت ثبت‌شده در Projects.json
+     * ========================================================
+     */
+
+    const owners =
+        Array.isArray(fund.owners)
+            ? fund.owners
+            : [];
+
+
+    const ownerFound =
+        owners.some(
+            owner =>
+                sameAddress(
+                    owner,
+                    userAddr
+                )
+        );
+
+
+    if (ownerFound) {
+
+        return {
+
+            isOwner: true,
+
+            fundAddress:
+
+                fundAddress,
+
+            multisigAddress:
+
+                fund.multisigAddress ||
+                null,
+
+            requiredSignatures:
+
+                Number(
+                    fund.requiredSignatures
+                ) || 1,
+
+            source:
+                "projects-json"
+        };
+    }
+
+
+    /*
+     * ========================================================
+     * مرحله دوم:
+     *
+     * فقط EVM
+     *
+     * اگر owners در Projects.json نبود،
+     * مالکیت قرارداد را مستقیماً بررسی می‌کنیم.
+     *
+     * این fallback فقط برای EVM است.
+     * ========================================================
+     */
+
+    if (
+        addrType === "EVM" &&
+        netCfg.type === "EVM"
+    ) {
+
+        const rpcUrl =
+            netCfg.rpcUrl;
+
+        if (!rpcUrl) {
+
+            return {
+                isOwner: false
+            };
+        }
+
+
+        try {
+
+            const web3 =
+                new Web3(
+                    rpcUrl
+                );
+
+
+            /*
+             * owner خزانه
+             */
+
+            const fundContract =
+                new web3.eth.Contract(
+                    fundABI,
+                    fundAddress
+                );
+
+
+            const owner =
+                await fundContract
+                    .methods
+                    .owner()
+                    .call();
+
+
+            if (
+                sameAddress(
+                    owner,
+                    userAddr
+                )
+            ) {
+
+                return {
+
+                    isOwner: true,
+
+                    fundAddress:
+                        fundAddress,
+
+                    multisigAddress:
+                        null,
+
+                    requiredSignatures:
+                        1,
+
+                    source:
+                        "contract"
+                };
+            }
+
+
+            /*
+             * اگر owner خزانه یک Multisig باشد،
+             * اعضای آن را بررسی می‌کنیم.
+             */
+
+            if (owner) {
+
+                try {
+
+                    const multisig =
+                        new web3.eth.Contract(
+                            multisigABI,
+                            owner
+                        );
+
+
+                    const multisigOwners =
+                        await multisig
+                            .methods
+                            .getOwners()
+                            .call();
+
+
+                    if (
+                        Array.isArray(
+                            multisigOwners
+                        ) &&
+                        multisigOwners.some(
+                            item =>
+                                sameAddress(
+                                    item,
+                                    userAddr
+                                )
+                        )
+                    ) {
+
+                        return {
+
+                            isOwner: true,
+
+                            fundAddress:
+                                fundAddress,
+
+                            multisigAddress:
+                                owner,
+
+                            requiredSignatures:
+                                Number(
+                                    fund.requiredSignatures
+                                ) || 1,
+
+                            source:
+                                "contract-multisig"
+                        };
+                    }
+
+                } catch (multisigError) {
+
+                    console.warn(
+                        "[Dashboard] Multisig ownership check failed:",
+                        multisigError
+                    );
+                }
+            }
+
+        } catch (error) {
+
+            console.warn(
+                `[Dashboard] EVM ownership check failed: ${netCfg.id}`,
+                error
+            );
+        }
+    }
+
+
     return {
         isOwner: false
     };
 }
 
-const fundEntries = [
-    {
-        key: fundKey,
-        fundInfo
+
+/*
+ * ============================================================
+ * بررسی اینکه پروژه روی حداقل یک شبکه خزانه دارد
+ * ============================================================
+ */
+
+function projectHasFundOnNetwork(
+    projectAttributes,
+    netCfg
+) {
+
+    if (
+        !projectAttributes ||
+        !netCfg
+    ) {
+        return false;
     }
-];
 
-        
-        const fundInfo = funds[key];
 
-        if (!fundInfo || typeof fundInfo !== 'object') {
-            continue;
-        }
+    const funds =
+        projectAttributes.funds;
 
-        if (!fundInfo.address || String(fundInfo.address).trim() === '') {
-            continue;
-        }
+    if (
+        !funds ||
+        typeof funds !== "object"
+    ) {
+        return false;
+    }
 
-        fundEntries.push({
-            key,
-            fundInfo
-        });
 
-        const owners = Array.isArray(fundInfo.owners)
-            ? fundInfo.owners
-            : [];
+    const fundKey =
+        netCfg.fundsKey;
 
-        const isOwner = owners.some(o =>
-            String(o).toLowerCase() === String(userAddr).toLowerCase()
+    if (!fundKey) {
+        return false;
+    }
+
+
+    const fund =
+        funds[fundKey];
+
+    if (
+        !fund ||
+        typeof fund !== "object"
+    ) {
+        return false;
+    }
+
+
+    const address =
+        normalizeAddress(
+            fund.address
         );
 
-        if (isOwner) {
-            return {
-                isOwner: true,
-                fundAddress: fundInfo.address,
-                multisigAddress: fundInfo.multisigAddress || null,
-                requiredSignatures: fundInfo.requiredSignatures || 1,
-                source: 'projects-json'
-            };
-        }
-    }
 
-    // ============================================================
-    // 2. برای EVM اگر owners در Projects.json موجود نبود،
-    //    مالکیت را مستقیماً از قرارداد بررسی کن
-    // ============================================================
-    if (addrType === 'EVM' && netCfg.type === 'EVM' && netCfg.rpc) {
-
-        for (const { fundInfo } of fundEntries) {
-            const fundAddr = fundInfo.address;
-
-            try {
-                const web3 = new Web3(netCfg.rpcUrl);
-                const fundContract = new web3.eth.Contract(
-                    fundABI,
-                    fundAddr
-                );
-
-                const owner = await fundContract.methods.owner().call();
-
-                if (
-                    owner &&
-                    owner.toLowerCase() === userAddr.toLowerCase()
-                ) {
-                    return {
-                        isOwner: true,
-                        fundAddress: fundAddr,
-                        multisigAddress: null,
-                        requiredSignatures: 1,
-                        source: 'contract'
-                    };
-                }
-
-                // اگر owner خود Multisig باشد
-                try {
-                    const multisig = new web3.eth.Contract(
-                        multisigABI,
-                        owner
-                    );
-
-                    const owners =
-                        await multisig.methods.getOwners().call();
-
-                    if (
-                        Array.isArray(owners) &&
-                        owners.some(o =>
-                            o.toLowerCase() === userAddr.toLowerCase()
-                        )
-                    ) {
-                        return {
-                            isOwner: true,
-                            fundAddress: fundAddr,
-                            multisigAddress: owner,
-                            requiredSignatures: fundInfo.requiredSignatures || 1,
-                            source: 'contract-multisig'
-                        };
-                    }
-                } catch (_) {
-                    // multisig نبود یا getOwners قابل خواندن نبود
-                }
-
-            } catch (e) {
-                console.warn(
-                    `خطا در چک مالکیت ${netCfg.id} / ${fundAddr}:`,
-                    e.message
-                );
-            }
-        }
-    }
-
-    return { isOwner: false };
+    return (
+        address !== "" &&
+        address.toLowerCase() !==
+            "null"
+    );
 }
 
-// ==================== بارگذاری پروژه‌ها ====================
+
+/*
+ * ============================================================
+ * بارگذاری پروژه‌ها
+ * ============================================================
+ */
+
 async function loadProjects() {
-    await window.ClassChainNetworkConfig.ready;
+
+    const loading =
+        getElement("loading");
 
     try {
-        document.getElementById('loading').innerHTML =
-            '<p>در حال بارگذاری لیست پروژه‌ها...</p>';
 
-        const resp = await fetch('data/Projects.json');
-
-        if (!resp.ok) {
-            throw new Error('فایل Projects.json لود نشد');
-        }
-
-        const data = await resp.json();
-
-        const config = window.ClassChainNetworkConfig;
+        const config =
+            window.ClassChainNetworkConfig;
 
         if (!config) {
-            throw new Error('network-config.js لود نشده است');
+
+            throw new Error(
+                "network-config.js لود نشده است."
+            );
         }
 
-        const activeNetworks = config.getActiveNetworks();
+
+        await config.ready;
+
+
+        if (
+            config.status !==
+            "ready"
+        ) {
+
+            throw new Error(
+                "تنظیمات شبکه آماده نیست."
+            );
+        }
+
+
+        if (!userAddress) {
+
+            throw new Error(
+                "آدرس کیف پول مشخص نیست."
+            );
+        }
+
+
+        if (loading) {
+
+            loading.style.display =
+                "block";
+
+            loading.innerHTML =
+                "<p>در حال بررسی پروژه‌ها...</p>";
+        }
+
+
+        /*
+         * Projects.json
+         */
+
+        const response =
+            await fetch(
+                "data/Projects.json"
+            );
+
+        if (!response.ok) {
+
+            throw new Error(
+                "فایل Projects.json لود نشد."
+            );
+        }
+
+
+        const data =
+            await response.json();
+
+
+        const features =
+            Array.isArray(
+                data.features
+            )
+                ? data.features
+                : [];
+
+
+        /*
+         * فقط شبکه‌های active
+         */
+
+        const activeNetworks =
+            config.getActiveNetworks();
+
+
         const myProjects = [];
 
         let checkedCount = 0;
 
-        const features = Array.isArray(data.features)
-            ? data.features
-            : [];
 
-        for (const feature of features) {
-            const attr = feature.attributes;
+        /*
+         * ====================================================
+         * بررسی پروژه‌ها
+         * ====================================================
+         */
 
-            if (!attr) {
+        for (
+            const feature of features
+        ) {
+
+            const attributes =
+                feature?.attributes;
+
+
+            if (!attributes) {
                 continue;
             }
 
-            // ========================================================
-            // فقط مدل Canonical:
-            //
-            // attributes.funds[networkId / fundsKey]
-            // ========================================================
-            const funds = attr.funds;
 
-            if (!funds || typeof funds !== 'object') {
+            const hasFund =
+                activeNetworks.some(
+                    net =>
+                        projectHasFundOnNetwork(
+                            attributes,
+                            net
+                        )
+                );
+
+
+            if (!hasFund) {
                 continue;
             }
 
-            // بررسی اینکه پروژه حداقل یک خزانه فعال دارد
-            const hasAnyFund = activeNetworks.some(net => {
-                return const key =
-    net.fundsKey;
-
-const fund =
-    funds[key];
-
-return (
-    fund &&
-    typeof fund === 'object' &&
-    fund.address &&
-    String(
-        fund.address
-    ).trim() !== '' &&
-    fund.address !== 'null'
-);
-                    const fund = funds[key];
-
-                    return (
-                        fund &&
-                        typeof fund === 'object' &&
-                        fund.address &&
-                        String(fund.address).trim() !== '' &&
-                        fund.address !== 'null'
-                    );
-                });
-            });
-
-            if (!hasAnyFund) {
-                continue;
-            }
 
             checkedCount++;
 
-            // ========================================================
-            // پیدا کردن شبکه‌هایی که کاربر در آنها مالک است
-            // ========================================================
+
+            /*
+             * شبکه‌هایی که این کاربر
+             * مالک خزانه آن‌هاست.
+             */
+
             const ownedNetworks = [];
 
-            for (const net of activeNetworks) {
 
-                // فقط شبکه سازگار با کیف پول متصل
+            for (
+                const net of activeNetworks
+            ) {
+
+                /*
+                 * جلوگیری از بررسی شبکه
+                 * نامرتبط با کیف پول
+                 */
+
                 if (
-                    net.type === 'EVM' &&
-                    userAddressType !== 'EVM'
+                    net.type === "EVM" &&
+                    userAddressType !== "EVM"
                 ) {
                     continue;
                 }
 
+
                 if (
-                    net.type === 'TVM' &&
-                    userAddressType !== 'TVM'
+                    net.type === "TVM" &&
+                    userAddressType !== "TVM"
                 ) {
                     continue;
                 }
 
-                const ownership = await checkOwnershipOnNetwork(
-                    attr,
-                    net,
-                    userAddress,
-                    userAddressType
-                );
 
-                if (ownership.isOwner) {
+                const ownership =
+                    await checkOwnershipOnNetwork(
+                        attributes,
+                        net,
+                        userAddress,
+                        userAddressType
+                    );
+
+
+                if (
+                    ownership.isOwner
+                ) {
+
                     ownedNetworks.push({
-                        networkId: net.id,
-                        networkName: net.name,
-                        fundAddress: ownership.fundAddress,
-                        multisigAddress: ownership.multisigAddress,
+
+                        networkId:
+                            net.id,
+
+                        networkName:
+                            net.name,
+
+                        fundAddress:
+                            ownership.fundAddress,
+
+                        multisigAddress:
+                            ownership.multisigAddress,
+
                         requiredSignatures:
-                            ownership.requiredSignatures || 1
+                            ownership.requiredSignatures
+
                     });
                 }
             }
 
-            if (ownedNetworks.length === 0) {
+
+            /*
+             * این پروژه متعلق به این کیف پول نیست.
+             */
+
+            if (
+                ownedNetworks.length === 0
+            ) {
                 continue;
             }
 
-            // ========================================================
-            // خواندن موجودی USDT تمام خزانه‌های پروژه
-            // ========================================================
+
+            /*
+             * =================================================
+             * موجودی
+             *
+             * فقط Reader مشترک
+             * =================================================
+             */
+
             let totalRaised = 0;
             let breakdown = [];
 
-            try {
-                if (window.ClassChainRaisedReader) {
-                    const result =
-                        await window.ClassChainRaisedReader
-                            .getProjectRaisedUSDT(attr);
 
-                    totalRaised = Number(result.total) || 0;
-                    breakdown = Array.isArray(result.breakdown)
-                        ? result.breakdown
-                        : [];
+            if (
+                window.ClassChainRaisedReader
+            ) {
+
+                try {
+
+                    const result =
+                        await window
+                            .ClassChainRaisedReader
+                            .getProjectRaisedUSDT(
+                                attributes
+                            );
+
+
+                    totalRaised =
+                        Number(
+                            result?.total
+                        ) || 0;
+
+
+                    breakdown =
+                        Array.isArray(
+                            result?.breakdown
+                        )
+                            ? result.breakdown
+                            : [];
+
+                } catch (error) {
+
+                    console.warn(
+                        "[Dashboard] Raised reader failed:",
+                        attributes.ProjectID,
+                        error
+                    );
                 }
-            } catch (e) {
+
+            } else {
+
                 console.warn(
-                    'خطا در خواندن raised پروژه',
-                    attr.ProjectID,
-                    e
+                    "[Dashboard] ClassChainRaisedReader لود نشده است."
                 );
             }
 
+
             myProjects.push({
-                id: attr.ProjectID,
+
+                id:
+                    attributes.ProjectID,
 
                 name:
-                    attr['نام پروژه'] ||
-                    attr.نام_پروژه ||
-                    `پروژه ${attr.ProjectID}`,
+                    attributes["نام پروژه"] ||
+                    attributes.نام_پروژه ||
+                    `پروژه ${attributes.ProjectID}`,
 
                 totalRaised,
+
                 breakdown,
+
                 ownedNetworks,
 
-                // نگه داشتن attributes کامل پروژه
-                // برای استفاده‌های بعدی
-                attributes: attr
+                attributes
+
             });
         }
 
-        displayProjects(myProjects);
 
-        // ============================================================
-        // هیچ پروژه‌ای که کاربر مالک آن باشد پیدا نشد
-        // ============================================================
-        if (myProjects.length === 0) {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('noAccess').style.display = 'block';
+        /*
+         * نمایش نتیجه
+         */
 
-            document.getElementById('noAccess').innerHTML = `
-                <p>هیچ پروژه‌ای پیدا نشد که شما صاحب خزانه آن باشید.</p>
-                <p>تعداد پروژه‌های بررسی‌شده: ${checkedCount}</p>
-                <p style="font-size:0.85em;opacity:0.7;">
-                    آدرس شما: ${userAddress}
-                </p>
-            `;
-        }
-
-    } catch (err) {
-
-        console.error(
-            'خطای کلی در لود پروژه‌ها:',
-            err
+        displayProjects(
+            myProjects
         );
 
-        document.getElementById('loading').innerHTML = `
-            <p style="color:var(--danger);">
-                خطا در بارگذاری پروژه‌ها:
-            </p>
 
-            <p>
-                ${err.message || 'مشکل ناشناخته'}
-            </p>
+        /*
+         * هیچ پروژه‌ای پیدا نشد
+         */
 
-            <p>
-                لطفاً صفحه را رفرش کنید یا اتصال کیف پول را چک کنید.
-            </p>
-        `;
-    }
-}
+        if (
+            myProjects.length === 0
+        ) {
 
-// ==================== نمایش کارت‌ها ====================
-function displayProjects(projectsList) {
-    document.getElementById('loading').style.display = 'none';
+            if (loading) {
+                loading.style.display =
+                    "none";
+            }
 
-    const container = document.getElementById('projectsList');
 
-    if (projectsList.length === 0) {
-        document.getElementById('noAccess').style.display = 'block';
-        return;
-    }
+            const noAccess =
+                getElement("noAccess");
 
-    document.getElementById('noAccess').style.display = 'none';
-    container.innerHTML = '';
 
-    projectsList.forEach(proj => {
-        const card = document.createElement('div');
-        card.className = 'project-card';
+            if (noAccess) {
 
-        let breakdownHtml = '';
-        if (proj.breakdown && proj.breakdown.length > 0) {
-            const parts = proj.breakdown
-                .filter(b => b.amount > 0)
-                .map(b => `<span style="font-size:0.8em;opacity:0.85;">${b.network}: ${b.amount.toFixed(2)}</span>`);
-            if (parts.length) {
-                breakdownHtml = `<div class="project-info" style="margin-top:4px;">${parts.join(' | ')}</div>`;
+                noAccess.style.display =
+                    "block";
+
+
+                noAccess.innerHTML = `
+
+                    <p>
+                        هیچ پروژه‌ای پیدا نشد که
+                        شما مالک خزانه آن باشید.
+                    </p>
+
+                    <p>
+                        تعداد پروژه‌های دارای خزانه فعال بررسی‌شده:
+                        ${checkedCount}
+                    </p>
+
+                    <p style="font-size:0.85em;opacity:0.7;">
+                        آدرس کیف پول:
+                        ${userAddress}
+                    </p>
+
+                `;
             }
         }
 
-        const networksLabel = proj.ownedNetworks.map(n => n.networkName).join('، ');
 
-        card.innerHTML = `
-            <div class="project-title">${proj.name}</div>
-            <div class="project-info">آیدی: ${proj.id}</div>
-            <div class="project-info">شبکه‌های تحت مالکیت شما: ${networksLabel}</div>
-            <div class="project-balance">${proj.totalRaised.toFixed(2)} USDT (مجموع همه شبکه‌ها)</div>
-            ${breakdownHtml}
-            <a href="manage-fund.html?project=${proj.id}" class="manage-btn">مدیریت خزانه‌ها</a>
-        `;
-        container.appendChild(card);
-    });
+    } catch (error) {
+
+        console.error(
+            "[Dashboard] loadProjects error:",
+            error
+        );
+
+
+        if (loading) {
+
+            loading.style.display =
+                "block";
+
+
+            loading.innerHTML = `
+
+                <p style="color:var(--danger);">
+                    خطا در بارگذاری پروژه‌ها:
+                </p>
+
+                <p>
+                    ${
+                        error?.message ||
+                        "مشکل ناشناخته"
+                    }
+                </p>
+
+            `;
+        }
+    }
 }
 
-// ==================== اتصال دکمه‌ها بعد از لود صفحه ====================
-document.addEventListener('DOMContentLoaded', function () {
-    const btnMeta = document.getElementById('btnMetaMask');
-    const btnTron = document.getElementById('btnTronLink');
 
-    if (btnMeta) {
-        btnMeta.addEventListener('click', connectMetaMask);
+/*
+ * ============================================================
+ * نمایش پروژه‌ها
+ * ============================================================
+ */
+
+function displayProjects(
+    projectsList
+) {
+
+    const loading =
+        getElement("loading");
+
+    const container =
+        getElement("projectsList");
+
+    const noAccess =
+        getElement("noAccess");
+
+
+    if (loading) {
+        loading.style.display =
+            "none";
     }
-    if (btnTron) {
-        btnTron.addEventListener('click', connectTronLink);
+
+
+    if (noAccess) {
+        noAccess.style.display =
+            "none";
     }
 
-    console.log('Dashboard آماده است. دکمه‌ها متصل شدند.');
-});
 
-// particles
-if (typeof particlesJS === 'function') {
-    particlesJS("particles-js", {
-        "particles": {
-            "number": { "value": 100 },
-            "color": { "value": ["#4cc9f0", "#8b5cf6", "#7209b7"] },
-            "shape": { "type": "circle" },
-            "opacity": { "value": 0.6, "random": true },
-            "size": { "value": 3, "random": true },
-            "line_linked": { "enable": true, "distance": 140, "color": "#6366f1", "opacity": 0.3, "width": 1 },
-            "move": { "enable": true, "speed": 1.5 }
-        },
-        "interactivity": {
-            "events": { "onhover": { "enable": true, "mode": "repulse" } }
+    if (!container) {
+        return;
+    }
+
+
+    container.innerHTML = "";
+
+
+    if (
+        !Array.isArray(
+            projectsList
+        ) ||
+        projectsList.length === 0
+    ) {
+
+        if (noAccess) {
+            noAccess.style.display =
+                "block";
         }
-    });
+
+        return;
+    }
+
+
+    projectsList.forEach(
+        project => {
+
+            const card =
+                document.createElement(
+                    "div"
+                );
+
+
+            card.className =
+                "project-card";
+
+
+            /*
+             * Breakdown شبکه‌ها
+             */
+
+            let breakdownHtml =
+                "";
+
+
+            if (
+                Array.isArray(
+                    project.breakdown
+                )
+            ) {
+
+                const parts =
+                    project.breakdown
+                        .filter(
+                            item =>
+                                Number(
+                                    item?.amount
+                                ) > 0
+                        )
+                        .map(
+                            item =>
+                                `<span style="font-size:0.8em;opacity:0.85;">` +
+                                `${item.network}: ` +
+                                `${Number(item.amount).toFixed(2)}` +
+                                `</span>`
+                        );
+
+
+                if (
+                    parts.length > 0
+                ) {
+
+                    breakdownHtml =
+                        `
+                        <div
+                            class="project-info"
+                            style="margin-top:4px;"
+                        >
+                            ${parts.join(" | ")}
+                        </div>
+                        `;
+                }
+            }
+
+
+            /*
+             * شبکه‌های تحت مالکیت
+             */
+
+            const networksLabel =
+                project.ownedNetworks
+                    .map(
+                        network =>
+                            network.networkName
+                    )
+                    .join("، ");
+
+
+            card.innerHTML = `
+
+                <div class="project-title">
+                    ${project.name}
+                </div>
+
+                <div class="project-info">
+                    آیدی: ${project.id}
+                </div>
+
+                <div class="project-info">
+                    شبکه‌های تحت مالکیت شما:
+                    ${networksLabel}
+                </div>
+
+                <div class="project-balance">
+                    ${Number(
+                        project.totalRaised
+                    ).toFixed(2)}
+                    USDT
+                    (مجموع همه شبکه‌ها)
+                </div>
+
+                ${breakdownHtml}
+
+                <a
+                    href="manage-fund.html?project=${project.id}"
+                    class="manage-btn"
+                >
+                    مدیریت خزانه‌ها
+                </a>
+
+            `;
+
+
+            container.appendChild(
+                card
+            );
+        }
+    );
+}
+
+
+/*
+ * ============================================================
+ * اتصال دکمه‌ها
+ * ============================================================
+ */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        const btnMeta =
+            getElement(
+                "btnMetaMask"
+            );
+
+        const btnTron =
+            getElement(
+                "btnTronLink"
+            );
+
+
+        if (btnMeta) {
+
+            btnMeta.addEventListener(
+                "click",
+                connectMetaMask
+            );
+        }
+
+
+        if (btnTron) {
+
+            btnTron.addEventListener(
+                "click",
+                connectTronLink
+            );
+        }
+
+
+        console.log(
+            "[Dashboard] آماده شد."
+        );
+    }
+);
+
+
+/*
+ * ============================================================
+ * particles.js
+ * ============================================================
+ */
+
+if (
+    typeof particlesJS ===
+    "function"
+) {
+
+    particlesJS(
+        "particles-js",
+        {
+            "particles": {
+                "number": {
+                    "value": 100
+                },
+
+                "color": {
+                    "value": [
+                        "#4cc9f0",
+                        "#8b5cf6",
+                        "#7209b7"
+                    ]
+                },
+
+                "shape": {
+                    "type": "circle"
+                },
+
+                "opacity": {
+                    "value": 0.5
+                },
+
+                "size": {
+                    "value": 3
+                },
+
+                "line_linked": {
+                    "enable": true,
+                    "distance": 150,
+                    "color": "#4cc9f0",
+                    "opacity": 0.3,
+                    "width": 1
+                },
+
+                "move": {
+                    "enable": true,
+                    "speed": 2
+                }
+            },
+
+            "interactivity": {
+                "detect_on": "canvas",
+
+                "events": {
+                    "onhover": {
+                        "enable": true,
+                        "mode": "grab"
+                    },
+
+                    "onclick": {
+                        "enable": true,
+                        "mode": "push"
+                    }
+                },
+
+                "modes": {
+                    "grab": {
+                        "distance": 140,
+                        "line_linked": {
+                            "opacity": 0.7
+                        }
+                    },
+
+                    "push": {
+                        "particles_nb": 4
+                    }
+                }
+            },
+
+            "retina_detect": true
+        }
+    );
 }
