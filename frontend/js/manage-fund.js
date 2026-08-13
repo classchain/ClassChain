@@ -383,6 +383,7 @@ function getReadableError(error) {
 }
 
 async function init() {
+    await window.ClassChainNetworkConfig.ready;
     const urlParams = new URLSearchParams(
         window.location.search
     );
@@ -532,59 +533,81 @@ async function loadTotalRaised() {
 }
 
 function populateNetworkSelect() {
+
     const config =
         window.ClassChainNetworkConfig;
 
-    if (!config) return;
+    if (!config) {
+        return;
+    }
 
     const select =
-        getElement("networkSelect");
+        getElement(
+            "networkSelect"
+        );
 
-    if (!select) return;
+    if (!select) {
+        return;
+    }
 
     select.innerHTML =
         '<option value="">— ابتدا شبکه را انتخاب کنید —</option>';
 
     const networks =
-        Object.values(config.NETWORKS || {});
+        Object.values(
+            config.NETWORKS || {}
+        );
 
-    networks.forEach(network => {
-        let hasAddress = false;
+    networks.forEach(
+        network => {
 
-        (network.addressFields || [])
-            .forEach(field => {
-                if (
-                    projectData[field] &&
-                    String(projectData[field]).toLowerCase() !==
-                        "null"
-                ) {
-                    hasAddress = true;
-                }
-            });
+            if (
+                network.status !==
+                "active"
+            ) {
+                return;
+            }
 
-        if (projectData.funds) {
-            (network.fundsKeys || [])
-                .forEach(key => {
-                    if (
-                        projectData.funds[key]?.address
-                    ) {
-                        hasAddress = true;
-                    }
-                });
+            const fundKey =
+                network.fundsKey;
+
+            const fund =
+                projectData
+                    ?.funds
+                    ?.[fundKey];
+
+            const hasAddress =
+                Boolean(
+                    fund?.address &&
+                    String(
+                        fund.address
+                    ).trim() !== '' &&
+                    String(
+                        fund.address
+                    ).toLowerCase() !==
+                    'null'
+                );
+
+            if (!hasAddress) {
+                return;
+            }
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            option.value =
+                network.id;
+
+            option.textContent =
+                network.name;
+
+            select.appendChild(
+                option
+            );
         }
-
-        if (!hasAddress) return;
-
-        // فقط شبکه‌های active در لیست قابل انتخاب
-        if (network.status !== "active") return;
-
-        const option =
-            document.createElement("option");
-
-        option.value = network.id;
-        option.textContent = network.name;
-        select.appendChild(option);
-    });
+    );
 
     select.addEventListener(
         "change",
