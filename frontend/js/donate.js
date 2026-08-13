@@ -457,19 +457,19 @@ async function loadProjectData() {
                 );
 
 
-            const initialNetwork =
+            const Network =
                 preferred ||
                 firstEnabled?.value ||
                 null;
 
 
-            if (initialNetwork) {
+            if (Network) {
 
                 select.value =
-                    initialNetwork;
+                    Network;
 
                 selectNetwork(
-                    initialNetwork
+                    Network
                 );
 
             } else {
@@ -1434,7 +1434,6 @@ if (net.type === 'TVM') {
 async function initializeDonatePage() {
     await networkConfig.ready;
 
-    let projectData;
     /*
      * مرحله اول:
      *
