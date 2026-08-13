@@ -1166,7 +1166,7 @@ class ClassChainDonorReader {
     async findWorkingRPC(net) {
 
         const rpcList = [
-            net.rpc,
+            net.rpcUrl,
             ...(net.rpcFallbacks || [])
         ]
             .filter(Boolean);
