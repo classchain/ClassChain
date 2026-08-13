@@ -26,41 +26,60 @@
     return parseFloat(neg ? `-${num}` : num);
   }
 
-function collectFundAddresses(projectAttributes, netCfg) {
-  const addresses = new Set();
+function collectFundAddresses(
+    projectAttributes,
+    netCfg
+) {
 
-  if (!projectAttributes || !netCfg) {
-    return [];
-  }
-
-  const funds = projectAttributes.funds;
-
-  if (!funds || typeof funds !== 'object') {
-    return [];
-  }
-
-  // کلیدهای رسمی/مجاز این شبکه در Projects.json
-  const fundKeys = Array.isArray(netCfg.fundsKeys)
-    ? netCfg.fundsKeys
-    : [];
-
-  for (const key of fundKeys) {
-    const fund = funds[key];
-
-    if (!fund || typeof fund !== 'object') {
-      continue;
+    if (
+        !projectAttributes ||
+        !netCfg
+    ) {
+        return [];
     }
 
-    const address = fund.address;
+    const funds =
+        projectAttributes.funds;
 
-    if (address && String(address).trim()) {
-      addresses.add(String(address).trim());
+    if (
+        !funds ||
+        typeof funds !== 'object'
+    ) {
+        return [];
     }
-  }
 
-  return Array.from(addresses);
+    const fundKey =
+        netCfg.fundsKey;
+
+    if (!fundKey) {
+        return [];
+    }
+
+    const fund =
+        funds[fundKey];
+
+    if (
+        !fund ||
+        typeof fund !== 'object'
+    ) {
+        return [];
+    }
+
+    const address =
+        fund.address;
+
+    if (
+        !address ||
+        String(address).trim() === ''
+    ) {
+        return [];
+    }
+
+    return [
+        String(address).trim()
+    ];
 }
-
+  
   async function readEvmBalance(fundAddress, usdtAddress, rpcUrl, decimals, fallbacks = []) {
     if (typeof Web3 === 'undefined') {
       console.warn('Web3 در صفحه لود نشده');
@@ -183,16 +202,16 @@ async function getProjectRaisedUSDT(projectAttributes) {
             amount = await readEvmBalance(
               addr,
               netCfg.usdtAddress,
-              netCfg.rpc,
+              netCfg.rpcUrl,
               netCfg.tokenDecimals,
               netCfg.rpcFallbacks || []
             );
           } else if (netCfg.type === 'TVM') {
             amount = await readTronBalance(
-              addr,
-              netCfg.usdtAddress,
-              netCfg.fullHost,
-              netCfg.tokenDecimals
+               addr,
+               netCfg.usdtAddress,
+               netCfg.rpcUrl,
+               netCfg.tokenDecimals
             );
           }
 
