@@ -5,170 +5,324 @@
  * ../../shared/network-config.js
  */
 
-import {
+(function () {
 
-    NETWORKS as SHARED_NETWORKS,
-    DEPLOYMENTS,
+    const api = {
 
-    getNetworkById,
-    getDeployment,
-    getFullNetwork,
+        status: 'loading',
 
-    getTokenAddress,
-    getTokenDecimals,
+        error: null,
 
-    getRpcUrls
+        NETWORKS: {},
 
-} from '../../shared/network-config.js';
+        DEPLOYMENTS: {},
 
+        ready: null
 
-const NETWORKS = {};
-
-
-for (
-    const networkId of
-    Object.keys(SHARED_NETWORKS)
-) {
-
-    const network =
-        SHARED_NETWORKS[
-            networkId
-        ];
-
-    const deployment =
-        DEPLOYMENTS[
-            networkId
-        ] || {};
-
-    const usdt =
-        deployment.tokens?.USDT ||
-        {};
-
-
-    NETWORKS[networkId] = {
-
-        /*
-         * Canonical
-         */
-
-        id:
-            network.id,
-
-        name:
-            network.name,
-
-        type:
-            network.type,
-
-        chainId:
-            network.chainId,
-
-
-        /*
-         * RPC
-         */
-
-        rpcUrl:
-            network.rpcUrl,
-
-        rpcFallbacks:
-            network.rpcFallbacks || [],
-
-
-        /*
-         * Compatibility
-         */
-
-        rpc:
-            network.rpcUrl,
-
-        fullHost:
-            network.type === 'TVM'
-                ? network.rpcUrl
-                : null,
-
-
-        /*
-         * Explorer
-         */
-
-        explorerUrl:
-            network.explorerUrl,
-
-
-        /*
-         * Deployment
-         */
-
-        factoryAddress:
-            deployment.factoryAddress ||
-            '',
-
-        usdtAddress:
-            usdt.address ||
-            '',
-
-        tokenDecimals:
-            usdt.decimals ??
-            6,
-
-        status:
-            deployment.status ||
-            'pending',
-
-
-        /*
-         * Canonical fund key
-         */
-
-        fundsKey:
-            networkId,
-
-
-        /*
-         * Compatibility موقت
-         *
-         * بعداً حذف می‌شود.
-         */
-
-        fundsKeys: [
-            networkId
-        ]
     };
-}
 
 
-export const ClassChainNetworkConfig = {
+    function buildNetworks(shared) {
 
-    NETWORKS,
+        api.NETWORKS = {};
 
-    DEPLOYMENTS,
-
-
-    getNetwork:
-
-        getNetworkById,
+        api.DEPLOYMENTS =
+            shared.DEPLOYMENTS;
 
 
-    getDeployment,
+        for (
+            const networkId of
+            Object.keys(
+                shared.NETWORKS
+            )
+        ) {
+
+            const network =
+                shared.NETWORKS[
+                    networkId
+                ];
+
+            const deployment =
+                shared.DEPLOYMENTS[
+                    networkId
+                ] || {};
+
+            const usdt =
+                deployment.tokens?.USDT ||
+                {};
 
 
-    getFullNetwork,
+            api.NETWORKS[networkId] = {
+
+                id:
+                    network.id,
+
+                name:
+                    network.name,
+
+                type:
+                    network.type,
+
+                chainId:
+                    network.chainId,
+
+                rpcUrl:
+                    network.rpcUrl,
+
+                rpcFallbacks:
+                    network.rpcFallbacks || [],
+
+                explorerUrl:
+                    network.explorerUrl,
+
+                nativeToken:
+                    network.nativeToken,
+
+                isTestnet:
+                    network.isTestnet,
+
+                color:
+                    network.color,
+
+                icon:
+                    network.icon,
 
 
-    getTokenAddress,
+                factoryAddress:
+                    deployment.factoryAddress ||
+                    '',
+
+                usdtAddress:
+                    usdt.address ||
+                    '',
+
+                tokenDecimals:
+                    usdt.decimals ??
+                    6,
+
+                status:
+                    deployment.status ||
+                    'pending',
+
+                enabled:
+                    deployment.status ===
+                    'active',
 
 
-    getTokenDecimals,
+                /*
+                 * فقط یک Canonical key
+                 */
+                fundsKey:
+                    networkId,
 
 
-    getRpcUrls
-};
+                /*
+                 * Compatibility موقت.
+                 *
+                 * بعد از انتقال همه Consumerها
+                 * حذف خواهد شد.
+                 */
+                fundsKeys: [
+                    networkId
+                ],
 
 
-/*
- * Compatibility با کد فعلی Frontend
- */
+                /*
+                 * UI metadata
+                 * متعلق به Frontend است.
+                 */
 
-window.ClassChainNetworkConfig =
-    ClassChainNetworkConfig;
+                wallet:
+                    network.type === 'EVM'
+                        ? 'metamask'
+                        : 'tronlink',
+
+                walletName:
+                    network.type === 'EVM'
+                        ? 'MetaMask'
+                        : 'TronLink',
+
+                buttonLabel:
+                    network.type === 'EVM'
+                        ? 'اتصال MetaMask و پرداخت'
+                        : 'اتصال TronLink و پرداخت'
+            };
+        }
+    }
+
+
+    api.ready =
+        import(
+            '../../shared/network-config.js'
+        )
+        .then(
+            shared => {
+
+                buildNetworks(
+                    shared
+                );
+
+                api.status =
+                    'ready';
+
+                return api;
+            }
+        )
+        .catch(
+            error => {
+
+                api.status =
+                    'error';
+
+                api.error =
+                    error;
+
+                console.error(
+                    '[NetworkConfig] Failed:',
+                    error
+                );
+
+                throw error;
+            }
+        );
+
+
+    api.getNetwork =
+        function (id) {
+
+            return (
+                api.NETWORKS[id] ||
+                null
+            );
+        };
+
+
+    api.getActiveNetworks =
+        function () {
+
+            return Object.values(
+                api.NETWORKS
+            )
+            .filter(
+                network =>
+                    network.status ===
+                    'active'
+            );
+        };
+
+
+    api.getReadNetworks =
+        function () {
+
+            return Object.values(
+                api.NETWORKS
+            )
+            .filter(
+                network =>
+                    network.status === 'active' &&
+                    network.enabled &&
+                    network.usdtAddress &&
+                    network.rpcUrl
+            );
+        };
+
+
+    api.getDonationNetworks =
+        function () {
+
+            return Object.values(
+                api.NETWORKS
+            );
+        };
+
+
+    api.getTokenAddress =
+        function (
+            networkId,
+            symbol = 'USDT'
+        ) {
+
+            const network =
+                api.NETWORKS[
+                    networkId
+                ];
+
+            if (
+                symbol !== 'USDT'
+            ) {
+                return null;
+            }
+
+            return (
+                network?.usdtAddress ||
+                null
+            );
+        };
+
+
+    api.getTokenDecimals =
+        function (
+            networkId,
+            symbol = 'USDT'
+        ) {
+
+            const network =
+                api.NETWORKS[
+                    networkId
+                ];
+
+            if (
+                symbol !== 'USDT'
+            ) {
+                return 18;
+            }
+
+            return (
+                network?.tokenDecimals ??
+                18
+            );
+        };
+
+
+    api.getRpcUrls =
+        function (
+            networkId
+        ) {
+
+            const network =
+                api.NETWORKS[
+                    networkId
+                ];
+
+            if (!network) {
+                return [];
+            }
+
+            return [
+                network.rpcUrl,
+                ...(network.rpcFallbacks || [])
+            ]
+            .filter(Boolean);
+        };
+
+
+    api.getFullNetwork =
+        function (
+            networkId
+        ) {
+
+            const network =
+                api.NETWORKS[
+                    networkId
+                ];
+
+            return network
+                ? { ...network }
+                : null;
+        };
+
+
+    window.ClassChainNetworkConfig =
+        api;
+
+})();
