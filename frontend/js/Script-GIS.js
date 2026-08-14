@@ -484,8 +484,8 @@ fetch('data/Projects.json')
 
     					// مجموع کمک‌ها از همه شبکه‌ها
     					loadRaisedSummary(a);
+						loadDonors(0);
 
-    					// لیست donor فعلاً فقط از Amoy
     					if (hasPolygon) {
         					loadDonors(amoyAddress);
     					}
@@ -594,73 +594,151 @@ function showCountiesOfProvince(provinceName) {
     }
 }
 
-async function loadDonors(contractAddress) {
-    const apiKey = "DYB75BHRNWEGAGAEH73AWJUPQ8EDRKN7RB"; // از https://polygonscan.com/myapikey رایگان بگیر
-	const clcTokenAddress = "0x39Af73d2736f6EC94778a38c0C7Ef800e58B13a7"; // توکن CLC تست
-	const url = `https://api-amoy.polygonscan.com/api?module=account&action=tokentx&contractaddress=0x41e94eb019c0762f9bfcf9fb78e59bec0a32e187&address=${contractAddress}&sort=desc&apikey=${apiKey}`;
+async function loadDonors(projectAttributes) {
+
+    const donorsEl =
+        document.getElementById('donorsList');
+
+    if (!donorsEl) {
+        return;
+    }
+
+    donorsEl.innerHTML =
+        '<p style="opacity:0.7;">در حال دریافت مشارکت‌کنندگان...</p>';
+
     try {
-        const response = await fetch(url);
-        const data = await response.json();
 
-        if (data.status === "1" && data.result.length > 0) {
-            let totalRaised = 0;
-            let donorsHtml = '<h4 style="color:#ecf0f1; margin:15px 0 10px;">کمک‌کنندگان</h4>';
+        if (
+            !window.ClassChainDonorReader
+        ) {
 
-            const uniqueDonors = new Map(); // برای جمع زدن کمک‌های تکراری
+            throw new Error(
+                'ClassChainDonorReader لود نشده است.'
+            );
+        }
 
-            data.result.forEach(tx => {
-                if (tx.to.toLowerCase() === contractAddress.toLowerCase()) {
-                    const amount = parseInt(tx.value) / 1e6; // USDT 6 اعشار
-                    totalRaised += amount;
+        const donors =
+            await window.ClassChainDonorReader.load(
+                projectAttributes
+            );
 
-                    const from = tx.from;
-                    if (uniqueDonors.has(from)) {
-                        uniqueDonors.set(from, uniqueDonors.get(from) + amount);
-                    } else {
-                        uniqueDonors.set(from, amount);
-                    }
+
+        /*
+         * فقط کیف پول‌هایی که واقعاً
+         * USDT به خزانه واریز کرده‌اند.
+         */
+
+        if (
+            !Array.isArray(donors) ||
+            donors.length === 0
+        ) {
+
+            donorsEl.innerHTML =
+                '<p style="opacity:0.7;">شما اولین مشارکت‌کننده این مدرسه باشید</p>';
+
+            return;
+        }
+
+
+        let html =
+            '<h4 style="color:#ecf0f1; margin:15px 0 10px;">مشارکت‌کنندگان</h4>';
+
+
+        donors.forEach(
+            donor => {
+
+                const address =
+                    String(
+                        donor.address || ''
+                    );
+
+                const amount =
+                    Number(
+                        donor.amount
+                    ) || 0;
+
+
+                if (!address) {
+                    return;
                 }
-            });
 
-            // نمایش جمع کل
-            document.querySelector('#donorsList').innerHTML = `
-                <div class="info-item">
-                    <span class="info-label">جمع کمک‌های دریافتی:</span>
-                    <span class="info-value">${totalRaised.toFixed(2)} USDT</span>
-                </div>
-            ` + donorsHtml;
 
-            // لیست کمک‌کنندگان
-            uniqueDonors.forEach((amount, address) => {
-                donorsHtml += `
-                <div class="info-item" style="font-size:0.9em; background:rgba(255,255,255,0.05); margin:5px 0; padding:8px; border-radius:6px;">
-                    <span class="info-value">
-                        <a href="https://polygonscan.com/address/${address}" target="_blank" style="color:#3498db;">
-                            ${address.substring(0,8)}...${address.substring(36)}
-                        </a>
-                    </span>
-                    <span class="info-label">${amount.toFixed(2)} USDT</span>
-                </div>
+                /*
+                 * شبکه‌های مشارکت
+                 */
+
+                const networks =
+                    Array.isArray(
+                        donor.networks
+                    )
+                        ? donor.networks.join('، ')
+                        : '—';
+
+
+                html += `
+
+                    <div
+                        class="info-item"
+                        style="
+                            font-size:0.9em;
+                            background:rgba(255,255,255,0.05);
+                            margin:5px 0;
+                            padding:8px;
+                            border-radius:6px;
+                        "
+                    >
+
+                        <span class="info-value">
+
+                            <span>
+                                ${address.substring(0, 8)}
+                                ...
+                                ${address.substring(
+                                    Math.max(
+                                        8,
+                                        address.length - 6
+                                    )
+                                )}
+                            </span>
+
+                        </span>
+
+                        <span class="info-label">
+
+                            ${amount.toFixed(2)}
+                            USDT
+
+                            <small
+                                style="
+                                    display:block;
+                                    opacity:0.65;
+                                    margin-top:3px;
+                                "
+                            >
+                                ${networks}
+                            </small>
+
+                        </span>
+
+                    </div>
+
                 `;
-            });
+            }
+        );
 
-            document.querySelector('#donorsList').innerHTML += donorsHtml;
-        } else {
-			// فقط اگر هنوز موجودی on-chain هم صفر بود این پیام را نشان بده
-    		// (loadRaisedSummary اگر موجودی داشت، این را پاک می‌کند)
-    		const raisedEl = document.getElementById('raisedSummary');
-    		const raisedText = raisedEl ? raisedEl.textContent : '';
-    		const hasRaised = /[1-9]\d*(\.\d+)?\s*USDT/.test(raisedText) && !raisedText.includes('0.00 USDT');
 
-    		if (!hasRaised) {
-        		document.querySelector('#donorsList').innerHTML =
-            		'<p style="opacity:0.7;">شما اولین مشارکت کننده این مدرسه باشید</p>';
-    		} else {
-        		document.querySelector('#donorsList').innerHTML = '';
-    		}		
-		}
-    } catch (err) {
-        document.querySelector('#donorsList').innerHTML = '<p style="color:#e74c3c;">خطا در بارگذاری کمک‌ها</p>';
+        donorsEl.innerHTML =
+            html;
+
+    } catch (error) {
+
+        console.error(
+            '[WebGIS] خطا در خواندن مشارکت‌کنندگان:',
+            error
+        );
+
+        donorsEl.innerHTML =
+            '<p style="color:#e74c3c;">خطا در بارگذاری مشارکت‌کنندگان</p>';
     }
 }
 
