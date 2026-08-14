@@ -739,8 +739,9 @@ async function connectSelectedNetwork() {
         if (
             selectedNetCfg.type === "TVM"
         ) {
-            await verifyTronNileNetwork(
-                connection.tronWeb
+            await verifyTronNetwork(
+                connection.tronWeb,
+                selectedNetCfg
             );
         }
 
@@ -774,50 +775,149 @@ async function connectSelectedNetwork() {
     }
 }
 
-async function verifyTronNileNetwork(tronWeb) {
+async function verifyTronNetwork(
+    tronWeb,
+    netCfg
+) {
+
     if (!tronWeb) {
+
         throw new Error(
             "TronWeb در دسترس نیست."
         );
     }
 
-    const expectedHost =
-        "nile.trongrid.io";
+    if (
+        !netCfg ||
+        netCfg.type !== "TVM"
+    ) {
 
-    const hosts = [];
-
-    try {
-        if (tronWeb.fullNode?.host) {
-            hosts.push(
-                tronWeb.fullNode.host
-            );
-        }
-    } catch (_) {}
-
-    try {
-        if (tronWeb.solidityNode?.host) {
-            hosts.push(
-                tronWeb.solidityNode.host
-            );
-        }
-    } catch (_) {}
-
-    const isNile =
-        hosts.some(
-            host =>
-                String(host)
-                    .toLowerCase()
-                    .includes(expectedHost)
-        );
-
-    if (!isNile) {
         throw new Error(
-            "TronLink روی Tron Nile نیست. شبکه Nile را انتخاب کنید."
+            "تنظیمات شبکه Tron معتبر نیست."
         );
     }
 
+
+    /*
+     * RPC اصلی + fallbackها
+     *
+     * منبع حقیقت:
+     * network-config.js
+     */
+
+    const rpcUrls = [
+        netCfg.rpcUrl,
+        ...(Array.isArray(
+            netCfg.rpcFallbacks
+        )
+            ? netCfg.rpcFallbacks
+            : [])
+    ].filter(Boolean);
+
+
+    if (
+        rpcUrls.length === 0
+    ) {
+
+        throw new Error(
+            `RPC برای شبکه ${netCfg.id} تعریف نشده است.`
+        );
+    }
+
+
+    /*
+     * فقط hostnameها را استخراج می‌کنیم.
+     */
+
+    const expectedHosts =
+        rpcUrls
+            .map(
+                url => {
+
+                    try {
+
+                        return new URL(
+                            url
+                        ).hostname
+                            .toLowerCase();
+
+                    } catch (_) {
+
+                        return String(
+                            url
+                        )
+                            .replace(
+                                /^https?:\/\//i,
+                                ''
+                            )
+                            .split('/')[0]
+                            .toLowerCase();
+                    }
+                }
+            )
+            .filter(Boolean);
+
+
+    const actualHosts = [];
+
+
+    try {
+
+        if (
+            tronWeb.fullNode?.host
+        ) {
+
+            actualHosts.push(
+                String(
+                    tronWeb.fullNode.host
+                )
+                    .toLowerCase();
+        }
+
+    } catch (_) {}
+
+
+    try {
+
+        if (
+            tronWeb.solidityNode?.host
+        ) {
+
+            actualHosts.push(
+                String(
+                    tronWeb.solidityNode.host
+                )
+                    .toLowerCase();
+        }
+
+    } catch (_) {}
+
+
+    const isExpectedNetwork =
+        actualHosts.some(
+            actualHost =>
+                expectedHosts.some(
+                    expectedHost =>
+                        actualHost.includes(
+                            expectedHost
+                        )
+                )
+        );
+
+
+    if (
+        !isExpectedNetwork
+    ) {
+
+        throw new Error(
+            `TronLink روی شبکه ${netCfg.name} نیست. لطفاً همین شبکه را در TronLink انتخاب کنید.`
+        );
+    }
+
+
     return true;
 }
+
 
 async function loadFundDataForSelectedNetwork() {
     if (
@@ -831,24 +931,27 @@ async function loadFundDataForSelectedNetwork() {
     multisigAddress = null;
 
     if (projectData.funds) {
-        for (
-            const key of
-                selectedNetCfg.fundsKeys || []
+        const fundKey =
+            selectedNetCfg.fundsKey;
+
+        if (
+            fundKey &&
+            projectData.funds
         ) {
+
             const info =
-                projectData.funds[key];
+                projectData.funds[fundKey];
 
             if (info?.address) {
+
                 fundAddress =
                     info.address;
 
                 multisigAddress =
                     info.multisigAddress ||
                     null;
-
-                break;
             }
-        }
+        }        
     }
 
     if (!fundAddress) {
@@ -941,8 +1044,9 @@ async function loadTronFundData() {
             connection.account
         );
 
-    await verifyTronNileNetwork(
-        tronWeb
+    await verifyTronNetwork(
+            connection.tronWeb,
+            selectedNetCfg
     );
 
     fundAddress =
@@ -1469,8 +1573,9 @@ async function confirmTronTransaction(
         connection.tronWeb;
 
     try {
-        await verifyTronNileNetwork(
-            tronWeb
+        await verifyTronNetwork(
+            connection.tronWeb,
+            selectedNetCfg
         );
 
         const userAddress =
@@ -1593,8 +1698,9 @@ async function submitWithdrawTron() {
         connection.tronWeb;
 
     try {
-        await verifyTronNileNetwork(
-            tronWeb
+        await verifyTronNetwork(
+            connection.tronWeb,
+            selectedNetCfg
         );
 
         const userAddress =
