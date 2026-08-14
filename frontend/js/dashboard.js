@@ -355,6 +355,7 @@ async function connectTronLink() {
  * ============================================================
  */
 
+
 async function checkOwnershipOnNetwork(
     projectAttributes,
     netCfg,
@@ -374,24 +375,11 @@ async function checkOwnershipOnNetwork(
 
 
     /*
-     * شبکه باید با نوع کیف پول سازگار باشد.
+     * نوع کیف پول باید با نوع شبکه یکی باشد.
      */
-
     if (
-        netCfg.type === "EVM" &&
-        addrType !== "EVM"
+        netCfg.type !== addrType
     ) {
-
-        return {
-            isOwner: false
-        };
-    }
-
-    if (
-        netCfg.type === "TVM" &&
-        addrType !== "TVM"
-    ) {
-
         return {
             isOwner: false
         };
@@ -405,7 +393,6 @@ async function checkOwnershipOnNetwork(
         !funds ||
         typeof funds !== "object"
     ) {
-
         return {
             isOwner: false
         };
@@ -413,17 +400,12 @@ async function checkOwnershipOnNetwork(
 
 
     /*
-     * Canonical key
-     *
-     * network-config.js:
-     * fundsKey === networkId
+     * کلید canonical خزانه
      */
-
     const fundKey =
         netCfg.fundsKey;
 
     if (!fundKey) {
-
         return {
             isOwner: false
         };
@@ -437,7 +419,6 @@ async function checkOwnershipOnNetwork(
         !fund ||
         typeof fund !== "object"
     ) {
-
         return {
             isOwner: false
         };
@@ -450,7 +431,6 @@ async function checkOwnershipOnNetwork(
         );
 
     if (!fundAddress) {
-
         return {
             isOwner: false
         };
@@ -459,69 +439,16 @@ async function checkOwnershipOnNetwork(
 
     /*
      * ========================================================
-     * مرحله اول:
-     * مالکیت ثبت‌شده در Projects.json
-     * ========================================================
-     */
-
-    const owners =
-        Array.isArray(fund.owners)
-            ? fund.owners
-            : [];
-
-
-    const ownerFound =
-        owners.some(
-            owner =>
-                sameAddress(
-                    owner,
-                    userAddr
-                )
-        );
-
-
-    if (ownerFound) {
-
-        return {
-
-            isOwner: true,
-
-            fundAddress:
-
-                fundAddress,
-
-            multisigAddress:
-
-                fund.multisigAddress ||
-                null,
-
-            requiredSignatures:
-
-                Number(
-                    fund.requiredSignatures
-                ) || 1,
-
-            source:
-                "projects-json"
-        };
-    }
-
-
-    /*
-     * ========================================================
-     * مرحله دوم:
+     * EVM
      *
-     * فقط EVM
+     * Source of Truth:
+     * Blockchain
      *
-     * اگر owners در Projects.json نبود،
-     * مالکیت قرارداد را مستقیماً بررسی می‌کنیم.
-     *
-     * این fallback فقط برای EVM است.
+     * Projects.json فقط آدرس Fund را مشخص می‌کند.
      * ========================================================
      */
 
     if (
-        addrType === "EVM" &&
         netCfg.type === "EVM"
     ) {
 
@@ -529,6 +456,10 @@ async function checkOwnershipOnNetwork(
             netCfg.rpcUrl;
 
         if (!rpcUrl) {
+
+            console.warn(
+                `[Dashboard] RPC برای ${netCfg.id} تعریف نشده است.`
+            );
 
             return {
                 isOwner: false
@@ -545,9 +476,8 @@ async function checkOwnershipOnNetwork(
 
 
             /*
-             * owner خزانه
+             * owner() خود Fund
              */
-
             const fundContract =
                 new web3.eth.Contract(
                     fundABI,
@@ -562,6 +492,10 @@ async function checkOwnershipOnNetwork(
                     .call();
 
 
+            /*
+             * حالت 1:
+             * خود کیف پول مالک Fund است.
+             */
             if (
                 sameAddress(
                     owner,
@@ -574,6 +508,7 @@ async function checkOwnershipOnNetwork(
                     isOwner: true,
 
                     fundAddress:
+
                         fundAddress,
 
                     multisigAddress:
@@ -583,16 +518,18 @@ async function checkOwnershipOnNetwork(
                         1,
 
                     source:
-                        "contract"
+                        "blockchain-owner"
                 };
             }
 
 
             /*
-             * اگر owner خزانه یک Multisig باشد،
-             * اعضای آن را بررسی می‌کنیم.
+             * حالت 2:
+             * owner یک Multisig است.
+             *
+             * در این حالت باید ownerهای واقعی
+             * Multisig را از Blockchain بخوانیم.
              */
-
             if (owner) {
 
                 try {
@@ -611,7 +548,7 @@ async function checkOwnershipOnNetwork(
                             .call();
 
 
-                    if (
+                    const isMultisigOwner =
                         Array.isArray(
                             multisigOwners
                         ) &&
@@ -621,7 +558,11 @@ async function checkOwnershipOnNetwork(
                                     item,
                                     userAddr
                                 )
-                        )
+                        );
+
+
+                    if (
+                        isMultisigOwner
                     ) {
 
                         return {
@@ -640,26 +581,269 @@ async function checkOwnershipOnNetwork(
                                 ) || 1,
 
                             source:
-                                "contract-multisig"
+                                "blockchain-multisig"
                         };
                     }
 
-                } catch (multisigError) {
+                } catch (
+                    multisigError
+                ) {
 
                     console.warn(
-                        "[Dashboard] Multisig ownership check failed:",
+                        `[Dashboard] خواندن owners مالتی‌سیگ ${netCfg.id} ناموفق بود:`,
                         multisigError
                     );
                 }
             }
 
+
         } catch (error) {
 
             console.warn(
-                `[Dashboard] EVM ownership check failed: ${netCfg.id}`,
+                `[Dashboard] بررسی مالکیت EVM در ${netCfg.id} ناموفق بود:`,
                 error
             );
         }
+
+
+        return {
+            isOwner: false
+        };
+    }
+
+
+    /*
+     * ========================================================
+     * TVM / Tron
+     *
+     * Source of Truth:
+     * Blockchain
+     *
+     * Projects.json فقط آدرس Fund را می‌دهد.
+     * ========================================================
+     */
+
+    if (
+        netCfg.type === "TVM"
+    ) {
+
+        const tronWeb =
+            window.tronWeb;
+
+        if (
+            !tronWeb ||
+            !tronWeb.defaultAddress?.base58
+        ) {
+
+            return {
+                isOwner: false
+            };
+        }
+
+
+        /*
+         * برای جلوگیری از بررسی اشتباه شبکه:
+         * آدرس کیف پول فعلی TronLink را با userAddr
+         * تطبیق می‌دهیم.
+         */
+        if (
+            !sameAddress(
+                tronWeb
+                    .defaultAddress
+                    .base58,
+                userAddr
+            )
+        ) {
+
+            return {
+                isOwner: false
+            };
+        }
+
+
+        try {
+
+            /*
+             * خواندن قرارداد Fund
+             */
+            const fundContract =
+                await tronWeb
+                    .contract()
+                    .at(
+                        fundAddress
+                    );
+
+
+            /*
+             * owner() واقعی قرارداد
+             */
+            const owner =
+                await fundContract
+                    .owner()
+                    .call();
+
+
+            const ownerBase58 =
+                typeof owner === "string"
+                    ? owner
+                    : (
+                        owner?._hex
+                            ? tronWeb.address.fromHex(
+                                owner._hex
+                            )
+                            : ""
+                    );
+
+
+            /*
+             * حالت 1:
+             * خود کیف پول مالک Fund است.
+             */
+            if (
+                sameAddress(
+                    ownerBase58,
+                    userAddr
+                )
+            ) {
+
+                return {
+
+                    isOwner: true,
+
+                    fundAddress:
+                        fundAddress,
+
+                    multisigAddress:
+                        null,
+
+                    requiredSignatures:
+                        1,
+
+                    source:
+                        "blockchain-owner"
+                };
+            }
+
+
+            /*
+             * حالت 2:
+             * owner یک Multisig است.
+             */
+            if (
+                ownerBase58
+            ) {
+
+                try {
+
+                    const multisig =
+                        await tronWeb
+                            .contract()
+                            .at(
+                                ownerBase58
+                            );
+
+
+                    const owners =
+                        await multisig
+                            .getOwners()
+                            .call();
+
+
+                    const multisigOwners =
+                        Array.isArray(
+                            owners
+                        )
+                            ? owners
+                            : [];
+
+
+                    const isMultisigOwner =
+                        multisigOwners.some(
+                            item => {
+
+                                let address =
+                                    item;
+
+                                /*
+                                 * در بعضی نسخه‌های TronWeb
+                                 * مقدار bytes به شکل hex
+                                 * برمی‌گردد.
+                                 */
+                                if (
+                                    typeof item ===
+                                        "object" &&
+                                    item?._hex
+                                ) {
+
+                                    try {
+
+                                        address =
+                                            tronWeb
+                                                .address
+                                                .fromHex(
+                                                    item._hex
+                                                );
+
+                                    } catch (_) {}
+                                }
+
+
+                                return sameAddress(
+                                    address,
+                                    userAddr
+                                );
+                            }
+                        );
+
+
+                    if (
+                        isMultisigOwner
+                    ) {
+
+                        return {
+
+                            isOwner: true,
+
+                            fundAddress:
+                                fundAddress,
+
+                            multisigAddress:
+                                ownerBase58,
+
+                            requiredSignatures:
+                                Number(
+                                    fund.requiredSignatures
+                                ) || 1,
+
+                            source:
+                                "blockchain-multisig"
+                        };
+                    }
+
+                } catch (
+                    multisigError
+                ) {
+
+                    console.warn(
+                        `[Dashboard] خواندن owners مالتی‌سیگ Tron در ${netCfg.id} ناموفق بود:`,
+                        multisigError
+                    );
+                }
+            }
+
+
+        } catch (error) {
+
+            console.warn(
+                `[Dashboard] بررسی مالکیت Tron در ${netCfg.id} ناموفق بود:`,
+                error
+            );
+        }
+
+
+        return {
+            isOwner: false
+        };
     }
 
 
