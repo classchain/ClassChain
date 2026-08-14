@@ -6,7 +6,7 @@ let web3 = null;
 let projects = {};
 
 const networkConfig = window.ClassChainNetworkConfig || { NETWORKS: {}, getDonationNetworks: () => [] };
-const networks = networkConfig.NETWORKS;
+function getNetworks() {return networkConfig.NETWORKS || {};}
 const walletManager = new window.ClassChainWalletManager();
 
 // ==================== توابع کمکی ====================
@@ -52,7 +52,7 @@ async function waitForTronTransaction(tronWeb, txId, options = {}) {
 }
 
 function getTokenDecimals(network) {
-    return networks[network]?.tokenDecimals || 6;
+    return getNetworks()[network]?.tokenDecimals || 6;
 }
 
 /**
@@ -164,7 +164,7 @@ function handleTransactionError(err, approveTxHash, depositTxHash, net) {
 function updateButtonState() {
     const termsConsent = document.getElementById('termsConsent');
     const connectBtn = document.getElementById('connectBtn');
-    const net = networks[selectedNetwork];
+    const net = getNetworks()[selectedNetwork];
 
     if (!connectBtn) return;
 
@@ -199,7 +199,7 @@ function updateWalletInfo(connection) {
 // ==================== انتخاب شبکه ====================
 function selectNetwork(network) {
     selectedNetwork = network;
-    const net = networks[network];
+    const net = getNetworks()[network];
     if (!net) return;
 
     currentContract = getProjectFundAddress(projects, net);
@@ -431,7 +431,7 @@ async function loadProjectData() {
         			id => {
 
            				 const net =
-                		networks[id];
+                		getNetworks()[id];
 
             			if (!net) {
                 			return false;
@@ -884,7 +884,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            const net = networks[selectedNetwork];
+            const net = getNetworks()[selectedNetwork];
             if (!net) {
                 alert("شبکه انتخاب شده معتبر نیست");
                 return;
