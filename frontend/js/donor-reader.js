@@ -814,12 +814,16 @@ class ClassChainDonorReader {
                 `USDT address not configured for ${net.id}`
             );
         }
-
-
+        
         const host =
-            net.fullHost ||
-            'https://nile.trongrid.io';
+            net.rpcUrl;
 
+        if (!host) {
+
+            throw new Error(
+                `RPC URL برای شبکه ${net.id} در network-config تعریف نشده است.`
+            );
+        }
 
         const createdAt =
             this.getFundCreatedAt(
