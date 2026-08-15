@@ -13,7 +13,8 @@ export const NETWORKS = {
         type: 'EVM',
         chainId: 80002,
 
-        rpcUrl: 'https://rpc-amoy.polygon.technology',
+        //rpcUrl: 'https://rpc-amoy.polygon.technology',
+        rpcUrl: 'https://polygon-amoy.drpc.org',
 
         rpcFallbacks: [
             'https://polygon-amoy.gateway.tenderly.co',
