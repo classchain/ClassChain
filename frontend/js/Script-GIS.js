@@ -478,17 +478,35 @@ fetch('data/Projects.json')
                     `);
 
 					if (hasPolygon || tronAddress) {
-    					currentContractAddress = hasPolygon ? amoyAddress : tronAddress;
-    					const btn = document.getElementById('fixedContributeBtn');
-    					if (btn) btn.style.display = 'block';
 
-    					// مجموع کمک‌ها از همه شبکه‌ها
-    					loadRaisedSummary(a);
-						loadDonors(0);
+    					currentContractAddress =
+        					hasPolygon
+            					? amoyAddress
+            					: tronAddress;
 
-    					if (hasPolygon) {
-        					loadDonors(amoyAddress);
+    					const btn =
+        					document.getElementById(
+            					'fixedContributeBtn'
+        					);
+
+    					if (btn) {
+        					btn.style.display = 'block';
     					}
+
+
+    					/*
+     					* مسیر موجودی و مسیر مشارکت
+     					* کاملاً مستقل هستند.
+     					*
+     					* هر دو فقط Project را دریافت می‌کنند
+     					* و Reader مربوطه خودش شبکه‌ها و
+     					* Fundهای مربوط به Project را پیدا می‌کند.
+     					*/
+
+    					loadRaisedSummary(a);
+
+    					loadDonors(a);
+
 					} else {
     					currentContractAddress = null;
     					const btn = document.getElementById('fixedContributeBtn');
@@ -597,35 +615,105 @@ function showCountiesOfProvince(provinceName) {
 async function loadDonors(projectAttributes) {
 
     const donorsEl =
-        document.getElementById('donorsList');
+        document.getElementById(
+            'donorsList'
+        );
 
     if (!donorsEl) {
         return;
     }
 
+
     donorsEl.innerHTML =
         '<p style="opacity:0.7;">در حال دریافت مشارکت‌کنندگان...</p>';
 
+
+    /*
+     * برای خواندن مشارکت‌کنندگان،
+     * Project باید منبع ورودی باشد.
+     *
+     * Reader خودش:
+     *
+     * Project
+     *   ↓
+     * Network Config
+     *   ↓
+     * Fund
+     *   ↓
+     * USDT Transfer Events
+     */
+
+    if (
+        !projectAttributes ||
+        typeof projectAttributes !== 'object'
+    ) {
+
+        throw new Error(
+            '[WebGIS] اطلاعات پروژه برای DonorReader معتبر نیست.'
+        );
+    }
+
+
     try {
 
+        /*
+         * DonorReader یک Class است.
+         *
+         * load() متد instance است،
+         * نه static.
+         */
+
         if (
-            !window.ClassChainDonorReader
+            typeof window.ClassChainDonorReader !==
+            'function'
         ) {
 
             throw new Error(
-                'ClassChainDonorReader لود نشده است.'
+                '[WebGIS] ClassChainDonorReader لود نشده است.'
             );
         }
 
+
+        /*
+         * همان Network Config مشترک
+         * که network-config.js ساخته است.
+         */
+
+        const networkConfig =
+            window.ClassChainNetworkConfig;
+
+
+        if (!networkConfig) {
+
+            throw new Error(
+                '[WebGIS] ClassChainNetworkConfig لود نشده است.'
+            );
+        }
+
+
+        /*
+         * ساخت Instance
+         */
+
+        const reader =
+            new window.ClassChainDonorReader(
+                networkConfig
+            );
+
+
+        /*
+         * load() تا آماده شدن Network Config
+         * منتظر می‌ماند.
+         */
+
         const donors =
-            await window.ClassChainDonorReader.load(
+            await reader.load(
                 projectAttributes
             );
 
 
         /*
-         * فقط کیف پول‌هایی که واقعاً
-         * USDT به خزانه واریز کرده‌اند.
+         * نمایش نتیجه
          */
 
         if (
@@ -662,10 +750,6 @@ async function loadDonors(projectAttributes) {
                     return;
                 }
 
-
-                /*
-                 * شبکه‌های مشارکت
-                 */
 
                 const networks =
                     Array.isArray(
@@ -726,9 +810,9 @@ async function loadDonors(projectAttributes) {
             }
         );
 
-
         donorsEl.innerHTML =
             html;
+
 
     } catch (error) {
 
@@ -736,6 +820,7 @@ async function loadDonors(projectAttributes) {
             '[WebGIS] خطا در خواندن مشارکت‌کنندگان:',
             error
         );
+
 
         donorsEl.innerHTML =
             '<p style="color:#e74c3c;">خطا در بارگذاری مشارکت‌کنندگان</p>';
