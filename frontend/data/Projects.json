@@ -388,6 +388,17 @@
             "createdAt": "2026-08-05T10:21:58.874Z",
             "network": "polygon_amoy",
             "isMultisig": true
+          },
+          "tron_nile": {
+            "address": "TXz3oWyeV8HuUfwrSByvK6jycxiwDYnGKa",
+            "multisigAddress": null,
+            "owners": [
+              "TWriCnUmTXBBZNoGRgS9m8iqJMs3efrYHd"
+            ],
+            "requiredSignatures": 1,
+            "createdAt": "2026-08-15T10:15:35.659Z",
+            "network": "tron_nile",
+            "isMultisig": false
           }
         }
       }
