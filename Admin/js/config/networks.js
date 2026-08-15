@@ -14,8 +14,8 @@ export const NETWORKS = {
     chainId: 80002,
     rpcUrl: 'https://rpc-amoy.polygon.technology',
     rpcFallbacks: [
-      'https://polygon-amoy.gateway.tenderly.co',
-      'https://80002.rpc.thirdweb.com'
+      'https://polygon-amoy-bor-rpc.publicnode.com',
+      'https://polygon-amoy.gateway.tatum.io'
     ],
     explorerUrl: 'https://amoy.polygonscan.com',
     nativeToken: 'MATIC',
