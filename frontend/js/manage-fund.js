@@ -899,7 +899,8 @@ async function verifyTronNetwork(
                 String(
                     tronWeb.fullNode.host
                 )
-                    .toLowerCase();
+                    .toLowerCase()
+            );
         }
 
     } catch (_) {}
@@ -915,7 +916,8 @@ async function verifyTronNetwork(
                 String(
                     tronWeb.solidityNode.host
                 )
-                    .toLowerCase();
+                    .toLowerCase()
+            );
         }
 
     } catch (_) {}
