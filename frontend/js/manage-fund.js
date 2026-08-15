@@ -74,6 +74,30 @@ const tronFundABI = [
 
 const tronMultisigABI = [
     {
+        inputs: [
+            {
+                internalType: "uint256",
+                name: "",
+                type: "uint256"
+            },
+            {
+                internalType: "address",
+                name: "",
+                type: "address"
+            }
+        ],
+        name: "isConfirmed",
+        outputs: [
+            {
+                internalType: "bool",
+                name: "",
+                type: "bool"
+            }
+        ],
+        stateMutability: "view",
+        type: "function"
+    },
+    {
         inputs: [],
         name: "getOwners",
         outputs: [
@@ -383,7 +407,6 @@ function getReadableError(error) {
 }
 
 async function init() {
-    await window.ClassChainNetworkConfig.ready;
     const urlParams = new URLSearchParams(
         window.location.search
     );
@@ -396,8 +419,7 @@ async function init() {
     }
 
     try {
-        const response =
-            await fetch("data/Projects.json");
+        const response = await fetch("data/Projects.json");
 
         if (!response.ok) {
             throw new Error(
@@ -439,18 +461,19 @@ async function init() {
         }
 
         if (projectIdDisplay) {
-            projectIdDisplay.textContent =
-                projectId;
+            projectIdDisplay.textContent = projectId;
         }
 
-        await loadTotalRaised();
+        /*
+         * مهم:
+         * دیگر منتظر RPCهای blockchain نمی‌مانیم.
+         * صفحه بلافاصله نمایش داده می‌شود.
+         */
+
         populateNetworkSelect();
 
-        const loading =
-            getElement("loading");
-
-        const main =
-            getElement("main");
+        const loading = getElement("loading");
+        const main = getElement("main");
 
         if (loading) {
             loading.style.display = "none";
@@ -459,6 +482,11 @@ async function init() {
         if (main) {
             main.style.display = "block";
         }
+
+        /*
+         * خواندن مجموع کمک‌ها در پس‌زمینه
+         */
+        loadTotalRaised();
 
     } catch (error) {
         console.error("Init error:", error);
@@ -1067,22 +1095,18 @@ async function loadTronFundData() {
                 fundAddress
             );
 
-        const actualOwner =
-            getTronBase58(
-                await fundContract
-                    .owner()
-                    .call()
-            );
+const [
+    rawOwner,
+    rawBalance,
+    tokenAllowed
+] = await Promise.all([
+    fundContract.owner().call(),
+    fundContract.balanceOf(usdt).call(),
+    fundContract.allowedTokens(usdt).call()
+]);
 
-        const rawBalance =
-            await fundContract
-                .balanceOf(usdt)
-                .call();
-
-        const tokenAllowed =
-            await fundContract
-                .allowedTokens(usdt)
-                .call();
+const actualOwner =
+    getTronBase58(rawOwner);
 
         const balance =
             formatTokenAmount(
@@ -1155,17 +1179,21 @@ async function loadTronFundData() {
                     multisigAddress
                 );
 
-            tronMultisigOwners =
-                await multisigContract
-                    .getOwners()
-                    .call();
+                const [
+                    rawOwners,
+                    rawRequired
+                ] = await Promise.all([
+                    multisigContract.getOwners().call(),
+                    multisigContract.numConfirmationsRequired().call()
+                ]);
 
-            tronRequiredConfirmations =
-                Number(
-                    await multisigContract
-                        .numConfirmationsRequired()
-                        .call()
+                tronMultisigOwners =
+                    rawOwners.map(
+                    address => getTronBase58(address)
                 );
+
+                tronRequiredConfirmations =
+                    Number(rawRequired);
 
             tronMultisigOwners =
                 tronMultisigOwners.map(
@@ -1330,16 +1358,21 @@ async function loadTronFundData() {
 
         // فقط برای Multi-Sig تراکنش‌های Pending را بخوان
         if (multisigAddress) {
-
             const multisigContract =
                 await tronWeb.contract(
                     tronMultisigABI,
                     multisigAddress
                 );
 
-            await loadTronPendingTransactions(
-                multisigContract
-            );
+            /*
+             * Pending transactions اطلاعات ثانویه هستند.
+             * اجازه نمی‌دهیم سرعت نمایش خزانه را کاهش دهند.
+             */
+            setTimeout(() => {
+                loadTronPendingTransactions(
+                    multisigContract
+                );
+            }, 0);
         }
 
         // اتصال دکمه برداشت به handler مخصوص Tron
@@ -1378,36 +1411,86 @@ async function loadTronPendingTransactions(
                     .call()
             );
 
+        if (count === 0) {
+            pendingDiv.innerHTML =
+                "<p>هیچ تراکنش در انتظار تأییدی وجود ندارد.</p>";
+            return;
+        }
+
+        /*
+         * تمام تراکنش‌ها را موازی بخوان
+         */
+        const transactions =
+            await Promise.all(
+                Array.from(
+                    { length: count },
+                    (_, i) =>
+                        multisigContract
+                            .getTransaction(i)
+                            .call()
+                            .then(tx => ({
+                                index: i,
+                                tx
+                            }))
+                            .catch(error => ({
+                                index: i,
+                                tx: null,
+                                error
+                            }))
+                )
+            );
+
+        /*
+         * فقط Pendingها
+         */
+        const pendingTransactions =
+            transactions.filter(
+                item =>
+                    item.tx &&
+                    !item.tx.executed
+            );
+
+        if (!pendingTransactions.length) {
+            pendingDiv.innerHTML =
+                "<p>هیچ تراکنش در انتظار تأییدی وجود ندارد.</p>";
+            return;
+        }
+
+        /*
+         * وضعیت تأیید کاربر را موازی بخوان
+         */
+        const confirmationResults =
+            await Promise.all(
+                pendingTransactions.map(
+                    async ({ index }) => ({
+                        index,
+                        confirmed:
+                            await getTronConfirmationStatus(
+                                multisigContract,
+                                index,
+                                connection.account
+                            )
+                    })
+                )
+            );
+
+        const confirmationMap =
+            new Map(
+                confirmationResults.map(item => [
+                    item.index,
+                    item.confirmed
+                ])
+            );
+
         let html = "";
 
-        for (
-            let i = 0;
-            i < count;
-            i++
-        ) {
-            const tx =
-                await multisigContract
-                    .getTransaction(i)
-                    .call();
-
-            const executed =
-                tx.executed;
+        for (const { index, tx } of pendingTransactions) {
 
             const confirmations =
-                Number(
-                    tx.numConfirmations
-                );
-
-            if (executed) {
-                continue;
-            }
+                Number(tx.numConfirmations);
 
             const confirmedByUser =
-                await getTronConfirmationStatus(
-                    multisigContract,
-                    i,
-                    connection.account
-                );
+                confirmationMap.get(index) || false;
 
             html += `
                 <div class="pending-tx"
@@ -1420,7 +1503,7 @@ async function loadTronPendingTransactions(
 
                     <p>
                         <strong>
-                            تراکنش #${i}
+                            تراکنش #${index}
                         </strong>
                     </p>
 
@@ -1452,8 +1535,8 @@ async function loadTronPendingTransactions(
                             ? `
                                 <button
                                     type="button"
-                                    onclick="confirmTronTransaction(${i})">
-                                    تأیید تراکنش #${i}
+                                    onclick="confirmTronTransaction(${index})">
+                                    تأیید تراکنش #${index}
                                 </button>
                               `
                             : ""
@@ -1462,13 +1545,7 @@ async function loadTronPendingTransactions(
             `;
         }
 
-        if (!html) {
-            html =
-                "<p>هیچ تراکنش در انتظار تأییدی وجود ندارد.</p>";
-        }
-
-        pendingDiv.innerHTML =
-            html;
+        pendingDiv.innerHTML = html;
 
     } catch (error) {
         console.warn(
@@ -1490,52 +1567,8 @@ async function getTronConfirmationStatus(
     ownerAddress
 ) {
     try {
-        /*
-         * isConfirmed(uint256,address)
-         */
-        const contractWithMappingABI =
-            [
-                ...tronMultisigABI,
-                {
-                    inputs: [
-                        {
-                            internalType:
-                                "uint256",
-                            name: "",
-                            type: "uint256"
-                        },
-                        {
-                            internalType:
-                                "address",
-                            name: "",
-                            type: "address"
-                        }
-                    ],
-                    name: "isConfirmed",
-                    outputs: [
-                        {
-                            internalType:
-                                "bool",
-                            name: "",
-                            type: "bool"
-                        }
-                    ],
-                    stateMutability: "view",
-                    type: "function"
-                }
-            ];
-
-        const tronWeb =
-            connection.tronWeb;
-
-        const contract =
-            await tronWeb.contract(
-                contractWithMappingABI,
-                multisigAddress
-            );
-
         return Boolean(
-            await contract
+            await multisigContract
                 .isConfirmed(
                     txIndex,
                     getTronBase58(ownerAddress)
