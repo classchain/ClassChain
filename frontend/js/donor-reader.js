@@ -1391,135 +1391,362 @@ async findBlockByTimestamp(
 
         return records;
     }
+    /* =====================================================
+   TRON ADDRESS NORMALIZATION
+   ===================================================== */
 
+base58ToTronHex(address) {
+
+    if (
+        typeof address !== 'string' ||
+        !address.startsWith('T')
+    ) {
+        return null;
+    }
+
+
+    const alphabet =
+        '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+
+    let value = 0n;
+
+
+    for (
+        const char of address
+    ) {
+
+        const index =
+            alphabet.indexOf(char);
+
+
+        if (index < 0) {
+
+            return null;
+        }
+
+
+        value =
+            value * 58n +
+            BigInt(index);
+    }
+
+
+    let hex =
+        value.toString(16);
+
+
+    /*
+     * TRON Base58Check payload:
+     *
+     * 41 + 20 byte address + 4 byte checksum
+     *
+     * We only need:
+     *
+     * 41 + 20 byte address
+     */
+
+
+    if (
+        hex.length < 50
+    ) {
+
+        return null;
+    }
+
+
+    /*
+     * The decoded TRON payload is
+     * always 21 bytes before checksum.
+     */
+
+    return hex
+        .slice(0, 42)
+        .toLowerCase();
+}
+
+
+normalizeTronAddress(address) {
+
+    if (!address) {
+
+        return null;
+    }
+
+
+    const value =
+        String(address).trim();
+
+
+    /*
+     * TronGrid event API returns:
+     *
+     * 0x + 40 hex characters
+     */
+
+    if (
+        /^0x[0-9a-fA-F]{40}$/.test(value)
+    ) {
+
+        return (
+            '41' +
+            value
+                .slice(2)
+                .toLowerCase()
+        );
+    }
+
+
+    /*
+     * Raw TRON hexadecimal address:
+     *
+     * 41 + 40 hex characters
+     */
+
+    if (
+        /^41[0-9a-fA-F]{40}$/.test(value)
+    ) {
+
+        return value.toLowerCase();
+    }
+
+
+    /*
+     * TRON Base58 address:
+     *
+     * T...
+     */
+
+    if (
+        value.startsWith('T')
+    ) {
+
+        return this.base58ToTronHex(
+            value
+        );
+    }
+
+
+    return null;
+}
 
     /* =====================================================
        TRON TRANSFER PARSER
        ===================================================== */
 
-    parseTronTransfer(
-        event,
-        net,
-        fundAddress
+parseTronTransfer(
+    event,
+    net,
+    fundAddress
+) {
+
+    const result =
+        event?.result || {};
+
+
+    const from =
+        result.from ??
+        event.from;
+
+
+    const to =
+        result.to ??
+        event.to;
+
+
+    const value =
+        result.value ??
+        event.value;
+
+
+    if (
+        !from ||
+        !to ||
+        value == null
     ) {
 
-        const result =
-            event?.result || {};
-
-
-        const from =
-            result.from ??
-            event.from;
-
-
-        const to =
-            result.to ??
-            event.to;
-
-
-        const value =
-            result.value ??
-            event.value;
-
-
-        if (
-            !from ||
-            !to ||
-            value == null
-        ) {
-            return null;
-        }
-
-
-        /*
-         * فقط انتقال به Fund
-         */
-        if (
-            String(to).trim() !==
-            String(fundAddress).trim()
-        ) {
-            return null;
-        }
-
-
-        /*
-         * برداشت از Fund
-         */
-        if (
-            String(from).trim() ===
-            String(fundAddress).trim()
-        ) {
-            return null;
-        }
-
-
-        let rawValue;
-
-
-        try {
-
-            rawValue =
-                BigInt(value);
-
-        } catch (error) {
-
-            console.warn(
-                '[DonorReader] invalid TRON value:',
-                value
-            );
-
-            return null;
-        }
-
-
-        if (
-            rawValue <= 0n
-        ) {
-            return null;
-        }
-
-
-        return {
-
-            address:
-                String(from).trim(),
-
-            amount:
-                this.toAmount(
-                    rawValue,
-                    net.tokenDecimals || 6
-                ),
-
-            network:
-                net.name || net.id,
-
-            networkId:
-                net.id,
-
-            txHash:
-                event.transaction_id ||
-                event.transactionId ||
-                null,
-
-            eventIndex:
-                event.event_index ??
-                event.eventIndex ??
-                null,
-
-            blockNumber:
-                Number(
-                    event.block_number || 0
-                ),
-
-            timestamp:
-                event.block_timestamp ||
-                null,
-
-            source:
-                'Transfer'
-        };
+        return null;
     }
 
+
+    /*
+     * =====================================================
+     * Normalize TRON addresses
+     *
+     * API:
+     *
+     *     0x...
+     *
+     * Project:
+     *
+     *     T...
+     *
+     * هر دو را به:
+     *
+     *     41...
+     *
+     * تبدیل می‌کنیم.
+     * =====================================================
+     */
+
+    const normalizedFrom =
+        this.normalizeTronAddress(
+            from
+        );
+
+
+    const normalizedTo =
+        this.normalizeTronAddress(
+            to
+        );
+
+
+    const normalizedFund =
+        this.normalizeTronAddress(
+            fundAddress
+        );
+
+
+    if (
+        !normalizedFrom ||
+        !normalizedTo ||
+        !normalizedFund
+    ) {
+
+        console.warn(
+            '[DonorReader] invalid TRON address:',
+            {
+                from,
+                to,
+                fundAddress,
+                normalizedFrom,
+                normalizedTo,
+                normalizedFund
+            }
+        );
+
+        return null;
+    }
+
+
+    /*
+     * =====================================================
+     * فقط انتقال به Fund
+     * =====================================================
+     */
+
+    if (
+        normalizedTo !==
+        normalizedFund
+    ) {
+
+        return null;
+    }
+
+
+    /*
+     * =====================================================
+     * برداشت از Fund
+     * مشارکت محسوب نمی‌شود.
+     * =====================================================
+     */
+
+    if (
+        normalizedFrom ===
+        normalizedFund
+    ) {
+
+        return null;
+    }
+
+
+    /*
+     * =====================================================
+     * USDT amount
+     * =====================================================
+     */
+
+    let rawValue;
+
+
+    try {
+
+        rawValue =
+            BigInt(value);
+
+    } catch (error) {
+
+        console.warn(
+            '[DonorReader] invalid TRON value:',
+            value
+        );
+
+        return null;
+    }
+
+
+    if (
+        rawValue <= 0n
+    ) {
+
+        return null;
+    }
+
+
+    return {
+
+        /*
+         * آدرس اصلی مشارکت‌کننده.
+         *
+         * همان فرمت API نگه داشته می‌شود.
+         */
+
+        address:
+            String(from).trim(),
+
+
+        amount:
+            this.toAmount(
+                rawValue,
+                net.tokenDecimals || 6
+            ),
+
+
+        network:
+            net.name || net.id,
+
+
+        networkId:
+            net.id,
+
+
+        txHash:
+            event.transaction_id ||
+            event.transactionId ||
+            null,
+
+
+        eventIndex:
+            event.event_index ??
+            event.eventIndex ??
+            null,
+
+
+        blockNumber:
+            Number(
+                event.block_number || 0
+            ),
+
+
+        timestamp:
+            event.block_timestamp ||
+            null,
+
+
+        source:
+            'Transfer'
+    };
+}
 
     /* =====================================================
        RPC
