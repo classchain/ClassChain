@@ -52,16 +52,18 @@ const projectRegistry =
  */
 const networkResolver = {
 
-    resolve(networkId) {
+resolveTreasury(networkId) {
 
-        if (networkId === 'broken_network') {
+    if (networkId === 'broken_network') {
 
-            throw new Error(
-                'Network deployment is not active: broken_network'
-            );
-        }
+        throw new Error(
+            'Network deployment is not active: broken_network'
+        );
+    }
 
-        return {
+    return {
+
+        network: {
 
             id: networkId,
 
@@ -70,20 +72,9 @@ const networkResolver = {
             factoryAddress:
                 '0xFactory'
 
-        };
-    },
+        },
 
-
-    resolveToken(networkId, symbol) {
-
-        if (symbol !== 'USDT') {
-
-            throw new Error(
-                `Unsupported token: ${symbol}`
-            );
-        }
-
-        return {
+        token: {
 
             symbol: 'USDT',
 
@@ -92,9 +83,12 @@ const networkResolver = {
 
             decimals: 6
 
-        };
-    }
+        }
 
+    };
+}
+
+    
 };
 
 
