@@ -171,17 +171,21 @@ assert.equal(
  *
  * Add a completely new project/network.
  * Discovery code must not change.
- */
-projects.features.push({
+ *
+ projects.features.push({
 
-    ProjectID: '2000',
+    attributes: {
 
-    funds: {
+        ProjectID: '2000',
 
-        future_network: {
+        funds: {
 
-            address:
-                'FUTURE_TREASURY'
+            future_network: {
+
+                address:
+                    'FUTURE_TREASURY'
+
+            }
 
         }
 
@@ -219,21 +223,24 @@ assert.equal(
  */
 projects.features.push({
 
-    ProjectID: '3000',
+    attributes: {
 
-    funds: {
+        ProjectID: '3000',
 
-        broken_network: {
+        funds: {
 
-            address:
-                'BROKEN_TREASURY'
+            broken_network: {
+
+                address:
+                    'BROKEN_TREASURY'
+
+            }
 
         }
 
     }
 
 });
-
 
 const thirdResult =
     service.discover();
