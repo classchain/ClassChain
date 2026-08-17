@@ -48,12 +48,12 @@ const projects =
         )
     );
 
-
 assert.ok(
-    Array.isArray(projects),
-    'Projects.json must contain an array'
+    projects &&
+    typeof projects === 'object' &&
+    Array.isArray(projects.features),
+    'Projects.json must contain a features array'
 );
-
 
 /*
  * Real ClassChain components.
@@ -200,7 +200,7 @@ console.log(
 );
 
 console.log(
-    `Projects loaded: ${projects.length}`
+    `Projects loaded: ${projects.features.length}`
 );
 
 console.log(
