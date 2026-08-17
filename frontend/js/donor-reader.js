@@ -160,17 +160,17 @@ class ClassChainDonorReader {
                             return records;
 
                         } catch (error) {
-
+                        
                             console.error(
-                                `[DonorReader] ${net.id} failed:`,
+                                `[DonorReader] ${net.id} FAILED:`,
                                 error
                             );
-
-                            /*
-                             * شکست یک شبکه نباید
-                             * نتیجه شبکه‌های دیگر را حذف کند.
-                             */
-                            return [];
+                        
+                            return {
+                                __networkError: true,
+                                network: net.id,
+                                error: error
+                            };
                         }
                     }
                 )
@@ -310,84 +310,94 @@ async readEVM(
             `USDT address not configured for ${net.id}`
         );
     }
-    /*
-     * RPC فقط زمانی معتبر است که:
-     *
-     * 1) eth_blockNumber
-     * 2) eth_getLogs
-     *
-     * هر دو را بتواند اجرا کند.
-     */
-    const rpcInfo =
-        await this.findWorkingRPC(
-            net,
-            net.usdtAddress,
-            fundAddress
-        );
+
     const rpc =
-        rpcInfo.rpc;
+        await this.findWorkingRPC(
+            net
+        );
 
     const latestBlock =
-        rpcInfo.latestBlock;
+        await this.rpcCall(
+            rpc,
+            'eth_blockNumber',
+            []
+        );
 
-    const maxLogRange =
-        rpcInfo.maxLogRange;
+    const latest =
+        parseInt(
+            latestBlock,
+            16
+        );
+
+    if (!Number.isFinite(latest)) {
+        throw new Error(
+            `latestBlock نامعتبر است: ${latestBlock}`
+        );
+    }
+
     /*
-     * --------------------------------------------------------
-     * پیدا کردن اولین Block مرتبط با createdAt
-     *
-     * اگر createdAt داشته باشیم و نتوانیم Block متناظر
-     * را پیدا کنیم، دیگر از Block 0 شروع نمی‌کنیم.
-     *
-     * چون این کار برای ما یعنی اسکن کل زنجیره.
-     * --------------------------------------------------------
+     * از زمان ایجاد خزانه شروع می‌کنیم.
+     * این قسمت فقط برای کم کردن حجم Scan است.
      */
-
     let fromBlock = 0;
+
     const createdAt =
         this.getFundCreatedAt(
             project,
             net
         );
+
     if (createdAt) {
         fromBlock =
             await this.findBlockByTimestamp(
                 rpc,
                 createdAt,
-                latestBlock
+                latest
             );
     }
-    if (
-        fromBlock > latestBlock
-    ) {
+
+    if (fromBlock > latest) {
         throw new Error(
-            `[DonorReader] fromBlock (${fromBlock}) ` +
-            `بزرگ‌تر از latestBlock (${latestBlock}) است.`
+            `[DonorReader] fromBlock (${fromBlock}) > latest (${latest})`
         );
     }
+
     console.log(
-        `[DonorReader] ${net.id}: ` +
-        `RPC=${rpc}, ` +
-        `fromBlock=${fromBlock}, ` +
-        `latestBlock=${latestBlock}, ` +
-        `maxLogRange=${maxLogRange}`
+        `[DonorReader] EVM ${net.id}: ` +
+        `from=${fromBlock}, latest=${latest}`
     );
+
     const paddedFund =
         this.padAddressTopic(
             fundAddress
         );
+
+    /*
+     * فقط Transferهای USDT که مقصدشان Fund است.
+     */
     return await this.scanEvmLogs({
         rpc,
         tokenAddress:
             net.usdtAddress,
+
         fromBlock,
-        latestBlock,
-        maxLogRange,
+
+        latestBlock:
+            latest,
+
+        /*
+         * شروع با batch بزرگ.
+         * اگر RPC قبول نکرد، scanEvmLogs خودش کاهش می‌دهد.
+         */
+        maxLogRange:
+            50000,
+
         topics: [
             this.transferTopic,
             null,
             paddedFund
         ],
+
         net,
         fundAddress
     });
@@ -397,45 +407,34 @@ async readEVM(
     /* =====================================================
        EVM LOG SCANNER
        ===================================================== */
-
 async scanEvmLogs({
-
     rpc,
-
     tokenAddress,
-
     fromBlock,
-
     latestBlock,
-
     maxLogRange,
-
     topics,
-
     net,
-
     fundAddress
-
 }) {
 
     const records = [];
 
-
     let start =
         fromBlock;
 
-
     /*
-     * سقف واقعی همین RPC
+     * شروع بزرگ.
+     * در صورت خطا نصف می‌شود.
      */
     let batchSize =
-        Math.max(
-            1,
-            Number(
-                maxLogRange
-            ) || 1
-        );
+        Number(maxLogRange) || 50000;
 
+    batchSize =
+        Math.max(
+            1000,
+            batchSize
+        );
 
     while (
         start <= latestBlock
@@ -450,14 +449,12 @@ async scanEvmLogs({
                 latestBlock
             );
 
-
         try {
 
             console.log(
-                `[DonorReader] EVM batch ` +
+                `[DonorReader] EVM ${net.id}: ` +
                 `${start} → ${end}`
             );
-
 
             const logs =
                 await this.rpcCall(
@@ -479,109 +476,90 @@ async scanEvmLogs({
                     }]
                 );
 
-
-            for (
-                const log of
-                (
-                    Array.isArray(logs)
-                        ? logs
-                        : []
-                )
+            if (
+                Array.isArray(logs)
             ) {
 
-                const record =
-                    this.parseEvmTransfer(
-                        log,
-                        net,
-                        fundAddress
-                    );
+                for (
+                    const log of logs
+                ) {
 
+                    const record =
+                        this.parseEvmTransfer(
+                            log,
+                            net,
+                            fundAddress
+                        );
 
-                if (record) {
-
-                    records.push(
-                        record
-                    );
+                    if (record) {
+                        records.push(
+                            record
+                        );
+                    }
                 }
             }
 
-
+            /*
+             * batch موفق بود.
+             */
             start =
                 end + 1;
-
 
         } catch (error) {
 
             console.warn(
                 `[DonorReader] EVM batch failed ` +
-                `${start} → ${end}:`,
+                `${start} → ${end}`,
                 error
             );
-
 
             const rpcLimit =
                 this.extractLogRangeLimit(
                     error
                 );
 
-
-            /*
-             * اگر RPC سقف دقیق را اعلام کرده،
-             * آن را فوراً اعمال می‌کنیم.
-             */
             if (
                 rpcLimit &&
                 rpcLimit < batchSize
             ) {
 
                 batchSize =
-                    rpcLimit;
-
-                console.log(
-                    `[DonorReader] using RPC max range: ${batchSize}`
-                );
+                    Math.max(
+                        1000,
+                        rpcLimit
+                    );
 
                 continue;
             }
 
-
             /*
-             * اگر علت خطا را دقیق نمی‌دانیم،
-             * نصف می‌کنیم.
+             * اگر محدودیت مشخص نبود،
+             * batch را نصف می‌کنیم.
              */
             if (
-                batchSize > 1
+                batchSize > 1000
             ) {
 
                 batchSize =
                     Math.max(
-                        1,
+                        1000,
                         Math.floor(
                             batchSize / 2
                         )
                     );
 
-
-                console.log(
-                    `[DonorReader] reducing batch to ${batchSize}`
-                );
-
                 continue;
             }
 
-
             /*
-             * حتی یک Block هم قابل خواندن نیست.
-             *
-             * این دیگر یک خطای واقعی RPC است
-             * و نباید آن را Skip کنیم.
+             * اینجا خطای واقعی RPC است.
+             * دیگر آن را Skip نمی‌کنیم.
              */
             const fatalError =
                 new Error(
                     `[DonorReader] eth_getLogs ` +
-                    `برای حتی یک Block در ${net.id} شکست خورد.`
+                    `در ${net.id} شکست خورد.`
                 );
-
 
             fatalError.cause =
                 error;
@@ -595,20 +573,20 @@ async scanEvmLogs({
             fatalError.fundAddress =
                 fundAddress;
 
-            fatalError.block =
+            fatalError.fromBlock =
                 start;
 
+            fatalError.toBlock =
+                end;
 
             throw fatalError;
         }
     }
 
-
     console.log(
         `[DonorReader] ${net.id}: ` +
         `${records.length} raw Transfer events`
     );
-
 
     return records;
 }
@@ -1752,11 +1730,7 @@ parseTronTransfer(
        RPC
        ===================================================== */
 
-async findWorkingRPC(
-    net,
-    tokenAddress,
-    fundAddress
-) {
+async findWorkingRPC(net) {
 
     const rpcList = [
         net.rpcUrl,
@@ -1764,36 +1738,20 @@ async findWorkingRPC(
     ]
         .filter(Boolean);
 
-
-    if (
-        rpcList.length === 0
-    ) {
-
+    if (rpcList.length === 0) {
         throw new Error(
             `[DonorReader] هیچ RPC برای ${net.id} تعریف نشده است.`
         );
     }
 
-
-    const paddedFund =
-        this.padAddressTopic(
-            fundAddress
-        );
-
-
-    for (
-        const rpc of rpcList
-    ) {
+    for (const rpc of rpcList) {
 
         try {
 
             /*
-             * =================================================
-             * Test 1:
-             * eth_blockNumber
-             * =================================================
+             * تست اصلی:
+             * فقط blockNumber
              */
-
             const latestHex =
                 await this.rpcCall(
                     rpc,
@@ -1801,129 +1759,60 @@ async findWorkingRPC(
                     []
                 );
 
-
-            if (!latestHex) {
-
-                throw new Error(
-                    'eth_blockNumber پاسخ معتبر نداد.'
-                );
-            }
-
-
-            const latestBlock =
+            const latest =
                 parseInt(
                     latestHex,
                     16
                 );
 
-
             if (
-                !Number.isFinite(
-                    latestBlock
-                )
+                !Number.isFinite(latest)
             ) {
-
                 throw new Error(
-                    `latestBlock نامعتبر است: ${latestHex}`
+                    'eth_blockNumber نامعتبر است.'
                 );
             }
 
-
             /*
-             * =================================================
-             * Test 2:
-             * eth_getLogs روی فقط یک Block
-             * =================================================
+             * تست eth_getLogs روی یک block.
+             *
+             * این تست فقط برای اطمینان از پشتیبانی RPC است.
              */
-
-            const testLogs =
-                await this.rpcCall(
-                    rpc,
-                    'eth_getLogs',
-                    [{
-                        address:
-                            tokenAddress,
-
-                        fromBlock:
-                            '0x' +
-                            latestBlock.toString(16),
-
-                        toBlock:
-                            '0x' +
-                            latestBlock.toString(16),
-
-                        topics: [
-                            this.transferTopic,
-                            null,
-                            paddedFund
-                        ]
-                    }]
-                );
-
-
-            if (
-                !Array.isArray(
-                    testLogs
-                )
-            ) {
-
-                throw new Error(
-                    'eth_getLogs پاسخ آرایه‌ای نداد.'
-                );
-            }
-
-
-            /*
-             * =================================================
-             * Test 3:
-             * پیدا کردن حداکثر block range
-             * =================================================
-             */
-
-            const maxLogRange =
-                await this.detectMaxLogRange(
-                    rpc,
-                    tokenAddress,
-                    paddedFund,
-                    latestBlock
-                );
-
-
-            console.log(
-                `[DonorReader] working RPC: ${rpc}`
-            );
-
-            console.log(
-                `[DonorReader] ${net.id}: ` +
-                `latestBlock=${latestBlock}, ` +
-                `maxLogRange=${maxLogRange}`
-            );
-
-
-            return {
-
+            await this.rpcCall(
                 rpc,
+                'eth_getLogs',
+                [{
+                    address:
+                        net.usdtAddress,
 
-                latestBlock,
+                    fromBlock:
+                        '0x' +
+                        latest.toString(16),
 
-                maxLogRange
+                    toBlock:
+                        '0x' +
+                        latest.toString(16),
 
-            };
+                    topics: [
+                        this.transferTopic
+                    ]
+                }]
+            );
 
+            console.log(
+                `[DonorReader] RPC انتخاب شد: ${rpc}`
+            );
+
+            return rpc;
 
         } catch (error) {
 
             console.warn(
-                `[DonorReader] RPC failed: ${rpc}`
-            );
-
-            console.warn(
-                `[DonorReader] reason:`,
+                `[DonorReader] RPC failed: ${rpc}`,
                 error
             );
         }
     }
-
 
     throw new Error(
         `[DonorReader] هیچ RPC قابل استفاده‌ای برای ${net.id} پیدا نشد.`
