@@ -42,13 +42,13 @@ export class DiscoveryService {
         for (const treasury of discovered) {
 
             try {
-        const {
-    network,
-    token
-} =
-    this.networkResolver.resolveTreasury(
-        treasury.networkId
-    );
+                const {
+                    network,
+                    token
+                } =
+                    this.networkResolver.resolveTreasury(
+                        treasury.networkId
+                    );
 
                 valid.push({
 
