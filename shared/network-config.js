@@ -14,10 +14,10 @@ export const NETWORKS = {
         chainId: 80002,
 
         //rpcUrl: 'https://rpc-amoy.polygon.technology',
-        rpcUrl: 'https://polygon-amoy.gateway.tenderly.co',
+        rpcUrl: 'https://polygon-amoy.drpc.org',
 
         rpcFallbacks: [
-            'https://polygon-amoy.drpc.org',
+            'https://polygon-amoy-bor-rpc.publicnode.com',
             'https://80002.rpc.thirdweb.com'
         ],
 
