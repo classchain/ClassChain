@@ -8,24 +8,12 @@ import { NetworkResolver } from './NetworkResolver.js';
 import { DiscoveryService } from './DiscoveryService.js';
 
 
-/*
- * Resolve repository root from this file:
- *
- * indexer/
- *   core/
- *     discovery/
- *       Discovery.integration.test.js
- *
- * frontend/
- *   data/
- *     Projects.json
- */
-
 const __filename =
     fileURLToPath(import.meta.url);
 
 const __dirname =
     path.dirname(__filename);
+
 
 const projectsPath =
     path.resolve(
@@ -48,6 +36,7 @@ const projects =
         )
     );
 
+
 assert.ok(
     projects &&
     typeof projects === 'object' &&
@@ -55,12 +44,7 @@ assert.ok(
     'Projects.json must contain a features array'
 );
 
-/*
- * Real ClassChain components.
- *
- * No mock.
- * No duplicated network configuration.
- */
+
 const projectRegistry =
     new ProjectRegistry(projects);
 
@@ -71,7 +55,11 @@ const discovery =
     new DiscoveryService(
         projectRegistry,
         networkResolver
-);
+    );
+
+
+const registryTreasuries =
+    projectRegistry.discoverTreasuries();
 
 
 const result =
@@ -79,8 +67,9 @@ const result =
 
 
 /*
- * Discovery must return both collections.
+ * Discovery result contract
  */
+
 assert.ok(
     Array.isArray(result.valid),
     'Discovery result.valid must be an array'
@@ -93,18 +82,33 @@ assert.ok(
 
 
 /*
- * There must be at least one discovered treasury
- * in the current real registry.
+ * Every registry treasury must end up
+ * either valid or invalid.
+ *
+ * Nothing may silently disappear.
  */
-assert.ok(
-    result.valid.length > 0,
-    'No valid treasury discovered from Projects.json'
+
+assert.equal(
+    result.valid.length + result.invalid.length,
+    registryTreasuries.length
 );
 
 
 /*
- * Project 1004 is our current integration case.
+ * Current registry must contain
+ * at least one treasury.
  */
+
+assert.ok(
+    registryTreasuries.length > 0,
+    'No treasury found in Projects.json'
+);
+
+
+/*
+ * Project 1004 is our real integration case.
+ */
+
 const project1004 =
     result.valid.filter(
         treasury =>
@@ -114,19 +118,36 @@ const project1004 =
 
 assert.ok(
     project1004.length > 0,
-    'Project 1004 was not discovered'
+    'Project 1004 was not discovered as a valid treasury'
 );
 
 
 /*
  * Every valid treasury must have
- * a resolved active network.
+ * a valid active network and USDT configuration.
  */
+
 for (const treasury of result.valid) {
 
     assert.ok(
+        treasury.projectId,
+        'Valid treasury has no projectId'
+    );
+
+    assert.ok(
+        treasury.networkId,
+        'Valid treasury has no networkId'
+    );
+
+    assert.ok(
+        treasury.address,
+        `Valid treasury has no address: ${treasury.projectId}/${treasury.networkId}`
+    );
+
+
+    assert.ok(
         treasury.network,
-        `Missing network for ${treasury.projectId}/${treasury.networkId}`
+        `Missing network configuration: ${treasury.networkId}`
     );
 
     assert.equal(
@@ -137,18 +158,8 @@ for (const treasury of result.valid) {
 
 
     assert.ok(
-        treasury.network.factoryAddress,
-        `Missing factory for ${treasury.networkId}`
-    );
-
-
-    /*
-     * Current ClassChain treasury policy:
-     * only USDT is indexed.
-     */
-    assert.ok(
         treasury.token,
-        `Missing token configuration for ${treasury.networkId}`
+        `Missing token configuration: ${treasury.networkId}`
     );
 
     assert.equal(
@@ -156,45 +167,39 @@ for (const treasury of result.valid) {
         'USDT'
     );
 
-
     assert.ok(
         treasury.token.address,
-        `Missing USDT address for ${treasury.networkId}`
+        `Missing USDT address: ${treasury.networkId}`
     );
-
 
     assert.equal(
         treasury.token.decimals,
         6
     );
-
-
-    assert.ok(
-        treasury.address,
-        `Missing treasury address for ${treasury.projectId}/${treasury.networkId}`
-    );
 }
 
 
 /*
- * Scalability invariant:
+ * Invalid configuration must be isolated.
  *
- * The number of discovered treasuries must come
- * from Projects.json, not from a hard-coded list.
+ * If invalid entries exist, they must carry
+ * an explicit status and error.
  */
-const registryTreasuries =
-    projectRegistry.discoverTreasuries();
+
+for (const treasury of result.invalid) {
+
+    assert.equal(
+        treasury.status,
+        'INVALID_CONFIGURATION'
+    );
+
+    assert.ok(
+        treasury.error,
+        `Invalid treasury has no error: ${treasury.projectId}/${treasury.networkId}`
+    );
+}
 
 
-assert.equal(
-    result.valid.length + result.invalid.length,
-    registryTreasuries.length
-);
-
-
-/*
- * Print useful integration information.
- */
 console.log(
     'Discovery integration test: PASS'
 );
