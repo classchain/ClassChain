@@ -36,13 +36,6 @@ export class NetworkResolver {
         );
     }
 
-    if (!network.factoryAddress) {
-
-        throw new Error(
-            `No factory configured for network: ${networkId}`
-        );
-    }
-
     return network;
 }
 
