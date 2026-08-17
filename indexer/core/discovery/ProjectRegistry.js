@@ -1,32 +1,41 @@
 /**
  * ClassChain Indexer
  *
- * Project Registry
+ * Project Registry Adapter
  *
- * Reads the existing Projects.json registry.
+ * Reads the existing ClassChain Projects.json structure.
  *
  * IMPORTANT:
- * This module does NOT contain network/project/treasury configuration.
- * It only discovers what already exists in the platform registry.
+ * This class adapts the existing GIS registry.
+ * It does NOT redefine or duplicate project configuration.
  */
 
 export class ProjectRegistry {
 
-    constructor(projects) {
+    constructor(registry) {
 
-        if (!Array.isArray(projects)) {
+        if (
+            !registry ||
+            typeof registry !== 'object' ||
+            !Array.isArray(registry.features)
+        ) {
             throw new TypeError(
-                'Projects registry must be an array.'
+                'Projects registry must contain a features array.'
             );
         }
 
-        this.projects = projects;
+        this.features =
+            registry.features;
     }
 
 
     getProjects() {
 
-        return this.projects;
+        return this.features
+            .map(feature =>
+                feature?.attributes
+            )
+            .filter(Boolean);
     }
 
 
@@ -35,10 +44,12 @@ export class ProjectRegistry {
         const normalizedId =
             String(projectId);
 
-        return this.projects.find(
-            project =>
-                String(project.ProjectID) === normalizedId
-        ) || null;
+        return this.getProjects()
+            .find(
+                project =>
+                    String(project.ProjectID) ===
+                    normalizedId
+            ) || null;
     }
 
 
@@ -46,13 +57,16 @@ export class ProjectRegistry {
 
         const result = [];
 
-        for (const project of this.projects) {
+
+        for (const project of this.getProjects()) {
 
             const projectId =
                 String(project.ProjectID);
 
+
             const funds =
                 project.funds;
+
 
             if (
                 !funds ||
@@ -62,7 +76,10 @@ export class ProjectRegistry {
             }
 
 
-            for (const [networkId, fund] of Object.entries(funds)) {
+            for (
+                const [networkId, fund]
+                of Object.entries(funds)
+            ) {
 
                 if (
                     !fund ||
@@ -71,8 +88,10 @@ export class ProjectRegistry {
                     continue;
                 }
 
+
                 const address =
                     fund.address;
+
 
                 if (
                     !address ||
@@ -99,6 +118,7 @@ export class ProjectRegistry {
 
             }
         }
+
 
         return result;
     }
