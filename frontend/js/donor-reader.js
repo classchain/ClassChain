@@ -295,7 +295,6 @@ class ClassChainDonorReader {
         : null;
 }
 
-
     /* =====================================================
        EVM
        ===================================================== */
@@ -330,7 +329,7 @@ async readEVM(net, fundAddress, project) {
      * اولویت:
      * 1. createdAt پروژه (با بافر کوچک)
      * 2. در صورت خطا → پنجرهٔ اخیر
-     * 3. سقف مطلق برای جلوگیری از اسکن چند میلیون بلاکی
+     * 3. سقف معقول برای جلوگیری از اسکن چندمیلیونی سنگین
      * --------------------------------------------------------
      */
     let fromBlock = 0;
@@ -343,22 +342,24 @@ async readEVM(net, fundAddress, project) {
                 createdAt,
                 latestBlock
             );
-            // بافر امنیتی کوچک
-            fromBlock = Math.max(0, fromBlock - 2000);
+            // بافر امنیتی
+            fromBlock = Math.max(0, fromBlock - 5000);
         } catch (e) {
             console.warn(
                 `[DonorReader] findBlockByTimestamp failed for ${net.id}, using recent window`,
                 e
             );
-            fromBlock = Math.max(0, latestBlock - 150000);
+            fromBlock = Math.max(0, latestBlock - 2_000_000);
         }
     } else {
-        // اگر createdAt وجود نداشت، فقط بازهٔ اخیر را اسکن می‌کنیم
-        fromBlock = Math.max(0, latestBlock - 150000);
+        fromBlock = Math.max(0, latestBlock - 2_000_000);
     }
 
-    // سقف مطلق — جلوگیری از اسکن چند میلیون بلاک در مرورگر
-    const MAX_SCAN_BLOCKS = 300000;
+    /*
+     * سقف مطلق — حدود ۲ میلیون بلاک
+     * (روی Amoy تقریباً چند هفته؛ برای پروژه‌های قدیمی‌تر کافی است)
+     */
+    const MAX_SCAN_BLOCKS = 2_000_000;
     if (latestBlock - fromBlock > MAX_SCAN_BLOCKS) {
         console.warn(
             `[DonorReader] ${net.id}: limiting scan window to last ${MAX_SCAN_BLOCKS} blocks`
