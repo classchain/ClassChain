@@ -1235,166 +1235,84 @@ async findBlockByTimestamp(
         net,
         minTimestamp
     }) {
-
         const records = [];
-
-
-        let fingerprint =
-            null;
-
-
-        let page =
-            0;
-
-
-        /*
-         * safety limit
-         */
-        const maxPages =
-            200;
-
-
+    
+        let fingerprint = null;
+        let page = 0;
+        const maxPages = 200;
+    
         do {
-
             page++;
-
-
-            if (
-                page >
-                maxPages
-            ) {
-
-                console.warn(
-                    '[DonorReader] TRON page limit reached'
-                );
-
+    
+            if (page > maxPages) {
+                console.warn('[DonorReader] TRON page limit reached');
                 break;
             }
-
-
-            const params =
-                new URLSearchParams();
-
-
-            params.set(
-                'event_name',
-                'Transfer'
-            );
-
-
-            params.set(
-                'only_confirmed',
-                'true'
-            );
-
-
-            params.set(
-                'limit',
-                '200'
-            );
-
-
-            params.set(
-                'order_by',
-                'block_timestamp,asc'
-            );
-
-
+    
+            const params = new URLSearchParams();
+    
+            // فقط واریز به Fund + فقط USDT
+            params.set('only_confirmed', 'true');
+            params.set('only_to', 'true');
+            params.set('limit', '200');
+            params.set('order_by', 'block_timestamp,asc');
+            params.set('contract_address', usdtAddress);
+    
+            // event_name را عمداً نگذاشتیم
+            // چون مال endpoint قرارداد است، نه accounts/trc20
+    
             if (minTimestamp) {
-
-                params.set(
-                    'min_timestamp',
-                    minTimestamp
-                );
+                params.set('min_timestamp', minTimestamp);
             }
-
-
+    
             if (fingerprint) {
-
-                params.set(
-                    'fingerprint',
-                    fingerprint
-                );
+                params.set('fingerprint', fingerprint);
             }
-
-
+    
             const url =
                 `${host}/v1/accounts/` +
                 `${fundAddress}/transactions/trc20?` +
                 params.toString();
-
-
-            console.log(
-                `[DonorReader] TRON page ${page}`
-            );
-
-
-            const response =
-                await this.fetchWithTimeout(
-                    url
-                );
-
-
+    
+            console.log(`[DonorReader] TRON page ${page}`);
+    
+            const response = await this.fetchWithTimeout(url);
+    
             if (!response.ok) {
-
-                throw new Error(
-                    `TRON API ${response.status}`
-                );
+                throw new Error(`TRON API ${response.status}`);
             }
-
-
-            const payload =
-                await response.json();
-
-
-            const events =
-                Array.isArray(
-                    payload?.data
-                )
-                    ? payload.data
-                    : [];
-
-
-            for (
-                const event of events
-            ) {
-
-                const record =
-                    this.parseTronTransfer(
-                        event,
-                        net,
-                        fundAddress
-                    );
-
-
+    
+            const payload = await response.json();
+    
+            const events = Array.isArray(payload?.data)
+                ? payload.data
+                : [];
+    
+            for (const event of events) {
+                const record = this.parseTronTransfer(
+                    event,
+                    net,
+                    fundAddress
+                );
+    
                 if (record) {
-
-                    records.push(
-                        record
-                    );
+                    records.push(record);
                 }
             }
-
-
-            fingerprint =
-                payload?.meta?.fingerprint ||
-                null;
-
-
-            if (
-                events.length === 0
-            ) {
-
-                fingerprint =
-                    null;
+    
+            fingerprint = payload?.meta?.fingerprint || null;
+    
+            // اگر صفحه‌ای خالی آمد، pagination را قطع کن
+            if (events.length === 0) {
+                fingerprint = null;
             }
-
-
-        } while (
-            fingerprint
+    
+        } while (fingerprint);
+    
+        console.log(
+            `[DonorReader] TRON raw records before aggregate: ${records.length}`
         );
-
-
+    
         return records;
     }
     /* =====================================================
@@ -2253,195 +2171,86 @@ extractLogRangeLimit(
        ===================================================== */
 
     aggregate(records) {
-
         /*
-         * اول eventهای تکراری را حذف می‌کنیم.
+         * حذف تکراری‌ها با کلید قوی
          *
          * EVM:
-         *     networkId + txHash + logIndex
+         *   networkId + txHash + logIndex
          *
          * TRON:
-         *     networkId + txHash + eventIndex
+         *   networkId + txHash + address + amount + blockNumber + eventIndex
          *
-         * اگر index موجود نباشد،
-         * fallback به txHash + address + amount
+         * اگر index نبود، از ترکیب address/amount/block استفاده می‌شود
+         * تا یک تراکنش دو بار شمرده نشود.
          */
-        const unique =
-            new Map();
-
-
-        for (
-            const record of records
-        ) {
-
-            if (
-                !record ||
-                !record.address
-            ) {
+        const unique = new Map();
+    
+        for (const record of records) {
+            if (!record || !record.address) {
                 continue;
             }
-
-
-            const network =
-                String(
-                    record.networkId ||
-                    ''
-                ).toLowerCase();
-
-
-            const txHash =
-                String(
-                    record.txHash ||
-                    ''
-                ).toLowerCase();
-
-
-            let eventIndex =
-                '';
-
-
-            if (
-                record.logIndex != null
-            ) {
-
-                eventIndex =
-                    `log:${record.logIndex}`;
-
-            } else if (
-                record.eventIndex != null
-            ) {
-
-                eventIndex =
-                    `event:${record.eventIndex}`;
+    
+            const network = String(record.networkId || '').toLowerCase();
+            const txHash = String(record.txHash || '').toLowerCase();
+            const address = String(record.address || '').toLowerCase();
+            const amount = String(record.amount ?? '');
+            const blockNumber = String(record.blockNumber ?? '');
+    
+            let eventKey = '';
+    
+            if (record.logIndex != null) {
+                eventKey = `log:${record.logIndex}`;
+            } else if (record.eventIndex != null) {
+                eventKey = `event:${record.eventIndex}`;
             }
-
-
-            const fallback =
-                [
-                    String(
-                        record.address
-                    ).toLowerCase(),
-
-                    String(
-                        record.amount
-                    )
-                ].join(':');
-
-
-            const key =
-                [
-                    network,
-                    txHash,
-                    eventIndex ||
-                    fallback
-                ].join(':');
-
-
-            if (
-                !unique.has(key)
-            ) {
-
-                unique.set(
-                    key,
-                    record
-                );
+    
+            const key = [
+                network,
+                txHash || 'notx',
+                address,
+                amount,
+                blockNumber,
+                eventKey
+            ].join(':');
+    
+            if (!unique.has(key)) {
+                unique.set(key, record);
             }
         }
-
-
+    
         /*
-         * سپس مشارکت‌ها را
-         * بر اساس wallet aggregate می‌کنیم.
+         * تجمیع بر اساس wallet
          */
-        const donors =
-            new Map();
-
-
-        for (
-            const record of
-            unique.values()
-        ) {
-
-            const addressKey =
-                String(
-                    record.address
-                ).toLowerCase();
-
-
-            if (
-                !donors.has(
-                    addressKey
-                )
-            ) {
-
-                donors.set(
-                    addressKey,
-                    {
-                        address:
-                            record.address,
-
-                        amount:
-                            0,
-
-                        networks:
-                            new Set(),
-
-                        contributions:
-                            []
-                    }
-                );
+        const donors = new Map();
+    
+        for (const record of unique.values()) {
+            const addressKey = String(record.address).toLowerCase();
+    
+            if (!donors.has(addressKey)) {
+                donors.set(addressKey, {
+                    address: record.address,
+                    amount: 0,
+                    networks: new Set(),
+                    contributions: []
+                });
             }
-
-
-            const donor =
-                donors.get(
-                    addressKey
-                );
-
-
-            donor.amount +=
-                Number(
-                    record.amount
-                ) || 0;
-
-
-            donor.networks.add(
-                record.networkId
-            );
-
-
-            donor.contributions.push(
-                record
-            );
+    
+            const donor = donors.get(addressKey);
+    
+            donor.amount += Number(record.amount) || 0;
+            donor.networks.add(record.networkId);
+            donor.contributions.push(record);
         }
-
-
+    
         return Array
-            .from(
-                donors.values()
-            )
-            .map(
-                donor => ({
-                    address:
-                        donor.address,
-
-                    amount:
-                        donor.amount,
-
-                    networks:
-                        Array.from(
-                            donor.networks
-                        ),
-
-                    contributions:
-                        donor.contributions
-                })
-            )
-            .sort(
-                (a, b) =>
-                    b.amount -
-                    a.amount
-            );
+            .from(donors.values())
+            .map(donor => ({
+                address: donor.address,
+                amount: donor.amount,
+                networks: Array.from(donor.networks),
+                contributions: donor.contributions
+            }))
+            .sort((a, b) => b.amount - a.amount);
     }
 
 
