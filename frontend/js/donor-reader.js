@@ -1313,8 +1313,8 @@ async findBlockByTimestamp(
 
 
             const url =
-                `${host}/v1/contracts/` +
-                `${usdtAddress}/events?` +
+                `${host}/v1/accounts/` +
+                `${fundAddress}/transactions/trc20?` +
                 params.toString();
 
 
