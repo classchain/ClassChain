@@ -17,22 +17,34 @@ import {
 
 
 export class NetworkResolver {
-
     resolve(networkId) {
 
-        const network =
-            getFullNetwork(networkId);
+    const network =
+        getFullNetwork(networkId);
 
-        if (!network) {
+    if (!network) {
 
-            throw new Error(
-                `Unknown network: ${networkId}`
-            );
-        }
-
-        return network;
+        throw new Error(
+            `Unknown network: ${networkId}`
+        );
     }
 
+    if (network.status !== 'active') {
+
+        throw new Error(
+            `Network deployment is not active: ${networkId}`
+        );
+    }
+
+    if (!network.factoryAddress) {
+
+        throw new Error(
+            `No factory configured for network: ${networkId}`
+        );
+    }
+
+    return network;
+}
 
     resolveToken(
         networkId,
