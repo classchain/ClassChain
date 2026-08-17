@@ -300,71 +300,78 @@ class ClassChainDonorReader {
        EVM
        ===================================================== */
 
-async readEVM(
-    net,
-    fundAddress,
-    project
-) {
+async readEVM(net, fundAddress, project) {
     if (!net.usdtAddress) {
         throw new Error(
             `USDT address not configured for ${net.id}`
         );
     }
+
     /*
      * RPC فقط زمانی معتبر است که:
-     *
      * 1) eth_blockNumber
      * 2) eth_getLogs
-     *
      * هر دو را بتواند اجرا کند.
      */
-    const rpcInfo =
-        await this.findWorkingRPC(
-            net,
-            net.usdtAddress,
-            fundAddress
-        );
-    const rpc =
-        rpcInfo.rpc;
+    const rpcInfo = await this.findWorkingRPC(
+        net,
+        net.usdtAddress,
+        fundAddress
+    );
 
-    const latestBlock =
-        rpcInfo.latestBlock;
+    const rpc = rpcInfo.rpc;
+    const latestBlock = rpcInfo.latestBlock;
+    const maxLogRange = rpcInfo.maxLogRange;
 
-    const maxLogRange =
-        rpcInfo.maxLogRange;
     /*
      * --------------------------------------------------------
-     * پیدا کردن اولین Block مرتبط با createdAt
+     * پیدا کردن fromBlock
      *
-     * اگر createdAt داشته باشیم و نتوانیم Block متناظر
-     * را پیدا کنیم، دیگر از Block 0 شروع نمی‌کنیم.
-     *
-     * چون این کار برای ما یعنی اسکن کل زنجیره.
+     * اولویت:
+     * 1. createdAt پروژه (با بافر کوچک)
+     * 2. در صورت خطا → پنجرهٔ اخیر
+     * 3. سقف مطلق برای جلوگیری از اسکن چند میلیون بلاکی
      * --------------------------------------------------------
      */
-
     let fromBlock = 0;
-    const createdAt =
-        this.getFundCreatedAt(
-            project,
-            net
-        );
+    const createdAt = this.getFundCreatedAt(project, net);
+
     if (createdAt) {
-        fromBlock =
-            await this.findBlockByTimestamp(
+        try {
+            fromBlock = await this.findBlockByTimestamp(
                 rpc,
                 createdAt,
                 latestBlock
             );
+            // بافر امنیتی کوچک
+            fromBlock = Math.max(0, fromBlock - 2000);
+        } catch (e) {
+            console.warn(
+                `[DonorReader] findBlockByTimestamp failed for ${net.id}, using recent window`,
+                e
+            );
+            fromBlock = Math.max(0, latestBlock - 150000);
+        }
+    } else {
+        // اگر createdAt وجود نداشت، فقط بازهٔ اخیر را اسکن می‌کنیم
+        fromBlock = Math.max(0, latestBlock - 150000);
     }
-    if (
-        fromBlock > latestBlock
-    ) {
+
+    // سقف مطلق — جلوگیری از اسکن چند میلیون بلاک در مرورگر
+    const MAX_SCAN_BLOCKS = 300000;
+    if (latestBlock - fromBlock > MAX_SCAN_BLOCKS) {
+        console.warn(
+            `[DonorReader] ${net.id}: limiting scan window to last ${MAX_SCAN_BLOCKS} blocks`
+        );
+        fromBlock = latestBlock - MAX_SCAN_BLOCKS;
+    }
+
+    if (fromBlock > latestBlock) {
         throw new Error(
-            `[DonorReader] fromBlock (${fromBlock}) ` +
-            `بزرگ‌تر از latestBlock (${latestBlock}) است.`
+            `[DonorReader] fromBlock (${fromBlock}) بزرگ‌تر از latestBlock (${latestBlock}) است.`
         );
     }
+
     console.log(
         `[DonorReader] ${net.id}: ` +
         `RPC=${rpc}, ` +
@@ -372,21 +379,19 @@ async readEVM(
         `latestBlock=${latestBlock}, ` +
         `maxLogRange=${maxLogRange}`
     );
-    const paddedFund =
-        this.padAddressTopic(
-            fundAddress
-        );
+
+    const paddedFund = this.padAddressTopic(fundAddress);
+
     return await this.scanEvmLogs({
         rpc,
-        tokenAddress:
-            net.usdtAddress,
+        tokenAddress: net.usdtAddress,
         fromBlock,
         latestBlock,
         maxLogRange,
         topics: [
             this.transferTopic,
-            null,
-            paddedFund
+            null,          // from = any
+            paddedFund     // to   = fund
         ],
         net,
         fundAddress
