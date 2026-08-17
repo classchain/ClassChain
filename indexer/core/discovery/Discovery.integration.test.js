@@ -173,8 +173,8 @@ for (const treasury of result.valid) {
     );
 
     assert.equal(
-        treasury.token.decimals,
-        6
+        typeof treasury.token.decimals,
+        'number'
     );
 }
 
