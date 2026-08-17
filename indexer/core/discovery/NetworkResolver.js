@@ -46,6 +46,22 @@ export class NetworkResolver {
     return network;
 }
 
+resolveTreasury(networkId) {
+
+    const network =
+        this.resolve(networkId);
+
+    const token =
+        this.resolveToken(
+            networkId,
+            'USDT'
+        );
+
+    return {
+        network,
+        token
+    };
+}   
     resolveToken(
         networkId,
         symbol = 'USDT'
