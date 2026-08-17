@@ -4,40 +4,52 @@ import { ProjectRegistry } from './ProjectRegistry.js';
 import { DiscoveryService } from './DiscoveryService.js';
 
 
-const projects = [
+const projects = {
 
-    {
-        ProjectID: '1004',
+    features: [
 
-        funds: {
+        {
+            attributes: {
 
-            polygon_amoy: {
-                address:
-                    '0xe8d63212326a7a57A87AE1B032b4b4a4313137d5'
-            },
+                ProjectID: '1004',
 
-            tron_nile: {
-                address:
-                    'TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp'
+                funds: {
+
+                    polygon_amoy: {
+                        address:
+                            '0xe8d63212326a7a57A87AE1B032b4b4a4313137d5'
+                    },
+
+                    tron_nile: {
+                        address:
+                            'TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp'
+                    }
+
+                }
+
             }
+        },
 
-        }
-    },
+        {
+            attributes: {
 
-    {
-        ProjectID: '1005',
+                ProjectID: '1005',
 
-        funds: {
+                funds: {
 
-            polygon_amoy: {
-                address:
-                    '0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88'
+                    polygon_amoy: {
+                        address:
+                            '0x06Fa75F560BDb98fBbf2C54ec3edeA01C1155b88'
+                    }
+
+                }
+
             }
-
         }
-    }
 
-];
+    ]
+
+};
 
 
 const projectRegistry =
@@ -160,7 +172,7 @@ assert.equal(
  * Add a completely new project/network.
  * Discovery code must not change.
  */
-projects.push({
+projects.features.push({
 
     ProjectID: '2000',
 
@@ -205,7 +217,7 @@ assert.equal(
  * One invalid treasury must not stop
  * discovery of valid treasuries.
  */
-projects.push({
+projects.features.push({
 
     ProjectID: '3000',
 
