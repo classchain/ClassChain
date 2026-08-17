@@ -171,7 +171,7 @@ assert.equal(
  *
  * Add a completely new project/network.
  * Discovery code must not change.
- *
+ */
  projects.features.push({
 
     attributes: {
