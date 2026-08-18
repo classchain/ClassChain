@@ -1,20 +1,46 @@
+import {
+    getNetworkById,
+    getRpcUrls
+} from '../../../shared/network-config.js';
+
+
 export class TronClient {
 
-    constructor(config) {
+    constructor(networkId) {
 
-        if (!config) {
+        if (!networkId) {
             throw new Error(
-                'TRON client config is required'
+                'TRON networkId is required'
             );
         }
 
-        if (!config.rpc) {
+        const network =
+            getNetworkById(networkId);
+
+        if (!network) {
             throw new Error(
-                'TRON RPC endpoint is required'
+                `Unknown network: ${networkId}`
             );
         }
 
-        this.rpc = config.rpc;
+        if (network.type !== 'TVM') {
+            throw new Error(
+                `Network is not TRON/TVM: ${networkId}`
+            );
+        }
+
+        this.networkId = networkId;
+
+        this.network = network;
+
+        this.rpcUrls =
+            getRpcUrls(networkId);
+
+        if (!this.rpcUrls.length) {
+            throw new Error(
+                `No RPC endpoint configured for ${networkId}`
+            );
+        }
     }
 
 
@@ -23,37 +49,55 @@ export class TronClient {
         options = {}
     ) {
 
-        const response =
-            await fetch(
-                `${this.rpc}${path}`,
-                {
-                    method:
-                        options.method || 'GET',
+        let lastError = null;
 
-                    headers: {
-                        'Content-Type':
-                            'application/json',
+        for (const rpc of this.rpcUrls) {
 
-                        ...(options.headers || {})
-                    },
+            try {
 
-                    body:
-                        options.body
-                            ? JSON.stringify(options.body)
-                            : undefined
+                const response =
+                    await fetch(
+                        `${rpc}${path}`,
+                        {
+                            method:
+                                options.method || 'GET',
+
+                            headers: {
+                                'Content-Type':
+                                    'application/json',
+
+                                ...(options.headers || {})
+                            },
+
+                            body:
+                                options.body
+                                    ? JSON.stringify(options.body)
+                                    : undefined
+                        }
+                    );
+
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        `TRON RPC HTTP ${response.status}`
+                    );
                 }
-            );
 
 
-        if (!response.ok) {
+                return await response.json();
 
-            throw new Error(
-                `TRON RPC HTTP ${response.status}`
-            );
+            } catch (error) {
+
+                lastError = error;
+            }
         }
 
 
-        return response.json();
+        throw new Error(
+            `All RPC endpoints failed for ${this.networkId}: ` +
+            `${lastError?.message || 'Unknown error'}`
+        );
     }
 
 
