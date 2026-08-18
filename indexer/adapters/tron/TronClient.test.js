@@ -40,3 +40,34 @@ assert.throws(
 console.log(
     'TronClient config test: PASS'
 );
+
+
+// ----------------------------------------
+// Real TRON Nile RPC test
+// ----------------------------------------
+
+const block =
+    await client.getNowBlock();
+
+
+assert.ok(
+    block?.blockID,
+    'TRON Nile did not return a valid block'
+);
+
+
+assert.ok(
+    block?.block_header?.raw_data?.number !== undefined,
+    'TRON Nile block number is missing'
+);
+
+
+console.log(
+    'TRON Nile RPC test: PASS'
+);
+
+
+console.log(
+    'Latest block:',
+    block.block_header.raw_data.number
+);
