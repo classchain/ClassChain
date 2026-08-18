@@ -110,4 +110,44 @@ export class TronClient {
             }
         );
     }
+
+
+    async getTRC20Transfers(
+        tokenAddress,
+        treasuryAddress,
+        minTimestamp,
+        maxTimestamp
+    ) {
+
+        if (!tokenAddress) {
+            throw new Error(
+                'TRC20 token address is required'
+            );
+        }
+
+        if (!treasuryAddress) {
+            throw new Error(
+                'Treasury address is required'
+            );
+        }
+
+        const params =
+            new URLSearchParams({
+                limit: '200',
+                only_to: 'true',
+                to_address: treasuryAddress,
+                contract_address: tokenAddress,
+                min_timestamp:
+                    String(minTimestamp),
+                max_timestamp:
+                    String(maxTimestamp)
+            });
+
+        return this.request(
+            `/v1/accounts/${treasuryAddress}/transactions/trc20?${params}`,
+            {
+                method: 'GET'
+            }
+        );
+    }
 }
