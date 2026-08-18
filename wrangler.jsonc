@@ -1,0 +1,12 @@
+{
+  "name": "classchain-indexer",
+  "compatibility_date": "2026-08-18",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "classchain-indexer",
+      "database_id": "34035dfa-8788-450b-851b-31950389091a",
+      "migrations_dir": "indexer/db/migrations"
+    }
+  ]
+}
