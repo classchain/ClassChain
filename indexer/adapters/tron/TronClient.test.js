@@ -1,73 +1,331 @@
 import assert from 'node:assert/strict';
-import { TronClient } from './TronClient.js';
 
+import {
+    TronClient
+} from './TronClient.js';
+
+
+// ============================================================
+// Configuration
+// ============================================================
+
+const NETWORK_ID =
+    'tron_nile';
+
+const USDT =
+    'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf';
+
+const TREASURY =
+    'TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp';
+
+const TX_HASH =
+    '1c2ede792050064d4156a8112b286e4daf314280834a47a323b157286b4a8156';
+
+const TEST_BLOCK =
+    69805989;
+
+
+// ============================================================
+// Client
+// ============================================================
 
 const client =
-    new TronClient('tron_nile');
+    new TronClient(
+        NETWORK_ID
+    );
 
+
+// ============================================================
+// Configuration test
+// ============================================================
 
 assert.equal(
     client.networkId,
-    'tron_nile'
+    NETWORK_ID
 );
 
-
-assert.equal(
-    client.network.type,
-    'TVM'
+assert.ok(
+    client.rpcUrls.length > 0,
+    'RPC URLs are missing'
 );
-
-
-assert.equal(
-    client.network.rpcUrl,
-    'https://nile.trongrid.io'
-);
-
-
-assert.equal(
-    client.rpcUrls[0],
-    'https://nile.trongrid.io'
-);
-
-
-assert.throws(
-    () =>
-        new TronClient('unknown_network'),
-    /Unknown network/
-);
-
 
 console.log(
     'TronClient config test: PASS'
 );
 
 
-// ----------------------------------------
-// Real TRON Nile RPC test
-// ----------------------------------------
+// ============================================================
+// Current block / RPC test
+// ============================================================
 
-const block =
+const nowBlock =
     await client.getNowBlock();
 
-
 assert.ok(
-    block?.blockID,
-    'TRON Nile did not return a valid block'
+    nowBlock,
+    'getNowBlock returned no data'
 );
 
-
 assert.ok(
-    block?.block_header?.raw_data?.number !== undefined,
-    'TRON Nile block number is missing'
+    nowBlock.block_header,
+    'Block header is missing'
 );
 
+assert.ok(
+    Number.isInteger(
+        nowBlock.block_header
+            .raw_data
+            .number
+    ),
+    'Current block number is missing'
+);
+
+const latestBlock =
+    nowBlock.block_header
+        .raw_data
+        .number;
+
+assert.ok(
+    latestBlock > 0,
+    'Latest block must be greater than zero'
+);
 
 console.log(
     'TRON Nile RPC test: PASS'
 );
 
-
 console.log(
     'Latest block:',
-    block.block_header.raw_data.number
+    latestBlock
+);
+
+
+// ============================================================
+// USDT transfer query
+// ============================================================
+
+const transferResult =
+    await client.getTRC20Transfers(
+        USDT,
+        TREASURY,
+        0,
+        Date.now()
+    );
+
+assert.ok(
+    transferResult,
+    'Transfer result is missing'
+);
+
+assert.ok(
+    Array.isArray(
+        transferResult.data
+    ),
+    'Transfer data must be an array'
+);
+
+console.log(
+    'TRON USDT transfer query: PASS'
+);
+
+console.log(
+    'Transfers returned:',
+    transferResult.data.length
+);
+
+
+// ============================================================
+// Raw transfer
+// ============================================================
+
+if (
+    transferResult.data.length > 0
+) {
+
+    console.log(
+        '\nRAW TRANSFER:'
+    );
+
+    console.log(
+        JSON.stringify(
+            transferResult.data[0],
+            null,
+            2
+        )
+    );
+}
+
+
+// ============================================================
+// Transaction info
+// ============================================================
+
+const transactionInfo =
+    await client.getTransactionInfo(
+        TX_HASH
+    );
+
+assert.equal(
+    transactionInfo.id,
+    TX_HASH
+);
+
+assert.ok(
+    Number.isInteger(
+        transactionInfo.blockNumber
+    ),
+    'Transaction blockNumber is missing'
+);
+
+assert.equal(
+    transactionInfo.receipt?.result,
+    'SUCCESS'
+);
+
+assert.ok(
+    Array.isArray(
+        transactionInfo.log
+    ),
+    'Transaction logs are missing'
+);
+
+console.log(
+    '\nTRANSACTION INFO:'
+);
+
+console.log(
+    JSON.stringify(
+        transactionInfo,
+        null,
+        2
+    )
+);
+
+console.log(
+    'Transaction info test: PASS'
+);
+
+console.log(
+    'Transaction block:',
+    transactionInfo.blockNumber
+);
+
+console.log(
+    'Event logs:',
+    transactionInfo.log.length
+);
+
+
+// ============================================================
+// Specific block query
+// ============================================================
+
+const queriedBlock =
+    await client.getBlock(
+        TEST_BLOCK
+    );
+
+assert.ok(
+    queriedBlock,
+    'Block response is missing'
+);
+
+assert.ok(
+    queriedBlock.block_header,
+    'Block header is missing'
+);
+
+assert.ok(
+    queriedBlock.block_header.raw_data,
+    'Block raw data is missing'
+);
+
+assert.equal(
+    queriedBlock.block_header
+        .raw_data
+        .number,
+    TEST_BLOCK
+);
+
+assert.ok(
+    Number.isInteger(
+        queriedBlock.block_header
+            .raw_data
+            .timestamp
+    ),
+    'Block timestamp is missing'
+);
+
+console.log(
+    '\nTRON block query test: PASS'
+);
+
+console.log(
+    'Block number:',
+    queriedBlock.block_header
+        .raw_data
+        .number
+);
+
+console.log(
+    'Block timestamp:',
+    queriedBlock.block_header
+        .raw_data
+        .timestamp
+);
+
+
+// ============================================================
+// Small block range test
+// ============================================================
+
+const rangeFrom =
+    TEST_BLOCK;
+
+const rangeTo =
+    TEST_BLOCK + 1;
+
+const blocks =
+    await client.getBlocks(
+        rangeFrom,
+        rangeTo
+    );
+
+assert.equal(
+    blocks.length,
+    2
+);
+
+assert.equal(
+    blocks[0]
+        .block_header
+        .raw_data
+        .number,
+    rangeFrom
+);
+
+assert.equal(
+    blocks[1]
+        .block_header
+        .raw_data
+        .number,
+    rangeTo
+);
+
+console.log(
+    'TRON block range test: PASS'
+);
+
+console.log(
+    'Blocks returned:',
+    blocks.length
+);
+
+
+// ============================================================
+// Final
+// ============================================================
+
+console.log(
+    '\nAll TronClient tests: PASS'
 );

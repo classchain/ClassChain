@@ -111,6 +111,79 @@ export class TronClient {
         );
     }
 
+    async getBlock(blockNumber) {
+
+        if (
+            !Number.isInteger(blockNumber) ||
+            blockNumber < 0
+        ) {
+            throw new Error(
+                'Invalid block number'
+            );
+        }
+
+        return this.request(
+            '/wallet/getblockbynum',
+            {
+                method: 'POST',
+                body: {
+                    num: blockNumber
+                }
+            }
+        );
+    }
+
+    async getBlocks(
+        fromBlock,
+        toBlock
+    ) {
+
+        if (
+            !Number.isInteger(fromBlock) ||
+            !Number.isInteger(toBlock) ||
+            fromBlock < 0 ||
+            toBlock < fromBlock
+        ) {
+            throw new Error(
+                'Invalid block range'
+            );
+        }
+
+        const blocks = [];
+
+        for (
+            let block = fromBlock;
+            block <= toBlock;
+            block++
+        ) {
+
+            blocks.push(
+                await this.getBlock(block)
+            );
+        }
+
+        return blocks;
+    }
+
+    async getTransactionInfo(txHash) {
+
+        if (!txHash) {
+            throw new Error(
+                'Transaction hash is required'
+            );
+        }
+
+        return this.request(
+            '/wallet/gettransactioninfobyid',
+            {
+                method: 'POST',
+                body: {
+                    value: txHash
+                }
+            }
+        );
+    }
+
 
     async getTRC20Transfers(
         tokenAddress,
