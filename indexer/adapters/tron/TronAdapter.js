@@ -10,6 +10,7 @@ import {
     tronAddressToTopic
 } from './TronAddress.js';
 
+
 export class TronAdapter {
 
     constructor(networkId) {
@@ -20,7 +21,8 @@ export class TronAdapter {
             );
         }
 
-        this.networkId = networkId;
+        this.networkId =
+            networkId;
 
         this.client =
             new TronClient(networkId);
@@ -44,17 +46,38 @@ export class TronAdapter {
         const block =
             await this.client.getNowBlock();
 
-        return block
-            .block_header
-            .raw_data
-            .number;
+        const number =
+            block?.block_header?.raw_data?.number;
+
+        if (
+            !Number.isInteger(number)
+        ) {
+            throw new Error(
+                'Unable to resolve latest TRON block'
+            );
+        }
+
+        return number;
     }
+
 
     async getTransfers(
         treasury,
         fromBlock,
         toBlock
     ) {
+
+        if (!treasury?.id) {
+            throw new Error(
+                'Treasury id is required'
+            );
+        }
+
+        if (!treasury?.projectId) {
+            throw new Error(
+                'Treasury projectId is required'
+            );
+        }
 
         if (!treasury?.address) {
             throw new Error(
@@ -69,39 +92,33 @@ export class TronAdapter {
             toBlock < fromBlock
         ) {
             throw new Error(
-                'Invalid block range'
+                'Invalid TRON block range'
             );
         }
 
 
-        // Convert block range to timestamps.
-        const fromBlockData =
-            await this.client.getBlock(
+        /*
+         * TronGrid's TRC20 endpoint is timestamp based.
+         *
+         * Resolve the timestamps of the requested
+         * block boundaries and use them as the query
+         * window.
+         */
+
+        const fromTimestamp =
+            await this.client.getBlockTimestamp(
                 fromBlock
             );
 
-        const toBlockData =
-            await this.client.getBlock(
+        const toTimestamp =
+            await this.client.getBlockTimestamp(
                 toBlock
             );
 
 
-        const fromTimestamp =
-            fromBlockData
-                ?.block_header
-                ?.raw_data
-                ?.timestamp;
-
-        const toTimestamp =
-            toBlockData
-                ?.block_header
-                ?.raw_data
-                ?.timestamp;
-
-
         if (
-            !Number.isFinite(fromTimestamp) ||
-            !Number.isFinite(toTimestamp)
+            !Number.isInteger(fromTimestamp) ||
+            !Number.isInteger(toTimestamp)
         ) {
             throw new Error(
                 'Unable to resolve block timestamps'
@@ -126,6 +143,10 @@ export class TronAdapter {
             (result.data || [])
         ) {
 
+            /*
+             * We only accept incoming USDT transfers.
+             */
+
             if (
                 transfer.type !== 'Transfer' ||
                 transfer.to !== treasury.address
@@ -133,6 +154,10 @@ export class TronAdapter {
                 continue;
             }
 
+
+            /*
+             * Get transaction receipt/logs.
+             */
 
             const txInfo =
                 await this.client.getTransactionInfo(
@@ -148,20 +173,40 @@ export class TronAdapter {
             }
 
 
+            /*
+             * Resolve the actual block number.
+             */
+
             const blockNumber =
                 txInfo.blockNumber;
 
 
-            // API timestamp filtering can include
-            // transactions outside the exact block range.
             if (
-                !Number.isInteger(blockNumber) ||
+                !Number.isInteger(blockNumber)
+            ) {
+                continue;
+            }
+
+
+            /*
+             * Timestamp filtering is not enough.
+             *
+             * TronGrid queries by timestamp, so we
+             * explicitly enforce the requested block
+             * range here.
+             */
+
+            if (
                 blockNumber < fromBlock ||
                 blockNumber > toBlock
             ) {
                 continue;
             }
 
+
+            /*
+             * Find the canonical TRC20 Transfer event.
+             */
 
             const event =
                 this._findTransferEvent(
@@ -176,19 +221,45 @@ export class TronAdapter {
             }
 
 
-            const timestamp =
-                Math.floor(
-                    txInfo.blockTimeStamp / 1000
-                );
+            /*
+             * TRON transaction timestamp is
+             * milliseconds since Unix epoch.
+             */
 
+            const timestamp =
+                Number.isInteger(
+                    txInfo.blockTimeStamp
+                )
+                    ? Math.floor(
+                        txInfo.blockTimeStamp / 1000
+                    )
+                    : null;
+
+
+            if (
+                !Number.isInteger(timestamp)
+            ) {
+                continue;
+            }
+
+
+            /*
+             * Normalized transfer record.
+             *
+             * This is the canonical contract between
+             * Adapter and SyncEngine.
+             */
 
             transfers.push({
 
-                network:
+                networkId:
                     this.networkId,
 
                 projectId:
                     treasury.projectId,
+
+                treasuryId:
+                    treasury.id,
 
                 treasury:
                     treasury.address,
@@ -203,10 +274,14 @@ export class TronAdapter {
                     this.tokenAddress,
 
                 amountRaw:
-                    transfer.value,
+                    String(
+                        transfer.value
+                    ),
 
                 amount:
-                    Number(transfer.value) /
+                    Number(
+                        transfer.value
+                    ) /
                     Math.pow(
                         10,
                         this.tokenDecimals
@@ -238,11 +313,20 @@ export class TronAdapter {
         const TRANSFER_TOPIC =
             'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
-        const tokenTopic =
-            tronAddressToTopic(tokenAddress);
+
+        const tokenHex =
+            tronAddressToHex(
+                tokenAddress
+            )
+                .slice(-40)
+                .toLowerCase();
+
 
         const treasuryTopic =
-            tronAddressToTopic(treasuryAddress);
+            tronAddressToTopic(
+                treasuryAddress
+            )
+                .toLowerCase();
 
 
         return (
@@ -259,12 +343,11 @@ export class TronAdapter {
 
                     if (
                         log.address?.toLowerCase() !==
-                        tronAddressToHex(tokenAddress)
-                            .slice(-40)
-                            .toLowerCase()
+                        tokenHex
                     ) {
                         return false;
                     }
+
 
                     if (
                         log.topics?.[0]?.toLowerCase() !==
@@ -272,6 +355,7 @@ export class TronAdapter {
                     ) {
                         return false;
                     }
+
 
                     return (
                         log.topics?.[2]?.toLowerCase() ===
