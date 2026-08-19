@@ -7,7 +7,15 @@ const NETWORK_ID =
     'tron_nile';
 
 const TREASURY = {
-    projectId: '1004',
+    id:
+        'TREASURY_1004',
+
+    projectId:
+        '1004',
+
+    networkId:
+        NETWORK_ID,
+
     address:
         'TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp'
 };
@@ -41,14 +49,26 @@ console.log(
 
 
 // ------------------------------------------------------------
-// Transfer query
+// Real historical block range
+//
+// Known real USDT transfer:
+// block 69805989
+//
+// We intentionally scan a small range around it.
 // ------------------------------------------------------------
+
+const fromBlock =
+    69805980;
+
+const toBlock =
+    69805989;
+
 
 const transfers =
     await adapter.getTransfers(
         TREASURY,
-        0,
-        Date.now()
+        fromBlock,
+        toBlock
     );
 
 
@@ -59,7 +79,7 @@ assert.ok(
 
 
 console.log(
-    'Normalized transfers:',
+    'Transfers returned:',
     transfers.length
 );
 
@@ -71,8 +91,13 @@ console.log(
 for (const transfer of transfers) {
 
     assert.equal(
-        transfer.network,
+        transfer.networkId,
         NETWORK_ID
+    );
+
+    assert.equal(
+        transfer.projectId,
+        TREASURY.projectId
     );
 
     assert.equal(
@@ -114,6 +139,26 @@ for (const transfer of transfers) {
 
     assert.ok(
         Number.isInteger(
+            transfer.blockNumber
+        ),
+        'blockNumber must be an integer'
+    );
+
+    assert.ok(
+        transfer.blockNumber >= fromBlock &&
+        transfer.blockNumber <= toBlock,
+        'Transfer block is outside requested range'
+    );
+
+    assert.ok(
+        Number.isInteger(
+            transfer.eventIndex
+        ),
+        'eventIndex must be an integer'
+    );
+
+    assert.ok(
+        Number.isInteger(
             transfer.timestamp
         ),
         'Timestamp must be an integer'
@@ -122,23 +167,83 @@ for (const transfer of transfers) {
 
 
 // ------------------------------------------------------------
+// Verify the known real transfer
+// ------------------------------------------------------------
+
+const knownTx =
+    '1c2ede792050064d4156a8112b286e4daf314280834a47a323b157286b4a8156';
+
+
+const knownTransfer =
+    transfers.find(
+        transfer =>
+            transfer.txHash === knownTx
+    );
+
+
+assert.ok(
+    knownTransfer,
+    'Known TRON USDT transfer was not found'
+);
+
+
+assert.equal(
+    knownTransfer.blockNumber,
+    69805989
+);
+
+
+assert.equal(
+    knownTransfer.eventIndex,
+    0
+);
+
+
+assert.equal(
+    knownTransfer.donor,
+    'TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1'
+);
+
+
+assert.equal(
+    knownTransfer.treasury,
+    TREASURY.address
+);
+
+
+assert.equal(
+    knownTransfer.amountRaw,
+    '5000000'
+);
+
+
+assert.equal(
+    knownTransfer.amount,
+    5
+);
+
+
+assert.equal(
+    knownTransfer.token,
+    'USDT'
+);
+
+
+// ------------------------------------------------------------
 // Display sample
 // ------------------------------------------------------------
 
-if (transfers.length > 0) {
+console.log(
+    '\nKnown normalized transfer:'
+);
 
-    console.log(
-        '\nFirst normalized transfer:'
-    );
-
-    console.log(
-        JSON.stringify(
-            transfers[0],
-            null,
-            2
-        )
-    );
-}
+console.log(
+    JSON.stringify(
+        knownTransfer,
+        null,
+        2
+    )
+);
 
 
 console.log(
