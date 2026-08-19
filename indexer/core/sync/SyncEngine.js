@@ -83,8 +83,7 @@ export class SyncEngine {
 
 
         const safeConfirmations =
-            options.safeConfirmations ??
-            20;
+            options.safeConfirmations ?? 20;
 
 
         const lastFinalizedBlock =
@@ -96,8 +95,7 @@ export class SyncEngine {
 
 
         const overlap =
-            options.overlap ??
-            10;
+            options.overlap ?? 10;
 
 
         let fromBlock;
@@ -123,12 +121,17 @@ export class SyncEngine {
         }
 
 
+        /*
+         * Nothing new to scan.
+         */
+
         if (
             fromBlock >
             lastFinalizedBlock
         ) {
 
             return {
+
                 treasuryId:
                     treasury.id,
 
@@ -139,33 +142,111 @@ export class SyncEngine {
 
                 transfers: 0,
 
+                inserted: 0,
+
                 status:
                     'UP_TO_DATE'
             };
         }
 
 
-        await this.syncStateRepository
-            .markSuccess(
-                treasury.id,
+        try {
+
+            /*
+             * Adapter owns blockchain-specific
+             * logic, but the SyncEngine owns
+             * the block range.
+             */
+
+            const discoveredTransfers =
+                await adapter.getTransfers(
+                    treasury,
+                    fromBlock,
+                    lastFinalizedBlock
+                );
+
+
+            let inserted = 0;
+
+
+            for (
+                const transfer
+                of discoveredTransfers || []
+            ) {
+
+                const result =
+                    await this.transferRepository
+                        .insert({
+
+                            ...transfer,
+
+                            treasuryId:
+                                treasury.id,
+
+                            projectId:
+                                treasury.projectId,
+
+                            networkId:
+                                treasury.networkId
+                        });
+
+
+                if (result?.inserted) {
+                    inserted++;
+                }
+            }
+
+
+            /*
+             * Only advance sync state after
+             * blockchain data has been processed
+             * successfully.
+             */
+
+            await this.syncStateRepository
+                .markSuccess(
+                    treasury.id,
+
+                    lastFinalizedBlock,
+
+                    lastFinalizedBlock
+                );
+
+
+            return {
+
+                treasuryId:
+                    treasury.id,
+
                 fromBlock,
-                lastFinalizedBlock
-            );
+
+                toBlock:
+                    lastFinalizedBlock,
+
+                transfers:
+                    (
+                        discoveredTransfers || []
+                    ).length,
+
+                inserted,
+
+                status:
+                    'SUCCESS'
+            };
 
 
-        return {
-            treasuryId:
-                treasury.id,
+        } catch (error) {
 
-            fromBlock,
+            await this.syncStateRepository
+                .markFailed(
+                    treasury.id,
 
-            toBlock:
-                lastFinalizedBlock,
+                    error instanceof Error
+                        ? error.message
+                        : String(error)
+                );
 
-            transfers: 0,
-
-            status:
-                'READY'
-        };
+            throw error;
+        }
     }
 }
