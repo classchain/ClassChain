@@ -321,6 +321,133 @@ console.log(
     blocks.length
 );
 
+// ============================================================
+// Pagination unit test
+// ============================================================
+
+const paginationClient =
+    new TronClient(
+        NETWORK_ID
+    );
+
+const originalRequestMethod =
+    paginationClient.request;
+
+const pageOne = {
+    data: Array.from(
+        { length: 200 },
+        (_, index) => ({
+            transaction_id:
+                `tx-page-1-${index}`
+        })
+    ),
+    meta: {
+        fingerprint:
+            'fingerprint-page-2'
+    }
+};
+
+const pageTwo = {
+    data: Array.from(
+        { length: 3 },
+        (_, index) => ({
+            transaction_id:
+                `tx-page-2-${index}`
+        })
+    ),
+    meta: {}
+};
+
+const requests = [];
+
+paginationClient.request =
+    async (
+        path,
+        options
+    ) => {
+
+        requests.push({
+            path,
+            options
+        });
+
+        if (
+            requests.length === 1
+        ) {
+            return pageOne;
+        }
+
+        if (
+            requests.length === 2
+        ) {
+            return pageTwo;
+        }
+
+        throw new Error(
+            'Unexpected extra pagination request'
+        );
+    };
+
+const paginatedResult =
+    await paginationClient.getTRC20Transfers(
+        USDT,
+        TREASURY,
+        0,
+        Date.now()
+    );
+
+assert.equal(
+    paginatedResult.data.length,
+    203,
+    'Pagination must return all records'
+);
+
+assert.equal(
+    requests.length,
+    2,
+    'Pagination must make exactly two requests'
+);
+
+assert.ok(
+    requests[0].path.includes(
+        'limit=200'
+    ),
+    'First request must use limit=200'
+);
+
+assert.ok(
+    requests[1].path.includes(
+        'fingerprint=fingerprint-page-2'
+    ),
+    'Second request must use the pagination fingerprint'
+);
+
+assert.equal(
+    paginatedResult.data[0].transaction_id,
+    'tx-page-1-0'
+);
+
+assert.equal(
+    paginatedResult.data[199].transaction_id,
+    'tx-page-1-199'
+);
+
+assert.equal(
+    paginatedResult.data[200].transaction_id,
+    'tx-page-2-0'
+);
+
+assert.equal(
+    paginatedResult.data[202].transaction_id,
+    'tx-page-2-2'
+);
+
+paginationClient.request =
+    originalRequestMethod;
+
+console.log(
+    'TRON pagination test: PASS'
+);
 
 // ============================================================
 // Final
