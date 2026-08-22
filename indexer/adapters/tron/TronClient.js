@@ -165,6 +165,26 @@ export class TronClient {
         return blocks;
     }
 
+    async getBlockTimestamp(blockNumber) {
+
+        const block =
+            await this.getBlock(blockNumber);
+
+        const timestamp =
+            block
+                ?.block_header
+                ?.raw_data
+                ?.timestamp;
+
+        if (!Number.isFinite(timestamp)) {
+            throw new Error(
+                `Unable to resolve timestamp for block ${blockNumber}`
+            );
+        }
+
+        return timestamp;
+    }    
+
     async getTransactionInfo(txHash) {
 
         if (!txHash) {
@@ -204,8 +224,13 @@ export class TronClient {
             );
         }
 
-        const params =
-            new URLSearchParams({
+        const transfers = [];
+
+        let fingerprint = null;
+
+        while (true) {
+
+            const params = new URLSearchParams({
                 limit: '200',
                 only_to: 'true',
                 to_address: treasuryAddress,
@@ -216,11 +241,48 @@ export class TronClient {
                     String(maxTimestamp)
             });
 
-        return this.request(
-            `/v1/accounts/${treasuryAddress}/transactions/trc20?${params}`,
-            {
-                method: 'GET'
+            if (fingerprint) {
+                params.set(
+                    'fingerprint',
+                    fingerprint
+                );
             }
-        );
+
+            const response =
+                await this.request(
+                    `/v1/accounts/${treasuryAddress}/transactions/trc20?${params}`,
+                    {
+                        method: 'GET'
+                    }
+                );
+
+            if (
+                !response ||
+                !Array.isArray(response.data)
+            ) {
+                break;
+            }
+
+            transfers.push(
+                ...response.data
+            );
+
+            const nextFingerprint =
+                response.meta?.fingerprint;
+
+            if (
+                !nextFingerprint ||
+                response.data.length === 0
+            ) {
+                break;
+            }
+
+            fingerprint =
+                nextFingerprint;
+        }
+
+        return {
+            data: transfers
+        };
     }
 }
