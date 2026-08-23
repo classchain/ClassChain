@@ -165,6 +165,68 @@ for (const transfer of transfers) {
     );
 }
 
+// ------------------------------------------------------------
+// Validation / negative tests
+// ------------------------------------------------------------
+
+await assert.rejects(
+    () =>
+        adapter.getTransfers(
+            {},
+            fromBlock,
+            toBlock
+        ),
+    /Treasury id is required/
+);
+
+await assert.rejects(
+    () =>
+        adapter.getTransfers(
+            {
+                id: 'TREASURY_1004'
+            },
+            fromBlock,
+            toBlock
+        ),
+    /Treasury projectId is required/
+);
+
+await assert.rejects(
+    () =>
+        adapter.getTransfers(
+            {
+                id: 'TREASURY_1004',
+                projectId: '1004'
+            },
+            fromBlock,
+            toBlock
+        ),
+    /Treasury address is required/
+);
+
+await assert.rejects(
+    () =>
+        adapter.getTransfers(
+            TREASURY,
+            -1,
+            toBlock
+        ),
+    /Invalid TRON block range/
+);
+
+await assert.rejects(
+    () =>
+        adapter.getTransfers(
+            TREASURY,
+            toBlock,
+            fromBlock
+        ),
+    /Invalid TRON block range/
+);
+
+console.log(
+    'TronAdapter validation tests: PASS'
+);
 
 // ------------------------------------------------------------
 // Verify the known real transfer
@@ -245,7 +307,60 @@ console.log(
     )
 );
 
-
 console.log(
     '\nTronAdapter integration test: PASS'
+);
+
+// ------------------------------------------------------------
+// Verify outgoing / wrong-destination Transfer is rejected
+// ------------------------------------------------------------
+
+const realInfo =
+    await adapter.client.getTransactionInfo(
+        knownTx
+    );
+
+assert.ok(
+    realInfo?.log?.length,
+    'Known transaction logs were not found'
+);
+
+const modifiedInfo = {
+    ...realInfo,
+    log: realInfo.log.map(
+        (log, index) => {
+
+            if (
+                index !== 0 ||
+                !Array.isArray(log.topics)
+            ) {
+                return log;
+            }
+
+            return {
+                ...log,
+                topics: [
+                    ...log.topics.slice(0, 2),
+                    '0000000000000000000000001111111111111111111111111111111111111111'
+                ]
+            };
+        }
+    )
+};
+
+const rejectedEvent =
+    adapter._findTransferEvent(
+        modifiedInfo,
+        adapter.tokenAddress,
+        TREASURY.address
+    );
+
+assert.equal(
+    rejectedEvent,
+    null,
+    'Transfer to another address must be rejected'
+);
+
+console.log(
+    'TronAdapter destination filtering test: PASS'
 );
