@@ -1,259 +1,334 @@
-import assert from 'node:assert/strict';
-
-import { ProjectRegistry } from '../discovery/ProjectRegistry.js';
-import { IndexerRunner } from './IndexerRunner.js';
+import { DiscoveryService } from '../discovery/DiscoveryService.js';
+import { SyncEngine } from '../sync/SyncEngine.js';
 
 
-const projects = {
-    features: [
-        {
-            attributes: {
-                ProjectID: '1004',
-                funds: {
-                    tron_nile: {
-                        address:
-                            'TF8oUKp9G9yrzxmj9Dk9MKw9hpnRrLJGRp'
-                    },
-                    polygon_amoy: {
-                        address:
-                            '0xe8d63212326a7a57A87AE1B032b4b4a4313137d5'
-                    }
-                }
-            }
-        },
-        {
-            attributes: {
-                ProjectID: '9999',
-                funds: {
-                    broken_network: {
-                        address:
-                            'BROKEN_TREASURY'
-                    }
-                }
-            }
-        }
-    ]
-};
+export class IndexerRunner {
 
-
-const calls = {
-    upserted: [],
-    synced: []
-};
-
-
-const networkResolver = {
-    resolveTreasury(networkId) {
-
-        if (networkId === 'broken_network') {
-            throw new Error(
-                'Unknown network: broken_network'
-            );
-        }
-
-        return {
-            network: {
-                id: networkId,
-                status: 'active'
-            },
-            token: {
-                symbol: 'USDT',
-                address: `TOKEN_${networkId}`,
-                decimals: 6
-            }
-        };
-    }
-};
-
-
-const treasuryRepository = {
-    async upsert(treasury) {
-        calls.upserted.push(
-            treasury
-        );
-
-        return {
-            id:
-                `db_${treasury.projectId}_${treasury.networkId}`,
-            project_id:
-                treasury.projectId,
-            network_id:
-                treasury.networkId,
-            address:
-                treasury.address,
-            active:
-                treasury.active ? 1 : 0
-        };
-    }
-};
-
-
-const transferRepository = {
-    async insert() {
-        return {
-            inserted: true
-        };
-    }
-};
-
-
-const syncStateRepository = {
-    async get() {
-        return {
-            scan_from_block: 100,
-            last_scanned_block: 100
-        };
-    },
-
-    async initialize() {
-        throw new Error(
-            'initialize() should not be called'
-        );
-    },
-
-    async markSuccess() {},
-
-    async markFailed() {}
-};
-
-
-const adapters = {
-    tron_nile: {
-        async getLatestBlock() {
-            return 140;
-        },
-
-        async getTransfers(
-            treasury,
-            fromBlock,
-            toBlock
-        ) {
-            calls.synced.push({
-                treasury,
-                fromBlock,
-                toBlock
-            });
-
-            return [
-                {
-                    token: 'USDT',
-                    tokenAddress: 'TOKEN_tron_nile',
-                    donor: 'TDONOR',
-                    amountRaw: '1000000',
-                    amount: 1,
-                    txHash: 'ABC',
-                    blockNumber: 120,
-                    eventIndex: 0,
-                    timestamp: 1700000000
-                }
-            ];
-        }
-    }
-};
-
-
-const runner =
-    new IndexerRunner({
-        projectRegistry:
-            new ProjectRegistry(projects),
+    constructor({
+        projectRegistry,
         networkResolver,
         treasuryRepository,
         transferRepository,
         syncStateRepository,
         adapters,
-        networkIds: [
-            'tron_nile'
-        ]
-    });
+        adapterFactory,
+        networkIds
+    }) {
+
+        if (!projectRegistry) {
+            throw new Error(
+                'ProjectRegistry is required'
+            );
+        }
+
+        if (!networkResolver) {
+            throw new Error(
+                'NetworkResolver is required'
+            );
+        }
+
+        if (!treasuryRepository) {
+            throw new Error(
+                'TreasuryRepository is required'
+            );
+        }
+
+        if (!transferRepository) {
+            throw new Error(
+                'TransferRepository is required'
+            );
+        }
+
+        if (!syncStateRepository) {
+            throw new Error(
+                'SyncStateRepository is required'
+            );
+        }
+
+        this.discoveryService =
+            new DiscoveryService(
+                projectRegistry,
+                networkResolver
+            );
+
+        this.treasuryRepository =
+            treasuryRepository;
+
+        this.transferRepository =
+            transferRepository;
+
+        this.syncStateRepository =
+            syncStateRepository;
+
+        this.adapters =
+            adapters || {};
+
+        this.adapterFactory =
+            adapterFactory || null;
+
+        this.networkIds =
+            Array.isArray(networkIds)
+                ? new Set(networkIds)
+                : null;
+    }
 
 
-const summary =
-    await runner.runOnce({
-        safeConfirmations: 20,
-        overlap: 10
-    });
+    async runOnce(options = {}) {
+
+        const discovery =
+            this.discoveryService.discover();
+
+        const summary = {
+            discovered:
+                discovery.valid.length +
+                discovery.invalid.length,
+
+            valid:
+                discovery.valid.length,
+
+            invalid:
+                discovery.invalid.length,
+
+            synced: 0,
+
+            skipped: 0,
+
+            failed: 0,
+
+            transfers: 0,
+
+            inserted: 0,
+
+            invalidTreasuries:
+                discovery.invalid,
+
+            results: []
+        };
 
 
-assert.equal(
-    summary.discovered,
-    3
-);
+        const engine =
+            this._createSyncEngine();
 
-assert.equal(
-    summary.valid,
-    2
-);
 
-assert.equal(
-    summary.invalid,
-    1
-);
+        for (const treasury of discovery.valid) {
 
-assert.equal(
-    summary.synced,
-    1
-);
+            if (
+                !this._shouldSyncNetwork(
+                    treasury.networkId
+                )
+            ) {
+                summary.skipped++;
 
-assert.equal(
-    summary.skipped,
-    1
-);
+                summary.results.push(
+                    this._createSkippedResult(
+                        treasury
+                    )
+                );
 
-assert.equal(
-    summary.failed,
-    0
-);
+                continue;
+            }
 
-assert.equal(
-    summary.transfers,
-    1
-);
 
-assert.equal(
-    summary.inserted,
-    1
-);
+            let treasuryForResult =
+                treasury;
 
-assert.equal(
-    calls.upserted.length,
-    1
-);
 
-assert.equal(
-    calls.upserted[0].networkId,
-    'tron_nile'
-);
+            try {
+                await this._ensureAdapter(
+                    treasury.networkId
+                );
 
-assert.equal(
-    calls.synced.length,
-    1
-);
+                const persistedTreasury =
+                    await this.treasuryRepository
+                        .upsert(treasury);
 
-assert.equal(
-    calls.synced[0].treasury.id,
-    'db_1004_tron_nile'
-);
+                const treasuryForSync = {
+                    ...treasury,
 
-assert.equal(
-    calls.synced[0].fromBlock,
-    91
-);
+                    ...this._normalizePersistedTreasury(
+                        persistedTreasury,
+                        treasury
+                    )
+                };
 
-assert.equal(
-    calls.synced[0].toBlock,
-    120
-);
+                treasuryForResult =
+                    treasuryForSync;
 
-assert.equal(
-    summary.results[1].status,
-    'SKIPPED_NETWORK'
-);
+                const result =
+                    await engine.syncTreasury(
+                        treasuryForSync,
+                        options
+                    );
 
-assert.equal(
-    summary.invalidTreasuries[0].status,
-    'INVALID_CONFIGURATION'
-);
+                summary.synced++;
 
-console.log(
-    'IndexerRunner test: PASS'
-);
+                summary.transfers +=
+                    result.transfers || 0;
+
+                summary.inserted +=
+                    result.inserted || 0;
+
+                summary.results.push(result);
+
+            } catch (error) {
+                summary.failed++;
+
+                summary.results.push(
+                    this._createFailedResult(
+                        treasuryForResult,
+                        error
+                    )
+                );
+            }
+        }
+
+
+        return summary;
+    }
+
+
+    _createSyncEngine() {
+
+        return new SyncEngine({
+            treasuryRepository:
+                this.treasuryRepository,
+
+            transferRepository:
+                this.transferRepository,
+
+            syncStateRepository:
+                this.syncStateRepository,
+
+            adapters:
+                this.adapters
+        });
+    }
+
+
+    async _ensureAdapter(networkId) {
+
+        if (this.adapters[networkId]) {
+            return this.adapters[networkId];
+        }
+
+        if (!this.adapterFactory) {
+            return null;
+        }
+
+        const adapter =
+            await this.adapterFactory(
+                networkId
+            );
+
+        if (adapter) {
+            this.adapters[networkId] =
+                adapter;
+        }
+
+        return adapter;
+    }
+
+
+    _shouldSyncNetwork(networkId) {
+
+        return (
+            !this.networkIds ||
+            this.networkIds.has(
+                networkId
+            )
+        );
+    }
+
+
+    _createSkippedResult(treasury) {
+
+        return {
+            treasuryId:
+                treasury.id || null,
+
+            projectId:
+                treasury.projectId,
+
+            networkId:
+                treasury.networkId,
+
+            address:
+                treasury.address,
+
+            status:
+                'SKIPPED_NETWORK'
+        };
+    }
+
+
+    _createFailedResult(
+        treasury,
+        error
+    ) {
+
+        return {
+            treasuryId:
+                treasury.id || null,
+
+            projectId:
+                treasury.projectId,
+
+            networkId:
+                treasury.networkId,
+
+            address:
+                treasury.address,
+
+            status:
+                'FAILED',
+
+            error:
+                error instanceof Error
+                    ? error.message
+                    : String(error)
+        };
+    }
+
+
+    _normalizePersistedTreasury(
+        persistedTreasury,
+        sourceTreasury
+    ) {
+
+        if (!persistedTreasury) {
+            throw new Error(
+                `Treasury was not persisted: ${sourceTreasury.projectId}/${sourceTreasury.networkId}`
+            );
+        }
+
+        if (!persistedTreasury.id) {
+            throw new Error(
+                `Persisted treasury has no id: ${sourceTreasury.projectId}/${sourceTreasury.networkId}`
+            );
+        }
+
+        return {
+            id:
+                persistedTreasury.id,
+
+            projectId:
+                persistedTreasury.project_id ||
+                sourceTreasury.projectId,
+
+            networkId:
+                persistedTreasury.network_id ||
+                sourceTreasury.networkId,
+
+            address:
+                persistedTreasury.address ||
+                sourceTreasury.address,
+
+            active:
+                persistedTreasury.active === undefined
+                    ? sourceTreasury.active
+                    : Boolean(
+                        persistedTreasury.active
+                    )
+        };
+    }
+}
