@@ -254,6 +254,136 @@ assert.equal(
     'INVALID_CONFIGURATION'
 );
 
+
+/*
+ * Adapter factory must be lazy and reusable.
+ */
+{
+    let factoryCalls = 0;
+
+    const lazyRunner =
+        new IndexerRunner({
+            projectRegistry:
+                new ProjectRegistry({
+                    features: [
+                        {
+                            attributes: {
+                                ProjectID: '2000',
+                                funds: {
+                                    tron_nile: {
+                                        address:
+                                            'TLazyTreasury'
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }),
+            networkResolver,
+            treasuryRepository,
+            transferRepository,
+            syncStateRepository,
+            adapters: {},
+            async adapterFactory(networkId) {
+                factoryCalls++;
+
+                assert.equal(
+                    networkId,
+                    'tron_nile'
+                );
+
+                return adapters.tron_nile;
+            },
+            networkIds: [
+                'tron_nile'
+            ]
+        });
+
+    const lazySummary =
+        await lazyRunner.runOnce({
+            safeConfirmations: 20,
+            overlap: 10
+        });
+
+    assert.equal(
+        lazySummary.synced,
+        1
+    );
+
+    assert.equal(
+        factoryCalls,
+        1
+    );
+}
+
+
+/*
+ * A persistence failure must be isolated
+ * to the current treasury.
+ */
+{
+    const failingRunner =
+        new IndexerRunner({
+            projectRegistry:
+                new ProjectRegistry({
+                    features: [
+                        {
+                            attributes: {
+                                ProjectID: '3000',
+                                funds: {
+                                    tron_nile: {
+                                        address:
+                                            'TBrokenPersistence'
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }),
+            networkResolver,
+            treasuryRepository: {
+                async upsert() {
+                    throw new Error(
+                        'D1 treasury upsert failed'
+                    );
+                }
+            },
+            transferRepository,
+            syncStateRepository,
+            adapters,
+            networkIds: [
+                'tron_nile'
+            ]
+        });
+
+    const failedSummary =
+        await failingRunner.runOnce({
+            safeConfirmations: 20,
+            overlap: 10
+        });
+
+    assert.equal(
+        failedSummary.synced,
+        0
+    );
+
+    assert.equal(
+        failedSummary.failed,
+        1
+    );
+
+    assert.equal(
+        failedSummary.results[0].status,
+        'FAILED'
+    );
+
+    assert.equal(
+        failedSummary.results[0].error,
+        'D1 treasury upsert failed'
+    );
+}
+
+
 console.log(
     'IndexerRunner test: PASS'
 );
