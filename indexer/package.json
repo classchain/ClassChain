@@ -1,0 +1,14 @@
+{
+  "name": "classchain-indexer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:indexer": "node core/discovery/Discovery.integration.test.js"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "bs58": "^6.0.0"
+  }
+}
