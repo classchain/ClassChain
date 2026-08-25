@@ -1,6 +1,9 @@
 {
   "name": "classchain-indexer",
+  "main": "indexer/worker.js",
   "compatibility_date": "2026-08-18",
+  "compatibility_flags": ["nodejs_compat"],
+
   "d1_databases": [
     {
       "binding": "DB",
@@ -8,5 +11,22 @@
       "database_id": "34035dfa-8788-450b-851b-31950389091a",
       "migrations_dir": "indexer/db/migrations"
     }
-  ]
+  ],
+
+  "triggers": {
+    "crons": [
+      "*/5 * * * *"
+    ]
+  },
+
+  "vars": {
+    "NETWORK_IDS": "tron_nile",
+    "SAFE_CONFIRMATIONS": "20",
+    "OVERLAP": "10",
+    "SCAN_FROM_BLOCK": "70373800",
+    "PROJECTS_JSON_URL": "https://raw.githubusercontent.com/classchain/ClassChain/Donation/frontend/data/Projects.json"
+  }
+
+  // Secret (set via CLI, do not commit):
+  // npx wrangler secret put INDEXER_SYNC_SECRET
 }
