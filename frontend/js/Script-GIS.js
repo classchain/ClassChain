@@ -11,6 +11,9 @@ const infoPanelWrapper = document.getElementById('infoPanelWrapper');
 const closePanelBtn = document.getElementById('closePanel');
 const fixedContributeBtn = document.getElementById('fixedContributeBtn');
 const panelHeader = document.querySelector('.panel-header');
+const INDEXER_API =
+  window.CLASSCHAIN_INDEXER_API ||
+  'https://classchain-indexer.classchain.workers.dev';
 
 // تابع باز کردن کامل
 function openPanelFully() {
