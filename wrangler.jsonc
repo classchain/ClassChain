@@ -20,10 +20,9 @@
   },
 
   "vars": {
-    "NETWORK_IDS": "tron_nile",
+    "NETWORK_IDS": "tron_nile,polygon_amoy",
     "SAFE_CONFIRMATIONS": "20",
     "OVERLAP": "10",
-    "SCAN_FROM_BLOCK": "70373800",
     "PROJECTS_JSON_URL": "https://raw.githubusercontent.com/classchain/ClassChain/Donation/frontend/data/Projects.json"
   }
 
