@@ -8,6 +8,9 @@ let projects = {};
 const networkConfig = window.ClassChainNetworkConfig || { NETWORKS: {}, getDonationNetworks: () => [] };
 function getNetworks() {return networkConfig.NETWORKS || {};}
 const walletManager = new window.ClassChainWalletManager();
+const INDEXER_API =
+  window.CLASSCHAIN_INDEXER_API ||
+  'https://classchain-indexer.classchain.workers.dev';
 
 // ==================== توابع کمکی ====================
 async function waitForTronTransaction(tronWeb, txId, options = {}) {
