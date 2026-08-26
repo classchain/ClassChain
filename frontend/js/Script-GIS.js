@@ -502,6 +502,7 @@ fetch('data/Projects.json')
      					* و Reader مربوطه خودش شبکه‌ها و
      					* Fundهای مربوط به Project را پیدا می‌کند.
      					*/
+						loadDonors(a);
     					loadRaisedSummary(a);
 					} else {
     					currentContractAddress = null;
@@ -606,6 +607,95 @@ function showCountiesOfProvince(provinceName) {
     if (panel && panel.querySelector('.info-label')?.textContent.includes('شهرستان')) {
         panel.innerHTML = `<span class="info-label">تعداد شهرستان:</span><span class="info-value">${count} شهرستان</span>`;
     }
+}
+
+const INDEXER_API =
+  window.CLASSCHAIN_INDEXER_API ||
+  'https://classchain-indexer.classchain.workers.dev';
+
+function shortDonorAddr(addr) {
+  if (!addr || typeof addr !== 'string') return '—';
+  if (addr.length < 12) return addr;
+  return addr.slice(0, 6) + '…' + addr.slice(-4);
+}
+
+function aggregateIndexerDonors(rows) {
+  const map = new Map();
+  for (const row of rows || []) {
+    const key = String(row.donor || '').toLowerCase();
+    if (!key) continue;
+    const amount = Number(row.amount) || 0;
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, { donor: row.donor, total: amount, count: 1 });
+    } else {
+      prev.total += amount;
+      prev.count += 1;
+    }
+  }
+  return [...map.values()].sort((a, b) => b.total - a.total);
+}
+
+async function loadDonors(projectAttributes) {
+  const el = document.getElementById('donorsList');
+  if (!el) return;
+
+  const projectId = String(
+    projectAttributes?.ProjectID ||
+    projectAttributes?.projectId ||
+    ''
+  );
+
+  if (!projectId) {
+    el.innerHTML = '';
+    return;
+  }
+
+  el.innerHTML =
+    '<span class="info-label">در حال بارگذاری مشارکت‌کنندگان...</span>';
+
+  try {
+    const res = await fetch(
+      `${INDEXER_API}/api/donors?projectId=${encodeURIComponent(projectId)}`,
+      { headers: { Accept: 'application/json' } }
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    const data = await res.json();
+    const list = aggregateIndexerDonors(data.donors || []);
+
+    if (!list.length) {
+      el.innerHTML =
+        '<span class="info-label">هنوز مشارکتی ثبت نشده — شما می‌توانید اولین نفر باشید.</span>';
+      return;
+    }
+
+    const rows = list
+      .slice(0, 12)
+      .map(
+        (d) => `
+        <div style="display:flex;justify-content:space-between;gap:8px;font-size:0.92em;padding:3px 0;">
+          <span title="${d.donor}">${shortDonorAddr(d.donor)}</span>
+          <span><strong>${d.total.toFixed(2)}</strong> USDT</span>
+        </div>`
+      )
+      .join('');
+
+    const more =
+      list.length > 12
+        ? `<div style="opacity:.75;margin-top:4px;">و ${list.length - 12} مورد دیگر…</div>`
+        : '';
+
+    el.innerHTML = `
+      <div class="info-label" style="margin-bottom:6px;">مشارکت‌کنندگان (${list.length})</div>
+      ${rows}
+      ${more}
+    `;
+  } catch (e) {
+    console.error('[WebGIS] Indexer donors failed:', e);
+    el.innerHTML =
+      '<span class="info-label" style="color:#e74c3c;">خطا در خواندن مشارکت‌کنندگان</span>';
+  }
 }
 
 async function loadRaisedSummary(projectAttributes) {
