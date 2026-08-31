@@ -1,6 +1,8 @@
 /**
  * ClassChain Indexer — Cloudflare Worker + HTTP API
  *
+ * Phase: polygon_amoy only (tron_nile deferred until Amoy is stable).
+ *
  * Routes:
  *   GET  /health
  *   POST /sync          (with X-Indexer-Secret)
@@ -17,7 +19,8 @@ import { TransferRepository } from './db/TransferRepository.js';
 import { SyncStateRepository } from './db/SyncStateRepository.js';
 import { createAdapter } from './adapters/createAdapter.js';
 
-const DEFAULT_NETWORK_IDS = ['tron_nile', 'polygon_amoy'];
+// Phase 1: Amoy only. Re-add 'tron_nile' after Amoy is 0–100 stable.
+const DEFAULT_NETWORK_IDS = ['polygon_amoy'];
 
 function readNetworkIds(env) {
   if (!env.NETWORK_IDS) return DEFAULT_NETWORK_IDS;
@@ -30,7 +33,7 @@ function readNumber(env, key, fallback) {
 }
 
 async function loadProjectsRegistry(env) {
-  const url = env.PROJECTS_JSON_URL || 
+  const url = env.PROJECTS_JSON_URL ||
     'https://raw.githubusercontent.com/classchain/ClassChain/Donation/frontend/data/Projects.json';
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`Failed to load Projects.json: ${res.status}`);
@@ -104,7 +107,7 @@ export default {
       }
     }
 
-    // === NEW API ENDPOINTS ===
+    // === API ENDPOINTS ===
 
     if (method === 'GET' && path === '/api/donors') {
       const projectId = url.searchParams.get('projectId');
