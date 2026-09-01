@@ -97,6 +97,15 @@ export class SyncEngine {
         const overlap =
             options.overlap ?? 10;
 
+        /**
+         * Cap blocks advanced per treasury per run.
+         * Prevents Worker subrequest limits and RPC
+         * "max 1000 blocks" failures when far behind.
+         * Default ~40k blocks ≈ 40 eth_getLogs calls.
+         */
+        const maxBlocksPerRun =
+            options.maxBlocksPerRun ?? 40_000;
+
 
         let fromBlock;
 
@@ -150,6 +159,12 @@ export class SyncEngine {
         }
 
 
+        const toBlock = Math.min(
+            lastFinalizedBlock,
+            fromBlock + maxBlocksPerRun - 1
+        );
+
+
         try {
 
             /*
@@ -162,7 +177,7 @@ export class SyncEngine {
                 await adapter.getTransfers(
                     treasury,
                     fromBlock,
-                    lastFinalizedBlock
+                    toBlock
                 );
 
 
@@ -207,9 +222,9 @@ export class SyncEngine {
                 .markSuccess(
                     treasury.id,
 
-                    lastFinalizedBlock,
+                    toBlock,
 
-                    lastFinalizedBlock
+                    toBlock
                 );
 
 
@@ -220,8 +235,7 @@ export class SyncEngine {
 
                 fromBlock,
 
-                toBlock:
-                    lastFinalizedBlock,
+                toBlock,
 
                 transfers:
                     (
@@ -231,7 +245,9 @@ export class SyncEngine {
                 inserted,
 
                 status:
-                    'SUCCESS'
+                    toBlock < lastFinalizedBlock
+                        ? 'PARTIAL'
+                        : 'SUCCESS'
             };
 
 

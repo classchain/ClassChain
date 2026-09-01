@@ -15,8 +15,11 @@ import { EvmClient } from './EvmClient.js';
 const TRANSFER_TOPIC =
   '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
-/** eth_getLogs range chunk — public RPCs often limit window size */
-const LOG_CHUNK = 2_000;
+/**
+ * Public RPCs (Amoy) often reject eth_getLogs windows > 1000 blocks.
+ * Keep at or below that limit.
+ */
+const LOG_CHUNK = 1_000;
 
 function normalizeAddress(addr) {
   if (!addr || typeof addr !== 'string') {
