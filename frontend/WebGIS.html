@@ -17,7 +17,6 @@
                 <div class="drag-handle" id="dragHandle" aria-hidden="true"></div>
                 <h1>WebGIS ایران</h1>
                 <p>رنگ بر اساس سرانه جمعیت + پروژه‌های آموزشی</p>
-                <button class="close-btn" id="closePanel" aria-label="بستن پنل">×</button>
             </div>
             <div class="panel-content" id="infoPanel">
                 <div class="no-selection">
@@ -38,7 +37,18 @@
         <div id="map"></div>
     </div>
 
-    <!-- کنترل‌های نقشه: انتخابگر لایه به سبک گوگل‌مپ -->
+    <!-- کنترل‌های چپ: Home + Zoom (هم‌لایه، زیر پنل) -->
+    <div class="left-map-controls" id="leftMapControls">
+        <button class="map-ctrl-btn" type="button" onclick="zoomToIran()" title="بازگشت به ایران" aria-label="بازگشت به ایران">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+            </svg>
+        </button>
+        <button class="map-ctrl-btn" type="button" id="zoomInBtn" title="بزرگ‌نمایی" aria-label="بزرگ‌نمایی">+</button>
+        <button class="map-ctrl-btn" type="button" id="zoomOutBtn" title="کوچک‌نمایی" aria-label="کوچک‌نمایی">−</button>
+    </div>
+
+    <!-- کنترل لایه‌ها (راست) -->
     <div class="map-controls">
         <button class="layers-btn" id="layersBtn" type="button" title="تغییر نوع نقشه" aria-label="انتخاب نوع نقشه" aria-expanded="false">
             <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
@@ -68,12 +78,6 @@
                 <span>استاندارد (OSM)</span>
             </button>
         </div>
-    </div>
-
-    <div class="home-button" onclick="zoomToIran()" title="بازگشت به ایران">
-        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-        </svg>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
