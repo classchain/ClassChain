@@ -73,28 +73,53 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .no-selection { text-align: center; padding: 40px 20px; color: #bdc3c7; opacity: 0.7; }
 .no-selection .icon { font-size: 3.5em; margin-bottom: 15px; opacity: 0.5; }
 
+/* دکمه مشارکت — برجسته */
 .fixed-contribute-button {
     flex-shrink: 0;
     text-align: center;
-    background: rgba(39, 174, 96, 0.98);
-    padding: 14px 15px;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.35);
+    background: linear-gradient(180deg, rgba(30, 60, 50, 0.95), rgba(20, 40, 35, 0.98));
+    padding: 14px 16px 18px;
+    border-top: 1px solid rgba(255,255,255,0.12);
     z-index: 20;
-    border-top: 1px solid rgba(255,255,255,0.15);
     display: none;
 }
 .fixed-contribute-button button {
-    padding: 14px 28px; background: #27ae60; color: white; border: none; border-radius: 10px;
-    font-size: 1.15em; font-weight: bold; cursor: pointer; width: 100%;
+    display: block;
+    width: 100%;
+    padding: 16px 28px;
+    background: linear-gradient(180deg, #2ecc71 0%, #27ae60 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.15em;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow:
+        0 6px 18px rgba(0, 0, 0, 0.4),
+        0 2px 0 #1e8449,
+        inset 0 1px 0 rgba(255,255,255,0.25);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
-.fixed-contribute-button p { margin-top: 8px; font-size: 0.85em; opacity: 0.9; }
+.fixed-contribute-button button:active {
+    transform: translateY(2px);
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.35),
+        0 1px 0 #1e8449,
+        inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.fixed-contribute-button p {
+    margin-top: 10px;
+    font-size: 0.85em;
+    opacity: 0.9;
+    color: #ecf0f1;
+}
 
 .report-link { display: block; padding: 8px 0; color: #3498db; text-decoration: underline; font-size: 0.95em; }
 
-/* ========== کنترل‌های چپ (Home + Zoom) ========== */
+/* کنترل‌های نقشه — بالاتر از پنل تا کلیک‌پذیر بمانند */
 .left-map-controls {
     position: absolute;
-    z-index: 900;
+    z-index: 1100;
     top: 12px;
     left: 10px;
     display: flex;
@@ -120,10 +145,13 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     line-height: 1;
     padding: 0;
     font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 .map-ctrl-btn svg {
     display: block;
     fill: currentColor;
+    pointer-events: none;
 }
 .map-ctrl-btn:active {
     background: #3498db;
@@ -133,10 +161,9 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .leaflet-control-zoom { display: none !important; }
 .leaflet-control-container { z-index: 400 !important; }
 
-/* ========== لایه‌ها ========== */
 .map-controls {
     position: absolute;
-    z-index: 900;
+    z-index: 1100;
     top: 12px;
     right: 10px;
 }
@@ -154,6 +181,8 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     cursor: pointer;
     color: #2c3e50;
     padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 .layers-btn[aria-expanded="true"] {
     background: #3498db;
@@ -173,7 +202,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     display: flex;
     flex-direction: column;
     gap: 4px;
-    z-index: 910;
+    z-index: 1110;
 }
 .basemap-popup[hidden] { display: none !important; }
 
@@ -209,7 +238,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .basemap-swatch.light { background: linear-gradient(135deg, #ecf0f1, #bdc3c7); }
 .basemap-swatch.osm { background: linear-gradient(135deg, #aed6f1, #5dade2); }
 
-/* ========== موبایل / تبلت ========== */
 @media (max-width: 1023px) {
     .info-panel {
         position: fixed;
@@ -223,11 +251,9 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
         border-radius: 18px 18px 0 0;
         box-shadow: 0 -6px 28px rgba(0,0,0,0.4);
         overflow: hidden;
-        /* پیش‌فرض min تا کلاس state ست شود */
         transform: translate3d(0, 78%, 0);
     }
 
-    /* سه حالت صریح — !important برای غلبه بر transform اینلاین درگ */
     .info-panel.panel-peek {
         transform: translate3d(0, 78%, 0) !important;
     }
@@ -242,12 +268,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 
     .info-panel.dragging {
         transition: none !important;
-    }
-    /* هنگام درگ، !important state را موقتاً برمی‌داریم با کلاس dragging + style اینلاین */
-    .info-panel.dragging.panel-peek,
-    .info-panel.dragging.panel-half,
-    .info-panel.dragging.panel-full {
-        transform: none; /* اجازه به style اینلاین */
     }
 
     .panel-header {
@@ -268,7 +288,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
         margin: 2px auto 10px;
         touch-action: none;
         cursor: grab;
-        /* ناحیه لمسی بزرگ‌تر */
         position: relative;
     }
     .drag-handle::before {
@@ -285,21 +304,12 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
         touch-action: pan-y;
         overscroll-behavior: contain;
     }
-
-    .left-map-controls,
-    .map-controls {
-        z-index: 900;
-    }
 }
 
 @media (min-width: 1024px) {
     .drag-handle { display: none; }
-    .info-panel {
-        transform: none !important;
-    }
+    .info-panel { transform: none !important; }
     .info-panel.panel-peek,
     .info-panel.panel-half,
-    .info-panel.panel-full {
-        transform: none !important;
-    }
+    .info-panel.panel-full { transform: none !important; }
 }
