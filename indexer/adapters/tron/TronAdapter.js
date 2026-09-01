@@ -5,8 +5,14 @@ import {
 } from '../../../shared/network-config.js';
 
 import {
+    tronAddressToHex,
+    tronAddressToTopic,
     tronHexToAddress
 } from './TronAddress.js';
+
+
+const TRANSFER_TOPIC =
+    'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
 
 function normalizeTronAddr(addr) {
@@ -126,8 +132,14 @@ export class TronAdapter {
 
 
         /*
-         * Account-scoped incoming TRC20 only.
-         * Avoids scanning the global USDT event stream.
+         * Account-scoped candidates from TronGrid.
+         *
+         * IMPORTANT: TronGrid /transactions/trc20?only_to=true
+         * sometimes returns Approval txs as if they were
+         * incoming TRC20 transfers (spender = treasury).
+         *
+         * Every candidate MUST be confirmed via receipt logs
+         * for a real ERC20/TRC20 Transfer event to the treasury.
          */
         const result =
             await this.client.getTRC20Transfers(
@@ -139,75 +151,58 @@ export class TronAdapter {
 
 
         const transfers = [];
+        const seenTx = new Set();
 
 
         for (
-            const transfer of
+            const candidate of
             (result.data || [])
         ) {
 
-            if (
-                transfer.type !== 'Transfer'
-            ) {
+            const txHash =
+                candidate.transaction_id;
+
+            if (!txHash || seenTx.has(txHash)) {
                 continue;
             }
 
-            const toAddr =
-                normalizeTronAddr(
-                    typeof transfer.to === 'string' && transfer.to.startsWith('T')
-                        ? transfer.to
-                        : (tronHexToAddress(transfer.to) || transfer.to)
+            seenTx.add(txHash);
+
+            const txInfo =
+                await this.client.getTransactionInfo(
+                    txHash
                 );
 
             if (
-                toAddr &&
-                toAddr !== treasuryAddress
+                txInfo?.receipt?.result &&
+                txInfo.receipt.result !== 'SUCCESS'
             ) {
                 continue;
             }
 
-            let blockNumber =
-                Number.isInteger(transfer.block_number)
-                    ? transfer.block_number
-                    : null;
-
-            let eventIndex =
-                Number.isInteger(transfer.event_index)
-                    ? transfer.event_index
-                    : 0;
-
-            let timestamp =
-                Number.isInteger(transfer.block_timestamp)
-                    ? Math.floor(transfer.block_timestamp / 1000)
-                    : null;
+            const event =
+                this._findTransferEvent(
+                    txInfo,
+                    this.tokenAddress,
+                    treasuryAddress
+                );
 
             /*
-             * Only hit gettransactioninfobyid when TronGrid
-             * did not provide block number (keeps subrequests low).
+             * No Transfer log to treasury → skip.
+             * Approval-only txs die here.
              */
-            if (!Number.isInteger(blockNumber)) {
-                const txInfo =
-                    await this.client.getTransactionInfo(
-                        transfer.transaction_id
-                    );
-
-                if (
-                    txInfo?.receipt?.result &&
-                    txInfo.receipt.result !== 'SUCCESS'
-                ) {
-                    continue;
-                }
-
-                blockNumber =
-                    txInfo?.blockNumber;
-
-                if (
-                    Number.isInteger(txInfo?.blockTimeStamp)
-                ) {
-                    timestamp =
-                        Math.floor(txInfo.blockTimeStamp / 1000);
-                }
+            if (!event) {
+                continue;
             }
+
+            const blockNumber =
+                Number.isInteger(txInfo?.blockNumber)
+                    ? txInfo.blockNumber
+                    : (
+                        Number.isInteger(candidate.block_number)
+                            ? candidate.block_number
+                            : null
+                    );
 
             if (
                 !Number.isInteger(blockNumber)
@@ -222,26 +217,36 @@ export class TronAdapter {
                 continue;
             }
 
-            if (
-                !Number.isInteger(timestamp)
-            ) {
-                timestamp = 0;
-            }
-
-            let donor =
-                transfer.from;
+            let timestamp = 0;
 
             if (
-                typeof donor === 'string' &&
-                !donor.startsWith('T')
+                Number.isInteger(txInfo?.blockTimeStamp)
             ) {
-                donor =
-                    tronHexToAddress(donor) || donor;
+                timestamp =
+                    Math.floor(txInfo.blockTimeStamp / 1000);
+            } else if (
+                Number.isInteger(candidate.block_timestamp)
+            ) {
+                timestamp =
+                    Math.floor(candidate.block_timestamp / 1000);
             }
+
+            const donor =
+                event.from;
+
+            const amountRaw =
+                event.value;
 
             const amountNum =
-                Number(transfer.value) /
+                Number(amountRaw) /
                 Math.pow(10, this.tokenDecimals);
+
+            if (
+                !Number.isFinite(amountNum) ||
+                amountNum <= 0
+            ) {
+                continue;
+            }
 
             transfers.push({
 
@@ -266,19 +271,17 @@ export class TronAdapter {
                     this.tokenAddress,
 
                 amountRaw:
-                    String(
-                        transfer.value
-                    ),
+                    String(amountRaw),
 
                 amount:
                     amountNum,
 
-                txHash:
-                    transfer.transaction_id,
+                txHash,
 
                 blockNumber,
 
-                eventIndex,
+                eventIndex:
+                    event.index,
 
                 timestamp
             });
@@ -286,5 +289,103 @@ export class TronAdapter {
 
 
         return transfers;
+    }
+
+
+    /**
+     * Confirm a real TRC20 Transfer log:
+     *  - token contract matches USDT
+     *  - topic0 = Transfer
+     *  - topic2 (to) = treasury
+     */
+    _findTransferEvent(
+        txInfo,
+        tokenAddress,
+        treasuryAddress
+    ) {
+
+        const tokenHex =
+            tronAddressToHex(tokenAddress)
+                .slice(-40)
+                .toLowerCase();
+
+        const treasuryTopic =
+            tronAddressToTopic(treasuryAddress)
+                .toLowerCase();
+
+        const logs =
+            txInfo?.log || [];
+
+        for (let index = 0; index < logs.length; index++) {
+
+            const log = logs[index];
+
+            const logAddr =
+                String(log.address || '')
+                    .toLowerCase()
+                    .replace(/^0x/, '');
+
+            if (logAddr !== tokenHex) {
+                continue;
+            }
+
+            const topic0 =
+                String(log.topics?.[0] || '')
+                    .toLowerCase()
+                    .replace(/^0x/, '');
+
+            if (topic0 !== TRANSFER_TOPIC) {
+                continue;
+            }
+
+            const topic2 =
+                String(log.topics?.[2] || '')
+                    .toLowerCase()
+                    .replace(/^0x/, '')
+                    .padStart(64, '0');
+
+            if (topic2 !== treasuryTopic) {
+                continue;
+            }
+
+            let from = null;
+
+            try {
+                const topic1 =
+                    String(log.topics?.[1] || '')
+                        .replace(/^0x/, '')
+                        .slice(-40);
+
+                from =
+                    tronHexToAddress(topic1);
+            } catch {
+                from = null;
+            }
+
+            if (!from) {
+                continue;
+            }
+
+            const dataHex =
+                String(log.data || '0')
+                    .replace(/^0x/, '') || '0';
+
+            let value;
+
+            try {
+                value =
+                    BigInt('0x' + dataHex).toString();
+            } catch {
+                continue;
+            }
+
+            return {
+                index,
+                from,
+                value
+            };
+        }
+
+        return null;
     }
 }
