@@ -12,6 +12,7 @@ const closePanelBtn = document.getElementById('closePanel');
 const fixedContributeBtn = document.getElementById('fixedContributeBtn');
 const panelHeader = document.getElementById('panelHeader');
 const panelContent = document.getElementById('infoPanel');
+const dragHandle = document.getElementById('dragHandle');
 const layersBtn = document.getElementById('layersBtn');
 const basemapPopup = document.getElementById('basemapPopup');
 
@@ -25,7 +26,9 @@ function setPanelState(state) {
     panelState = state;
     infoPanelWrapper.classList.remove('panel-peek', 'panel-half', 'panel-full', 'dragging');
     infoPanelWrapper.classList.add('panel-' + state);
-    infoPanelWrapper.style.transform = ''; // اجازه بده CSS کلاس‌ها را کنترل کند
+    // پاک کردن transform اینلاین تا CSS کلاس‌ها اعمال شوند
+    infoPanelWrapper.style.transform = '';
+    infoPanelWrapper.style.transition = '';
 }
 
 function openPanelHalf() {
@@ -40,7 +43,16 @@ function closeToPeek() {
     setPanelState('peek');
 }
 
-// سازگاری با کدهای قبلی
+function togglePanelFromHeader() {
+    if (!isMobile()) return;
+    if (panelState === 'peek') {
+        openPanelHalf();
+    } else {
+        // half یا full → بستن به peek
+        closeToPeek();
+    }
+}
+
 function openPanel() {
     if (isMobile()) openPanelHalf();
 }
@@ -49,7 +61,6 @@ function closePanel() {
     if (isMobile()) closeToPeek();
 }
 
-// نمایش محتوا + باز کردن پنل در حالت half (نقشه همچنان دیده می‌شود)
 function showInPanel(content) {
     panelContent.innerHTML = content;
     if (isMobile()) {
@@ -65,57 +76,58 @@ if (closePanelBtn) {
     });
 }
 
-// کلیک روی نقشه → فقط اگر full باشد به half برگردد (نه بستن کامل)
+// کلیک روی نقشه → اگر full باشد به half
 map.getContainer().addEventListener('click', () => {
     if (isMobile() && panelState === 'full') {
         openPanelHalf();
     }
 });
 
-// ========== درگ فقط از هدر (اسکرول محتوا جدا است) ==========
+// ========== درگ فقط از drag-handle (نه کل هدر، نه محتوا) ==========
 let dragStartY = 0;
 let dragStartTranslate = 0;
 let isDraggingPanel = false;
+let dragMoved = false;
 
 function getCurrentTranslatePercent() {
     if (panelState === 'full') return 0;
     if (panelState === 'half') return 48;
-    return 78; // peek
+    return 78;
 }
 
-function onHeaderTouchStart(e) {
+function onHandleTouchStart(e) {
     if (!isMobile()) return;
     const touch = e.touches[0];
     dragStartY = touch.clientY;
     dragStartTranslate = getCurrentTranslatePercent();
     isDraggingPanel = true;
+    dragMoved = false;
     infoPanelWrapper.classList.add('dragging');
     infoPanelWrapper.style.transition = 'none';
 }
 
-function onHeaderTouchMove(e) {
+function onHandleTouchMove(e) {
     if (!isDraggingPanel || !isMobile()) return;
-    e.preventDefault(); // جلوگیری از اسکرول صفحه
+    e.preventDefault();
     const touch = e.touches[0];
-    const deltaY = touch.clientY - dragStartY; // مثبت = کشیدن به پایین
+    const deltaY = touch.clientY - dragStartY;
+    if (Math.abs(deltaY) > 4) dragMoved = true;
     const deltaPercent = (deltaY / window.innerHeight) * 100;
     let next = dragStartTranslate + deltaPercent;
     next = Math.max(0, Math.min(85, next));
     infoPanelWrapper.style.transform = `translateY(${next}%)`;
 }
 
-function onHeaderTouchEnd() {
+function onHandleTouchEnd() {
     if (!isDraggingPanel || !isMobile()) return;
     isDraggingPanel = false;
     infoPanelWrapper.classList.remove('dragging');
     infoPanelWrapper.style.transition = '';
 
-    // خواندن موقعیت فعلی از استایل موقت
     const style = window.getComputedStyle(infoPanelWrapper);
     const matrix = style.transform;
     let current = dragStartTranslate;
     if (matrix && matrix !== 'none') {
-        // matrix(a,b,c,d,tx,ty) — ty به پیکسل
         const parts = matrix.match(/matrix.*\((.+)\)/);
         if (parts) {
             const values = parts[1].split(',');
@@ -126,7 +138,6 @@ function onHeaderTouchEnd() {
         }
     }
 
-    // آستانه‌ها برای سه حالت
     if (current < 22) {
         openPanelFull();
     } else if (current < 62) {
@@ -136,28 +147,55 @@ function onHeaderTouchEnd() {
     }
 }
 
-if (panelHeader) {
-    panelHeader.addEventListener('touchstart', onHeaderTouchStart, { passive: true });
-    panelHeader.addEventListener('touchmove', onHeaderTouchMove, { passive: false });
-    panelHeader.addEventListener('touchend', onHeaderTouchEnd);
-    panelHeader.addEventListener('touchcancel', onHeaderTouchEnd);
+if (dragHandle) {
+    dragHandle.addEventListener('touchstart', onHandleTouchStart, { passive: true });
+    dragHandle.addEventListener('touchmove', onHandleTouchMove, { passive: false });
+    dragHandle.addEventListener('touchend', onHandleTouchEnd);
+    dragHandle.addEventListener('touchcancel', onHandleTouchEnd);
+}
 
-    // کلیک روی هدر در حالت peek → half
+// کلیک روی هدر اصلی → toggle باز/بسته (بدون تداخل با لینک‌ها و آکاردئون که داخل محتوا هستند)
+if (panelHeader) {
     panelHeader.addEventListener('click', (e) => {
         if (!isMobile()) return;
         if (e.target.closest('.close-btn')) return;
-        if (panelState === 'peek') openPanelHalf();
-        else if (panelState === 'half') openPanelFull();
+        // اگر درگ واقعی از handle بوده، کلیک را نادیده بگیر
+        if (dragMoved) {
+            dragMoved = false;
+            return;
+        }
+        togglePanelFromHeader();
     });
 }
 
-// جلوگیری از انتقال gesture اسکرول محتوا به پنل
+// محتوا: اسکرول کاملاً مستقل — هیچ تغییری روی اندازه پنل
 if (panelContent) {
-    panelContent.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
-    panelContent.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: true });
+    // جلوگیری از bubble شدن gesture به parent
+    panelContent.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+    }, { passive: true });
+
+    panelContent.addEventListener('touchmove', (e) => {
+        e.stopPropagation();
+        // اگر به هر دلیل درگ پنل فعال شده بود، لغو شود
+        if (isDraggingPanel) {
+            isDraggingPanel = false;
+            infoPanelWrapper.classList.remove('dragging');
+            setPanelState(panelState); // برگشت به حالت پایدار
+        }
+    }, { passive: true });
+
+    panelContent.addEventListener('touchend', (e) => {
+        e.stopPropagation();
+    }, { passive: true });
 }
 
-// تغییر اندازه پنجره
+// دکمه مشارکت هم نباید درگ پنل را فعال کند
+if (fixedContributeBtn) {
+    fixedContributeBtn.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+    fixedContributeBtn.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: true });
+}
+
 window.addEventListener('resize', () => {
     if (!isMobile()) {
         infoPanelWrapper.classList.remove('panel-peek', 'panel-half', 'panel-full', 'dragging');
@@ -169,7 +207,7 @@ window.addEventListener('resize', () => {
     }
 });
 
-// ========== انتخابگر نقشه پایه (آیکون + پاپ‌آپ) ==========
+// ========== انتخابگر نقشه پایه ==========
 const basemapLayers = {
     carto: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }),
     persiangis: L.tileLayer('https://map.persiangis.ir/tile/{z}/{x}/{y}.png', { attribution: '© PersianGIS' }),
@@ -222,7 +260,6 @@ if (basemapPopup) {
     });
 }
 
-// بستن پاپ‌آپ با کلیک بیرون
 document.addEventListener('click', (e) => {
     if (!basemapPopup || basemapPopup.hasAttribute('hidden')) return;
     if (e.target.closest('.map-controls')) return;
@@ -483,7 +520,6 @@ fetch('data/Projects.json')
                         </div>
                     `);
 
-                    // دکمه مشارکت بیرون از محتوای اسکرول‌شونده (ثابت در پایین پنل)
                     if (hasPolygon || tronAddress) {
                         currentContractAddress = hasPolygon ? amoyAddress : tronAddress;
                         if (fixedContributeBtn) {
@@ -498,7 +534,6 @@ fetch('data/Projects.json')
                         if (fixedContributeBtn) fixedContributeBtn.style.display = 'none';
                     }
 
-                    // برای پروژه‌ها که محتوا زیاد است، full باز شود
                     if (isMobile()) openPanelFull();
 
                     map.setView([y, x], 14, { animate: true });
@@ -515,7 +550,6 @@ fetch('data/Projects.json')
         console.error("خطا در بارگذاری پروژه‌ها:", err);
     });
 
-// ========== شهرستان‌ها ==========
 function showCountiesOfProvince(provinceName) {
     if (!countiesLayer) {
         fetch('data/counties.json')
