@@ -10,195 +10,226 @@ let geo, countiesLayer = null, projectsLayer = null;
 const infoPanelWrapper = document.getElementById('infoPanelWrapper');
 const closePanelBtn = document.getElementById('closePanel');
 const fixedContributeBtn = document.getElementById('fixedContributeBtn');
-const panelHeader = document.querySelector('.panel-header');
-//const INDEXER_API =
-//  window.CLASSCHAIN_INDEXER_API ||
-//  'https://classchain-indexer.classchain.workers.dev';
+const panelHeader = document.getElementById('panelHeader');
+const panelContent = document.getElementById('infoPanel');
+const layersBtn = document.getElementById('layersBtn');
+const basemapPopup = document.getElementById('basemapPopup');
 
-// تابع باز کردن کامل
-function openPanelFully() {
-    if (window.innerWidth >= 1024) return;
-    infoPanelWrapper.classList.add('open');
-    infoPanelWrapper.style.transform = 'translateY(0)';
-    document.body.style.overflow = 'hidden';
+// ========== مدیریت حالت پنل (فقط موبایل/تبلت) ==========
+// سه حالت: peek | half | full
+let panelState = 'peek';
+const isMobile = () => window.innerWidth < 1024;
+
+function setPanelState(state) {
+    if (!isMobile()) return;
+    panelState = state;
+    infoPanelWrapper.classList.remove('panel-peek', 'panel-half', 'panel-full', 'dragging');
+    infoPanelWrapper.classList.add('panel-' + state);
+    infoPanelWrapper.style.transform = ''; // اجازه بده CSS کلاس‌ها را کنترل کند
 }
 
-// تابع برگشت به حالت peek
+function openPanelHalf() {
+    setPanelState('half');
+}
+
+function openPanelFull() {
+    setPanelState('full');
+}
+
 function closeToPeek() {
-    if (window.innerWidth >= 1024) return;
-    infoPanelWrapper.classList.remove('open');
-    infoPanelWrapper.style.transform = 'translateY(80%)';
-    document.body.style.overflow = '';
+    setPanelState('peek');
 }
 
-// ۱. تاچ روی هدر → باز کردن کامل
-panelHeader.addEventListener('click', (e) => {
-    e.stopPropagation(); // جلوگیری از بسته شدن همزمان
-    if (!infoPanelWrapper.classList.contains('open')) {
-        openPanelFully();
-    }
-});
-
-// ۲. دکمه × → به peek
-closePanelBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    closeToPeek();
-});
-
-// ۳. کلیک روی نقشه → به peek
-map.getContainer().addEventListener('click', () => {
-    if (window.innerWidth < 1024 && infoPanelWrapper.classList.contains('open')) {
-        closeToPeek();
-    }
-});
-
-// توابع مدیریت پنل
+// سازگاری با کدهای قبلی
 function openPanel() {
-    if (window.innerWidth < 1024) {
-        infoPanelWrapper.classList.add('open');
-        document.body.style.overflow = 'hidden';
-    }
+    if (isMobile()) openPanelHalf();
 }
 
 function closePanel() {
-    infoPanelWrapper.classList.remove('open');
-    document.body.style.overflow = '';
+    if (isMobile()) closeToPeek();
 }
 
-// بستن با کلیک خارج از پنل
+// نمایش محتوا + باز کردن پنل در حالت half (نقشه همچنان دیده می‌شود)
+function showInPanel(content) {
+    panelContent.innerHTML = content;
+    if (isMobile()) {
+        openPanelHalf();
+    }
+}
+
+// دکمه × → peek
+if (closePanelBtn) {
+    closePanelBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeToPeek();
+    });
+}
+
+// کلیک روی نقشه → فقط اگر full باشد به half برگردد (نه بستن کامل)
 map.getContainer().addEventListener('click', () => {
-    if (window.innerWidth < 1024 && infoPanelWrapper.classList.contains('open')) {
-        closePanel();
+    if (isMobile() && panelState === 'full') {
+        openPanelHalf();
     }
 });
 
-closePanelBtn.addEventListener('click', closePanel);
+// ========== درگ فقط از هدر (اسکرول محتوا جدا است) ==========
+let dragStartY = 0;
+let dragStartTranslate = 0;
+let isDraggingPanel = false;
 
-// Drag to close در موبایل
-//let touchStartY = 0;
-//infoPanelWrapper.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; }, { passive: true });
-//infoPanelWrapper.addEventListener('touchmove', e => {
-//    if (window.innerWidth >= 1024) return;
-//    const deltaY = e.touches[0].clientY - touchStartY;
-//    if (deltaY > 0) {
-//        infoPanelWrapper.style.transform = `translateY(${deltaY}px)`;
-//    }
-//}, { passive: false });
-//infoPanelWrapper.addEventListener('touchend', () => {
-//    if (window.innerWidth >= 1024) return;
-//    const deltaY = event.changedTouches[0].clientY - touchStartY;
-//    if (deltaY > 100) closePanel();
-//    infoPanelWrapper.style.transform = '';
-//});
-// Drag طبیعی در موبایل — بدون بسته شدن خودکار
-//let touchStartY = 0;
-//infoPanelWrapper.addEventListener('touchstart', e => {
-//    touchStartY = e.touches[0].clientY;
-//}, { passive: true });
+function getCurrentTranslatePercent() {
+    if (panelState === 'full') return 0;
+    if (panelState === 'half') return 48;
+    return 78; // peek
+}
 
-//infoPanelWrapper.addEventListener('touchmove', e => {
-//    if (window.innerWidth >= 1024) return;
-//    const deltaY = e.touches[0].clientY - touchStartY;
-//    if (deltaY > 0) { // فقط کشیدن به پایین
-//        infoPanelWrapper.style.transition = 'none';
-//        infoPanelWrapper.style.transform = `translateY(${deltaY}px)`;
-//    }
-//}, { passive: false });
+function onHeaderTouchStart(e) {
+    if (!isMobile()) return;
+    const touch = e.touches[0];
+    dragStartY = touch.clientY;
+    dragStartTranslate = getCurrentTranslatePercent();
+    isDraggingPanel = true;
+    infoPanelWrapper.classList.add('dragging');
+    infoPanelWrapper.style.transition = 'none';
+}
 
-//infoPanelWrapper.addEventListener('touchend', () => {
-//    if (window.innerWidth >= 1024) return;
-    
-    // همیشه به حالت باز برگردد — بسته نشود
-//    infoPanelWrapper.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)';
-//    infoPanelWrapper.style.transform = '';
-//});
-// هندل برای باز کردن دستی پنل با drag به بالا در موبایل
-// باز کردن پنل فقط با drag به بالا از پایین صفحه (در موبایل)
-// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-let touchStartY = 0;
-let isDragging = false;
+function onHeaderTouchMove(e) {
+    if (!isDraggingPanel || !isMobile()) return;
+    e.preventDefault(); // جلوگیری از اسکرول صفحه
+    const touch = e.touches[0];
+    const deltaY = touch.clientY - dragStartY; // مثبت = کشیدن به پایین
+    const deltaPercent = (deltaY / window.innerHeight) * 100;
+    let next = dragStartTranslate + deltaPercent;
+    next = Math.max(0, Math.min(85, next));
+    infoPanelWrapper.style.transform = `translateY(${next}%)`;
+}
 
-infoPanelWrapper.addEventListener('touchstart', e => {
-    if (window.innerWidth >= 1024) return;
-    touchStartY = e.touches[0].clientY;
-    isDragging = true;
-    infoPanelWrapper.style.transition = 'none'; // برای حرکت نرم
-}, { passive: true });
+function onHeaderTouchEnd() {
+    if (!isDraggingPanel || !isMobile()) return;
+    isDraggingPanel = false;
+    infoPanelWrapper.classList.remove('dragging');
+    infoPanelWrapper.style.transition = '';
 
-infoPanelWrapper.addEventListener('touchmove', e => {
-    if (!isDragging || window.innerWidth >= 1024) return;
-    const deltaY = touchStartY - e.touches[0].clientY; // مثبت = کشیدن به بالا
-    if (deltaY > 0) {
-        const progress = Math.min(deltaY / window.innerHeight, 1);
-        const translateY = (0.8 - progress * 0.8) * 100; // از 80% به 0%
-        infoPanelWrapper.style.transform = `translateY(${translateY}%)`;
-    }
-}, { passive: false });
-
-//infoPanelWrapper.addEventListener('touchmove', e => {
-//    if (!isDragging || window.innerWidth >= 1024) return;
-//    const currentY = e.touches[0].clientY;
-//    const deltaY = touchStartY - currentY; // مثبت = کشیدن به بالا
-
-//    if (deltaY > 0) {
-//        const progress = Math.min(deltaY / window.innerHeight, 1); // 0 تا 1
-//        const translateY = (1 - progress) * 100; // از 100% به 0%
-//        infoPanelWrapper.style.transform = `translateY(${translateY}%)`;
-//    }
-//}, { passive: false });
-
-//infoPanelWrapper.addEventListener('touchend', () => {
-//    if (!isDragging || window.innerWidth >= 1024) return;
-//    isDragging = false;
-
-    // تشخیص اینکه کاربر چقدر کشیده
-//    const style = window.getComputedStyle(infoPanelWrapper);
-//    const matrix = style.transform;
-//    const translateY = matrix === 'none' ? 100 : parseFloat(matrix.split(',')[5]) || 100;
-
-//    infoPanelWrapper.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)';
-
-//    if (translateY < 70) { // اگر بیشتر از 30% کشیده شده → باز بماند
-//        infoPanelWrapper.classList.add('open');
-//        infoPanelWrapper.style.transform = 'translateY(0)';
-//    } else {
-//        infoPanelWrapper.classList.remove('open');
-//        infoPanelWrapper.style.transform = 'translateY(100%)';
-//    }
-//});
-
-infoPanelWrapper.addEventListener('touchend', () => {
-    if (!isDragging || window.innerWidth >= 1024) return;
-    isDragging = false;
-
+    // خواندن موقعیت فعلی از استایل موقت
     const style = window.getComputedStyle(infoPanelWrapper);
     const matrix = style.transform;
-    let translateY = 80;
-    if (matrix !== 'none') {
-        const values = matrix.split(',');
-        if (values.length > 5) {
-            translateY = parseFloat(values[5]) / (window.innerHeight * 0.01); // تقریبی
+    let current = dragStartTranslate;
+    if (matrix && matrix !== 'none') {
+        // matrix(a,b,c,d,tx,ty) — ty به پیکسل
+        const parts = matrix.match(/matrix.*\((.+)\)/);
+        if (parts) {
+            const values = parts[1].split(',');
+            if (values.length >= 6) {
+                const ty = parseFloat(values[5]);
+                current = (ty / window.innerHeight) * 100;
+            }
         }
     }
-    infoPanelWrapper.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1)';
 
-    if (translateY < 40) { // بیشتر از نصف کشیده → کامل باز
-        openPanelFully();
+    // آستانه‌ها برای سه حالت
+    if (current < 22) {
+        openPanelFull();
+    } else if (current < 62) {
+        openPanelHalf();
     } else {
         closeToPeek();
     }
-});
-
-// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-
-
-// تابع نمایش محتوا در پنل
-function showInPanel(content) {
-    document.getElementById('infoPanel').innerHTML = content;
-    openPanel(); // در موبایل پنل باز می‌شود
 }
 
-// باقی کدهای شما بدون تغییر (رنگ‌ها، آیکون‌ها، خوشه‌بندی، کلیک‌ها و ...)
+if (panelHeader) {
+    panelHeader.addEventListener('touchstart', onHeaderTouchStart, { passive: true });
+    panelHeader.addEventListener('touchmove', onHeaderTouchMove, { passive: false });
+    panelHeader.addEventListener('touchend', onHeaderTouchEnd);
+    panelHeader.addEventListener('touchcancel', onHeaderTouchEnd);
+
+    // کلیک روی هدر در حالت peek → half
+    panelHeader.addEventListener('click', (e) => {
+        if (!isMobile()) return;
+        if (e.target.closest('.close-btn')) return;
+        if (panelState === 'peek') openPanelHalf();
+        else if (panelState === 'half') openPanelFull();
+    });
+}
+
+// جلوگیری از انتقال gesture اسکرول محتوا به پنل
+if (panelContent) {
+    panelContent.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+    panelContent.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: true });
+}
+
+// تغییر اندازه پنجره
+window.addEventListener('resize', () => {
+    if (!isMobile()) {
+        infoPanelWrapper.classList.remove('panel-peek', 'panel-half', 'panel-full', 'dragging');
+        infoPanelWrapper.style.transform = '';
+    } else if (!infoPanelWrapper.classList.contains('panel-peek') &&
+               !infoPanelWrapper.classList.contains('panel-half') &&
+               !infoPanelWrapper.classList.contains('panel-full')) {
+        setPanelState('peek');
+    }
+});
+
+// ========== انتخابگر نقشه پایه (آیکون + پاپ‌آپ) ==========
+const basemapLayers = {
+    carto: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }),
+    persiangis: L.tileLayer('https://map.persiangis.ir/tile/{z}/{x}/{y}.png', { attribution: '© PersianGIS' }),
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' }),
+    light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }),
+    osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' })
+};
+
+let currentBasemap = basemapLayers.carto;
+currentBasemap.addTo(map);
+let currentBasemapKey = 'carto';
+
+function changeBasemap(val) {
+    if (!basemapLayers[val] || val === currentBasemapKey) return;
+    map.removeLayer(currentBasemap);
+    currentBasemap = basemapLayers[val];
+    currentBasemapKey = val;
+    currentBasemap.addTo(map);
+
+    document.querySelectorAll('.basemap-option').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.value === val);
+    });
+}
+
+function toggleBasemapPopup(forceClose) {
+    if (!basemapPopup || !layersBtn) return;
+    const willOpen = forceClose === true ? false : basemapPopup.hasAttribute('hidden');
+    if (willOpen) {
+        basemapPopup.removeAttribute('hidden');
+        layersBtn.setAttribute('aria-expanded', 'true');
+    } else {
+        basemapPopup.setAttribute('hidden', '');
+        layersBtn.setAttribute('aria-expanded', 'false');
+    }
+}
+
+if (layersBtn) {
+    layersBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleBasemapPopup();
+    });
+}
+
+if (basemapPopup) {
+    basemapPopup.addEventListener('click', (e) => {
+        const opt = e.target.closest('.basemap-option');
+        if (!opt) return;
+        changeBasemap(opt.dataset.value);
+        toggleBasemapPopup(true);
+    });
+}
+
+// بستن پاپ‌آپ با کلیک بیرون
+document.addEventListener('click', (e) => {
+    if (!basemapPopup || basemapPopup.hasAttribute('hidden')) return;
+    if (e.target.closest('.map-controls')) return;
+    toggleBasemapPopup(true);
+});
+
+// ========== توابع کمکی UI ==========
 function toggleAccordion(element) {
     element.classList.toggle('collapsed');
     const content = element.nextElementSibling;
@@ -222,21 +253,6 @@ function getCountyColor(capita, min, max) {
     const b = Math.round(0 + ratio * 236);
     return `rgb(${r},${g},${b})`;
 }
-
-// آیکون‌ها (همان قبلی)
-//const normalIcon = L.divIcon({
-//	html: `<div style="background:#e74c3c; width:12px; height:12px; border-radius:50%; border:2px solid white; box-shadow:0 0 8px rgba(0,0,0,0.7);"></div>`,
-//	className: 'custom-div-icon',
-//	iconSize: [16, 16],
-//	iconAnchor: [8, 8]	
-//});
-
-//const selectedIcon = L.divIcon({
-//	html: `<div style="background:#f1c40f; width:20px; height:20px; border-radius:50%; border:4px solid white; box-shadow:0 0 12px rgba(241,196,15,0.8); animation:pulse 1.5s infinite;"></div>`,
-//	className: 'custom-div-icon',
-//	iconSize: [28, 28],
-//	iconAnchor: [14, 14]
-//});
 
 const projectIcon = L.divIcon({
     html: `<div style="background:#e74c3c; width:10px; height:10px; border-radius:50%; border:2px solid white; box-shadow:0 0 6px rgba(0,0,0,0.8);"></div>`,
@@ -268,20 +284,11 @@ const markersCluster = L.markerClusterGroup({
     }
 });
 
-// انیمیشن پالس
 const stylePulse = document.createElement('style');
 stylePulse.innerHTML = `@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(241,196,15,0.7); } 70% { box-shadow: 0 0 0 10px rgba(241,196,15,0); } 100% { box-shadow: 0 0 0 0 rgba(241,196,15,0); } }`;
 document.head.appendChild(stylePulse);
 
-// بارگذاری استان‌ها، شهرستان‌ها، پروژه‌ها، loadDonors، basemapها، zoomToIran، redirectToDonate
-// تمام کدهای قبلی شما دقیقاً همانجا کپی شده‌اند (به جز showInPanel که حالا openPanel هم صدا می‌زند)
-
-// فقط یک نمونه از تغییر کوچک در کلیک‌ها:
-//layer.on('click', e => {
-//    // ... کدهای قبلی
-//    showInPanel(` ... `); // این تابع حالا در موبایل پنل را هم باز می‌کند
-//});
-
+// ========== بارگذاری استان‌ها ==========
 fetch('data/ir-new.json')
     .then(r => r.json())
     .then(data => {
@@ -307,7 +314,6 @@ fetch('data/ir-new.json')
                 layer.on('click', e => {
                     L.DomEvent.stopPropagation(e);
 
-                    // ریست قبلی‌ها
                     if (selectedLayer) geo.resetStyle(selectedLayer);
                     if (selectedCountyLayer) countiesLayer?.resetStyle(selectedCountyLayer);
                     if (selectedProjectMarker) selectedProjectMarker.setIcon(projectIcon);
@@ -336,6 +342,7 @@ fetch('data/ir-new.json')
         }).addTo(map);
     });
 
+// ========== بارگذاری پروژه‌ها ==========
 fetch('data/Projects.json')
     .then(r => r.json())
     .then(data => {
@@ -349,6 +356,8 @@ fetch('data/Projects.json')
                 marker.properties = a;
 
                 marker.on('click', function(e) {
+                    L.DomEvent.stopPropagation(e);
+
                     if (selectedProjectMarker) {
                         selectedProjectMarker.setIcon(projectIcon);
                     }
@@ -366,7 +375,6 @@ fetch('data/Projects.json')
 
                     let financialInfo = '';
 
-                    // آدرس خزانه: اول funds (مدل جدید)، بعد Legacy
                     const amoyAddress =
                         (a.funds?.polygon_amoy?.address && a.funds.polygon_amoy.address !== 'null'
                             ? a.funds.polygon_amoy.address
@@ -430,14 +438,16 @@ fetch('data/Projects.json')
                                 <span class="info-value">${a['targetAmount(USDT)'] ? Number(a['targetAmount(USDT)']).toLocaleString('fa-IR') + ' USDT' : 'نامشخص'}</span>
                             </div>
 
-							<div id="raisedSummary" style="margin-top:15px;">
-    							<span class="info-label">در حال خواندن مجموع کمک‌ها...</span>
-							</div>
-							<div id="donorsList" style="margin-top:15px;"></div>
+                            <div id="raisedSummary" style="margin-top:15px;">
+                                <span class="info-label">در حال خواندن مجموع کمک‌ها...</span>
+                            </div>
+                            <div id="donorsList" style="margin-top:15px;"></div>
                         `;
                     } else {
                         financialInfo = '<div class="info-item" style="color:#e67e22; margin-top:15px;">خزانه هوشمند هنوز راه‌اندازی نشده</div>';
                     }
+
+                    currentProjectId = a.ProjectID;
 
                     showInPanel(`
                         <div class="accordion-section">
@@ -471,49 +481,27 @@ fetch('data/Projects.json')
                                 <a href="financial-docs.html?project=${a['ProjectID']}" class="report-link" target="_blank">مستندات مالی</a>
                             </div>
                         </div>
-
-                        <div class="fixed-contribute-button" id="fixedContributeBtn" style="display: none;">
-                            <button onclick="redirectToDonate('${a.ProjectID}')">
-                                مشارکت در ساخت
-                            </button>
-                            <p>(انتخاب شبکه و پرداخت با کیف پول)</p>
-                        </div>
                     `);
 
-					if (hasPolygon || tronAddress) {
+                    // دکمه مشارکت بیرون از محتوای اسکرول‌شونده (ثابت در پایین پنل)
+                    if (hasPolygon || tronAddress) {
+                        currentContractAddress = hasPolygon ? amoyAddress : tronAddress;
+                        if (fixedContributeBtn) {
+                            fixedContributeBtn.style.display = 'block';
+                            const btn = fixedContributeBtn.querySelector('button');
+                            if (btn) btn.setAttribute('onclick', `redirectToDonate('${a.ProjectID}')`);
+                        }
+                        loadDonors(a);
+                        loadRaisedSummary(a);
+                    } else {
+                        currentContractAddress = null;
+                        if (fixedContributeBtn) fixedContributeBtn.style.display = 'none';
+                    }
 
-    					currentContractAddress =
-        					hasPolygon
-            					? amoyAddress
-            					: tronAddress;
+                    // برای پروژه‌ها که محتوا زیاد است، full باز شود
+                    if (isMobile()) openPanelFull();
 
-    					const btn =
-        					document.getElementById(
-            					'fixedContributeBtn'
-        					);
-
-    					if (btn) {
-        					btn.style.display = 'block';
-    					}
-
-
-    					/*
-     					* مسیر موجودی و مسیر مشارکت
-     					* کاملاً مستقل هستند.
-     					*
-     					* هر دو فقط Project را دریافت می‌کنند
-     					* و Reader مربوطه خودش شبکه‌ها و
-     					* Fundهای مربوط به Project را پیدا می‌کند.
-     					*/
-						loadDonors(a);
-    					loadRaisedSummary(a);
-					} else {
-    					currentContractAddress = null;
-    					const btn = document.getElementById('fixedContributeBtn');
-    					if (btn) btn.style.display = 'none';
-					}
-
-					map.setView([y, x], 14, { animate: true });
+                    map.setView([y, x], 14, { animate: true });
                 });
 
                 markersCluster.addLayer(marker);
@@ -526,15 +514,14 @@ fetch('data/Projects.json')
     .catch(err => {
         console.error("خطا در بارگذاری پروژه‌ها:", err);
     });
-	
 
-// همین برای شهرستان و پروژه هم اعمال شده
+// ========== شهرستان‌ها ==========
 function showCountiesOfProvince(provinceName) {
     if (!countiesLayer) {
         fetch('data/counties.json')
             .then(r => r.json())
             .then(raw => {
-                let features = raw.features?.[0]?.geometry?.rings 
+                let features = raw.features?.[0]?.geometry?.rings
                     ? raw.features.map(f => ({ type: "Feature", geometry: { type: "Polygon", coordinates: f.geometry.rings }, properties: f.attributes }))
                     : raw.features || raw;
 
@@ -561,10 +548,8 @@ function showCountiesOfProvince(provinceName) {
                             if (selectedCountyLayer && selectedCountyLayer !== layer) countiesLayer.resetStyle(selectedCountyLayer);
                             if (selectedProjectMarker) selectedProjectMarker.setIcon(projectIcon);
 
-                            // <<< این خط مهم بود و درست شد >>>
-                            layer.setStyle({ weight: 6, color: "#c62828", fill: false }); // بدون پر شدن (بی‌رنگ)
+                            layer.setStyle({ weight: 6, color: "#c62828", fill: false });
 
-                            // محو کردن استان
                             if (selectedLayer) {
                                 selectedLayer.setStyle({ fillOpacity: 0 });
                             }
@@ -588,7 +573,7 @@ function showCountiesOfProvince(provinceName) {
                     }
                 });
 
-                showCountiesOfProvince(provinceName); // دوباره فراخوانی برای نمایش
+                showCountiesOfProvince(provinceName);
             });
         return;
     }
@@ -717,7 +702,6 @@ async function loadRaisedSummary(projectAttributes) {
         const target = Number(projectAttributes['targetAmount(USDT)'] || 0);
         const percent = target > 0 ? Math.min((total / target) * 100, 100) : 0;
 
-        // هر شبکه در یک ردیف جدا (زیر هم)
         let detailRows = '';
         breakdown.forEach((b) => {
             if (b.amount > 0) {
@@ -754,7 +738,6 @@ async function loadRaisedSummary(projectAttributes) {
             </div>
         `;
 
-        // اگر موجودی > 0 باشد، پیام «اولین مشارکت‌کننده» را نشان نده
         const donorsEl = document.getElementById('donorsList');
         if (donorsEl && total > 0) {
             const text = (donorsEl.textContent || '').trim();
@@ -768,7 +751,7 @@ async function loadRaisedSummary(projectAttributes) {
         el.innerHTML = '<span class="info-label" style="color:#e74c3c;">خطا در خواندن موجودی</span>';
     }
 }
-// در نهایت:
+
 function zoomToIran() {
     map.flyTo([32.4279, 53.6880], 6, { animate: true, duration: 1.5 });
 
@@ -785,27 +768,10 @@ function zoomToIran() {
         </div>
     `);
 
-    closePanel();
-    fixedContributeBtn.style.display = 'none';
+    closeToPeek();
+    if (fixedContributeBtn) fixedContributeBtn.style.display = 'none';
     currentContractAddress = null;
     currentProjectId = null;
-}
-
-const basemapLayers = {
-        carto: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }),
-        persiangis: L.tileLayer('https://map.persiangis.ir/tile/{z}/{x}/{y}.png', { attribution: '© PersianGIS' }),
-        satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Esri' }),
-        light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }),
-        osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' })
-};
-
-let currentBasemap = basemapLayers.carto;
-currentBasemap.addTo(map);
-	
-function changeBasemap(val) {
-	map.removeLayer(currentBasemap);
-	currentBasemap = basemapLayers[val];
-	currentBasemap.addTo(map);
 }
 
 function redirectToDonate(projectId) {
@@ -814,4 +780,4 @@ function redirectToDonate(projectId) {
     } else {
         alert('پروژه انتخاب نشده است');
     }
-}	
+}
