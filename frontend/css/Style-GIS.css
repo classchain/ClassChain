@@ -2,9 +2,9 @@
 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100vh; overflow: hidden; }
 .container { position: relative; width: 100%; height: 100vh; }
 
-#map { width: 100%; height: 100%; }
+#map { width: 100%; height: 100%; z-index: 1; }
 
-/* ========== پنل دسکتاپ ========== */
+/* ========== پنل ========== */
 .info-panel {
     position: absolute;
     top: 0;
@@ -31,29 +31,11 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .panel-header h1 { font-size: 1.4em; margin-bottom: 5px; color: #ecf0f1; }
 .panel-header p { opacity: 0.9; font-size: 0.9em; color: #bdc3c7; }
 
-.drag-handle {
-    display: none;
-}
-
-.close-btn {
-    position: absolute;
-    left: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    color: white;
-    font-size: 2em;
-    cursor: pointer;
-    opacity: 0.7;
-    line-height: 1;
-    padding: 4px 8px;
-}
-.close-btn:hover { opacity: 1; }
+.drag-handle { display: none; }
 
 .panel-content {
     flex: 1;
-    min-height: 0; /* مهم برای اسکرول داخل flex */
+    min-height: 0;
     padding: 20px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
@@ -64,7 +46,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .panel-content::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 3px; }
 .panel-content::-webkit-scrollbar-thumb { background: #3498db; border-radius: 3px; }
 
-/* آکاردئون */
 .accordion-section { background: rgba(255,255,255,0.1); border-radius: 8px; margin-bottom: 15px; border-right: 4px solid #3498db; overflow: hidden; }
 .accordion-title {
     background: rgba(255,255,255,0.15); padding: 12px 15px; cursor: pointer; font-size: 1.2em; font-weight: bold;
@@ -75,7 +56,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .accordion-content { padding: 15px; display: block; }
 .accordion-content.collapsed { display: none; }
 
-/* اطلاعات */
 .province-info, .project-info { background: rgba(255,255,255,0.1); border-radius: 8px; padding: 15px; margin-bottom: 15px; border-right: 4px solid #3498db; }
 .province-info h3, .project-info h3 { color: #ecf0f1; margin-bottom: 10px; font-size: 1.3em; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 8px; }
 .info-item { display: flex; justify-content: space-between; margin-bottom: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.95em; gap: 10px; }
@@ -86,7 +66,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .no-selection { text-align: center; padding: 40px 20px; color: #bdc3c7; opacity: 0.7; }
 .no-selection .icon { font-size: 3.5em; margin-bottom: 15px; opacity: 0.5; }
 
-/* دکمه مشارکت ثابت */
 .fixed-contribute-button {
     position: sticky;
     bottom: 0;
@@ -113,7 +92,55 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .report-link { display: block; padding: 8px 0; color: #3498db; text-decoration: underline; font-size: 0.95em; }
 .report-link:hover { color: #5ab9ea; }
 
-/* ========== کنترل‌های نقشه ========== */
+/* ========== کنترل‌های چپ: Home + Zoom ========== */
+.left-map-controls {
+    position: absolute;
+    z-index: 900;
+    top: 16px;
+    left: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.map-ctrl-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #2c3e50;
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1;
+    padding: 0;
+    font-family: inherit;
+    transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.map-ctrl-btn:hover {
+    background: #3498db;
+    color: white;
+    transform: scale(1.06);
+}
+.map-ctrl-btn:active {
+    transform: scale(0.96);
+}
+
+/* مخفی کردن زوم پیش‌فرض Leaflet */
+.leaflet-control-zoom {
+    display: none !important;
+}
+.leaflet-control-container {
+    z-index: 400 !important;
+}
+
+/* ========== کنترل لایه‌ها (راست) ========== */
 .map-controls {
     position: absolute;
     z-index: 900;
@@ -193,8 +220,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     border-radius: 6px;
     border: 1px solid rgba(0,0,0,0.12);
     flex-shrink: 0;
-    background-size: cover;
-    background-position: center;
 }
 .basemap-swatch.carto { background: linear-gradient(135deg, #a8e6cf, #56ab91); }
 .basemap-swatch.persiangis { background: linear-gradient(135deg, #f5d76e, #d4a017); }
@@ -202,77 +227,15 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .basemap-swatch.light { background: linear-gradient(135deg, #ecf0f1, #bdc3c7); }
 .basemap-swatch.osm { background: linear-gradient(135deg, #aed6f1, #5dade2); }
 
-.home-button {
-    position: absolute;
-    z-index: 900;
-    top: 16px;
-    left: 12px;
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    background: rgba(255,255,255,0.95);
-    backdrop-filter: blur(12px);
-    box-shadow: 0 4px 14px rgba(0,0,0,0.2);
-    border: 1px solid rgba(255,255,255,0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    color: #2c3e50;
-    transition: all 0.2s ease;
-}
-.home-button:hover { background: #3498db; color: white; transform: scale(1.08); }
-
-/* کنترل‌های Leaflet زیر پنل و کنار Home */
-.leaflet-control-container {
-    z-index: 500 !important;
-}
-.leaflet-top.leaflet-left {
-    top: 16px;
-    left: 12px;
-}
-.leaflet-control-zoom {
-    border: none !important;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.2) !important;
-    margin: 52px 0 0 0 !important; /* زیر دکمه Home */
-    border-radius: 8px !important;
-    overflow: hidden;
-}
-.leaflet-control-zoom a {
-    width: 40px !important;
-    height: 40px !important;
-    line-height: 40px !important;
-    font-size: 18px !important;
-    background: rgba(255,255,255,0.95) !important;
-    color: #2c3e50 !important;
-    border-bottom: 1px solid rgba(0,0,0,0.08) !important;
-}
-.leaflet-control-zoom a:last-child {
-    border-bottom: none !important;
-}
-.leaflet-control-zoom a:hover {
-    background: #3498db !important;
-    color: white !important;
-}
-
-/* ========== موبایل و تبلت (≤1023px) ========== */
+/* ========== موبایل / تبلت ========== */
 @media (max-width: 1023px) {
-    .home-button {
+    .left-map-controls {
         top: 12px;
         left: 10px;
     }
-
     .map-controls {
         top: 12px;
         right: 10px;
-    }
-
-    .leaflet-top.leaflet-left {
-        top: 12px;
-        left: 10px;
-    }
-    .leaflet-control-zoom {
-        margin: 48px 0 0 0 !important;
     }
 
     .info-panel {
@@ -287,22 +250,13 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
         border-radius: 18px 18px 0 0;
         box-shadow: 0 -6px 28px rgba(0,0,0,0.4);
         transform: translateY(78%);
-        overflow: hidden; /* اسکرول فقط داخل panel-content */
+        overflow: hidden;
     }
 
-    .info-panel.panel-peek {
-        transform: translateY(78%);
-    }
-    .info-panel.panel-half {
-        transform: translateY(48%);
-    }
-    .info-panel.panel-full {
-        transform: translateY(0);
-    }
-
-    .info-panel.dragging {
-        transition: none !important;
-    }
+    .info-panel.panel-peek { transform: translateY(78%); }
+    .info-panel.panel-half { transform: translateY(48%); }
+    .info-panel.panel-full { transform: translateY(0); }
+    .info-panel.dragging { transition: none !important; }
 
     .panel-header {
         border-radius: 18px 18px 0 0;
@@ -310,7 +264,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
         user-select: none;
-        /* درگ فقط از handle؛ هدر برای کلیک toggle است */
         touch-action: manipulation;
     }
 
@@ -321,34 +274,20 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
         background: rgba(255,255,255,0.5);
         border-radius: 3px;
         margin: 4px auto 10px;
-        touch-action: none; /* درگ فقط از اینجا */
+        touch-action: none;
         cursor: grab;
     }
-    .drag-handle:active {
-        cursor: grabbing;
-    }
-
-    .close-btn {
-        display: block !important;
-        left: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 1.8em;
-        z-index: 2;
-    }
+    .drag-handle:active { cursor: grabbing; }
 
     .panel-content {
         padding: 14px 16px 20px;
         touch-action: pan-y;
         overscroll-behavior: contain;
-        /* جلوگیری از gesture مرورگر روی parent */
         -webkit-overflow-scrolling: touch;
     }
 }
 
-/* دسکتاپ */
 @media (min-width: 1024px) {
-    .close-btn { display: none; }
     .drag-handle { display: none; }
     .info-panel {
         transform: none !important;
@@ -357,9 +296,5 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     .info-panel.panel-half,
     .info-panel.panel-full {
         transform: none !important;
-    }
-    .home-button {
-        top: 16px;
-        left: 12px;
     }
 }
