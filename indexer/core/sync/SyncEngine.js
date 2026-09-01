@@ -114,12 +114,13 @@ export class SyncEngine {
             options.overlap ?? 10;
 
         /**
-         * Keep each treasury under ~5 eth_getLogs calls
-         * so many treasuries fit in one Worker invocation
-         * (Cloudflare free/subrequest limits).
+         * ~2 eth_getLogs per treasury (chunk=1000).
+         * ~12 Amoy treasuries fit under Cloudflare
+         * Worker subrequest limits in one invocation.
+         * Catch-up completes across successive cron runs.
          */
         const maxBlocksPerRun =
-            options.maxBlocksPerRun ?? 5_000;
+            options.maxBlocksPerRun ?? 2_000;
 
 
         let fromBlock;
