@@ -51,6 +51,10 @@
                 deployment.tokens?.USDT ||
                 {};
 
+            const explorerBase =
+                network.explorerUrl ||
+                '';
+
 
             api.NETWORKS[networkId] = {
 
@@ -73,7 +77,14 @@
                     network.rpcFallbacks || [],
 
                 explorerUrl:
-                    network.explorerUrl,
+                    explorerBase,
+
+                /*
+                 * Alias used by donate.js templates
+                 * (net.explorer / tx links).
+                 */
+                explorer:
+                    explorerBase,
 
                 nativeToken:
                     network.nativeToken,
@@ -319,6 +330,37 @@
             return network
                 ? { ...network }
                 : null;
+        };
+
+
+    /**
+     * Absolute explorer URL for a transaction hash.
+     * EVM:  {explorer}/tx/{hash}
+     * TVM:  {explorer}/#/transaction/{hash}
+     */
+    api.getTxUrl =
+        function (networkId, txHash) {
+
+            const network =
+                api.NETWORKS[networkId];
+
+            if (!network || !txHash) {
+                return null;
+            }
+
+            const base =
+                (network.explorerUrl || network.explorer || '')
+                    .replace(/\/$/, '');
+
+            if (!base) {
+                return null;
+            }
+
+            if (network.type === 'TVM') {
+                return `${base}/#/transaction/${txHash}`;
+            }
+
+            return `${base}/tx/${txHash}`;
         };
 
 
