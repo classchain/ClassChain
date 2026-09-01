@@ -22,6 +22,13 @@ import { createAdapter } from './adapters/createAdapter.js';
 // Phase 1: Amoy only. Re-add 'tron_nile' after Amoy is 0–100 stable.
 const DEFAULT_NETWORK_IDS = ['polygon_amoy'];
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Accept, X-Indexer-Secret',
+  'Access-Control-Max-Age': '86400',
+};
+
 function readNetworkIds(env) {
   if (!env.NETWORK_IDS) return DEFAULT_NETWORK_IDS;
   return env.NETWORK_IDS.split(',').map(s => s.trim()).filter(Boolean);
@@ -65,7 +72,11 @@ async function runIndexer(env, options = {}) {
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body, null, 2), {
     status,
-    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store',
+      ...CORS_HEADERS,
+    },
   });
 }
 
@@ -87,6 +98,11 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
     const method = request.method.toUpperCase();
+
+    // CORS preflight
+    if (method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: CORS_HEADERS });
+    }
 
     // Health
     if (method === 'GET' && path === '/health') {
