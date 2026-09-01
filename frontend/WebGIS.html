@@ -2,7 +2,7 @@
 <html lang="fa" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>WebGIS ایران - بر اساس سرانه جمعیت + پروژه‌های آموزشی</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
@@ -12,8 +12,9 @@
 <body>
     <div class="container">
         <!-- پنل اطلاعات -->
-        <div class="info-panel" id="infoPanelWrapper">
-            <div class="panel-header">
+        <div class="info-panel panel-peek" id="infoPanelWrapper">
+            <div class="panel-header" id="panelHeader">
+                <div class="drag-handle" id="dragHandle" aria-hidden="true"></div>
                 <h1>WebGIS ایران</h1>
                 <p>رنگ بر اساس سرانه جمعیت + پروژه‌های آموزشی</p>
                 <button class="close-btn" id="closePanel" aria-label="بستن پنل">×</button>
@@ -37,15 +38,36 @@
         <div id="map"></div>
     </div>
 
-    <!-- کنترل‌های نقشه -->
-    <div class="custom-basemap-selector">
-        <select id="basemapSelect" onchange="changeBasemap(this.value)">
-            <option value="carto">رنگارنگ و سریع (پیش‌فرض)</option>
-            <option value="persiangis">نقشه فارسی (PersianGIS)</option>
-            <option value="satellite">ماهواره‌ای (Esri)</option>
-            <option value="light">خاکستری روشن</option>
-            <option value="osm">استاندارد (OSM)</option>
-        </select>
+    <!-- کنترل‌های نقشه: انتخابگر لایه به سبک گوگل‌مپ -->
+    <div class="map-controls">
+        <button class="layers-btn" id="layersBtn" type="button" title="تغییر نوع نقشه" aria-label="انتخاب نوع نقشه" aria-expanded="false">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+                <path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16zm0-11.47L17.74 9 12 13.47 6.26 9 12 4.53z"/>
+            </svg>
+        </button>
+
+        <div class="basemap-popup" id="basemapPopup" role="menu" hidden>
+            <button type="button" class="basemap-option active" data-value="carto" role="menuitem">
+                <span class="basemap-swatch carto"></span>
+                <span>رنگارنگ (پیش‌فرض)</span>
+            </button>
+            <button type="button" class="basemap-option" data-value="persiangis" role="menuitem">
+                <span class="basemap-swatch persiangis"></span>
+                <span>نقشه فارسی</span>
+            </button>
+            <button type="button" class="basemap-option" data-value="satellite" role="menuitem">
+                <span class="basemap-swatch satellite"></span>
+                <span>ماهواره‌ای</span>
+            </button>
+            <button type="button" class="basemap-option" data-value="light" role="menuitem">
+                <span class="basemap-swatch light"></span>
+                <span>خاکستری روشن</span>
+            </button>
+            <button type="button" class="basemap-option" data-value="osm" role="menuitem">
+                <span class="basemap-swatch osm"></span>
+                <span>استاندارد (OSM)</span>
+            </button>
+        </div>
     </div>
 
     <div class="home-button" onclick="zoomToIran()" title="بازگشت به ایران">
