@@ -36,6 +36,19 @@ export class SyncEngine {
 
         this.adapters =
             adapters || {};
+
+        /** networkId -> latest block (cached per run) */
+        this._latestBlockCache = new Map();
+    }
+
+
+    async _getLatestBlock(adapter, networkId) {
+        if (this._latestBlockCache.has(networkId)) {
+            return this._latestBlockCache.get(networkId);
+        }
+        const latest = await adapter.getLatestBlock();
+        this._latestBlockCache.set(networkId, latest);
+        return latest;
     }
 
 
@@ -79,7 +92,10 @@ export class SyncEngine {
 
 
         const latestBlock =
-            await adapter.getLatestBlock();
+            await this._getLatestBlock(
+                adapter,
+                treasury.networkId
+            );
 
 
         const safeConfirmations =
@@ -98,13 +114,12 @@ export class SyncEngine {
             options.overlap ?? 10;
 
         /**
-         * Cap blocks advanced per treasury per run.
-         * Prevents Worker subrequest limits and RPC
-         * "max 1000 blocks" failures when far behind.
-         * Default ~40k blocks ≈ 40 eth_getLogs calls.
+         * Keep each treasury under ~5 eth_getLogs calls
+         * so many treasuries fit in one Worker invocation
+         * (Cloudflare free/subrequest limits).
          */
         const maxBlocksPerRun =
-            options.maxBlocksPerRun ?? 40_000;
+            options.maxBlocksPerRun ?? 5_000;
 
 
         let fromBlock;
@@ -129,10 +144,6 @@ export class SyncEngine {
                 state.scan_from_block || 0;
         }
 
-
-        /*
-         * Nothing new to scan.
-         */
 
         if (
             fromBlock >
@@ -166,12 +177,6 @@ export class SyncEngine {
 
 
         try {
-
-            /*
-             * Adapter owns blockchain-specific
-             * logic, but the SyncEngine owns
-             * the block range.
-             */
 
             const discoveredTransfers =
                 await adapter.getTransfers(
@@ -211,12 +216,6 @@ export class SyncEngine {
                 }
             }
 
-
-            /*
-             * Only advance sync state after
-             * blockchain data has been processed
-             * successfully.
-             */
 
             await this.syncStateRepository
                 .markSuccess(

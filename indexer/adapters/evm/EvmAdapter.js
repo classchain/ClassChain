@@ -17,7 +17,6 @@ const TRANSFER_TOPIC =
 
 /**
  * Public RPCs (Amoy) often reject eth_getLogs windows > 1000 blocks.
- * Keep at or below that limit.
  */
 const LOG_CHUNK = 1_000;
 
@@ -32,7 +31,6 @@ function normalizeAddress(addr) {
   return a;
 }
 
-/** topic for indexed address (32-byte padded) */
 function addressToTopic(addr) {
   return '0x' + normalizeAddress(addr).slice(2).padStart(64, '0');
 }
@@ -98,8 +96,8 @@ export class EvmAdapter {
         address: this.tokenAddress,
         topics: [
           TRANSFER_TOPIC,
-          null, // any from
-          toTopic, // only to treasury
+          null,
+          toTopic,
         ],
       });
 
@@ -149,7 +147,7 @@ export class EvmAdapter {
       txHash: txHash.toLowerCase(),
       blockNumber,
       eventIndex,
-      timestamp: 0, // optional later via eth_getBlockByNumber
+      timestamp: 0,
     };
   }
 }
