@@ -22,14 +22,16 @@ const zoomInBtn = document.getElementById('zoomInBtn');
 const zoomOutBtn = document.getElementById('zoomOutBtn');
 const homeBtn = document.getElementById('homeBtn');
 
-if (zoomInBtn) zoomInBtn.addEventListener('click', (e) => { e.stopPropagation(); map.zoomIn(); });
-if (zoomOutBtn) zoomOutBtn.addEventListener('click', (e) => { e.stopPropagation(); map.zoomOut(); });
-if (homeBtn) homeBtn.addEventListener('click', (e) => { e.stopPropagation(); zoomToIran(); });
+if (zoomInBtn) {
+    zoomInBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); map.zoomIn(); });
+}
+if (zoomOutBtn) {
+    zoomOutBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); map.zoomOut(); });
+}
 
 // ========== پنل: peek | half | full ==========
 let panelState = 'peek';
 const isMobile = () => window.innerWidth < 1024;
-
 const STATE_TRANSLATE = { peek: 78, half: 45, full: 0 };
 
 function setPanelState(state) {
@@ -38,7 +40,6 @@ function setPanelState(state) {
     panelState = state;
     infoPanelWrapper.classList.remove('panel-peek', 'panel-half', 'panel-full', 'dragging');
     infoPanelWrapper.classList.add('panel-' + state);
-    // پاک‌کردن استایل اینلاین تا CSS کلاس کار کند
     infoPanelWrapper.style.transform = '';
     infoPanelWrapper.style.transition = '';
 }
@@ -66,7 +67,6 @@ map.getContainer().addEventListener('click', () => {
     if (isMobile() && panelState === 'full') openPanelHalf();
 });
 
-// ========== درگ از handle ==========
 let dragStartY = 0;
 let dragStartTranslate = 0;
 let isDraggingPanel = false;
@@ -79,7 +79,6 @@ function onHandleTouchStart(e) {
     dragStartTranslate = STATE_TRANSLATE[panelState] ?? 78;
     isDraggingPanel = true;
     dragMoved = false;
-    // حذف کلاس‌های state تا !important مانع transform اینلاین نشود
     infoPanelWrapper.classList.remove('panel-peek', 'panel-half', 'panel-full');
     infoPanelWrapper.classList.add('dragging');
     infoPanelWrapper.style.transition = 'none';
@@ -101,20 +100,14 @@ function onHandleTouchEnd() {
     if (!isDraggingPanel || !isMobile()) return;
     isDraggingPanel = false;
     infoPanelWrapper.classList.remove('dragging');
-
-    // خواندن درصد از استایل اینلاین
     let current = dragStartTranslate;
     const m = (infoPanelWrapper.style.transform || '').match(/translate3d\(\s*[^,]+,\s*([\d.]+)%/);
     if (m) current = parseFloat(m[1]);
-
     infoPanelWrapper.style.transform = '';
     infoPanelWrapper.style.transition = '';
-
     if (current < 20) setPanelState('full');
     else if (current < 60) setPanelState('half');
     else setPanelState('peek');
-
-    // جلوگیری از کلیک بلافاصله بعد از درگ
     setTimeout(() => { dragMoved = false; }, 50);
 }
 
@@ -125,14 +118,10 @@ if (dragHandle) {
     dragHandle.addEventListener('touchcancel', onHandleTouchEnd);
 }
 
-// کلیک هدر: peek → half → full → peek
 if (panelHeader) {
-    panelHeader.addEventListener('click', (e) => {
+    panelHeader.addEventListener('click', () => {
         if (!isMobile()) return;
-        if (dragMoved) {
-            dragMoved = false;
-            return;
-        }
+        if (dragMoved) { dragMoved = false; return; }
         cyclePanelFromHeader();
     });
 }
@@ -154,10 +143,6 @@ if (fixedContributeBtn) {
     fixedContributeBtn.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: true });
 }
 
-if (contributeActionBtn) {
-    contributeActionBtn.addEventListener('click', () => redirectToDonate(currentProjectId));
-}
-
 window.addEventListener('resize', () => {
     if (!isMobile()) {
         infoPanelWrapper.classList.remove('panel-peek', 'panel-half', 'panel-full', 'dragging');
@@ -167,7 +152,6 @@ window.addEventListener('resize', () => {
     }
 });
 
-// ========== basemap ==========
 const basemapLayers = {
     carto: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© CartoDB' }),
     persiangis: L.tileLayer('https://map.persiangis.ir/tile/{z}/{x}/{y}.png', { attribution: '© PersianGIS' }),
@@ -524,22 +508,43 @@ async function loadRaisedSummary(projectAttributes) {
 }
 
 function zoomToIran() {
-    map.flyTo([32.4279, 53.6880], 6, { animate: true, duration: 1.5 });
-    if (selectedLayer && geo) { geo.resetStyle(selectedLayer); selectedLayer = null; }
-    if (selectedCountyLayer && countiesLayer) { countiesLayer.resetStyle(selectedCountyLayer); selectedCountyLayer = null; }
-    if (selectedProjectMarker) { selectedProjectMarker.setIcon(projectIcon); selectedProjectMarker = null; }
-    if (countiesLayer) map.removeLayer(countiesLayer);
-    showInPanel(`<div class="no-selection"><div class="icon">🗺️</div><h3>یک مورد را انتخاب کنید</h3><p>روی استان، شهرستان یا پروژه کلیک کنید</p></div>`);
-    closeToPeek();
-    if (fixedContributeBtn) fixedContributeBtn.style.display = 'none';
-    currentContractAddress = null;
-    currentProjectId = null;
+    try {
+        map.flyTo([32.4279, 53.6880], 6, { animate: true, duration: 1.5 });
+        if (selectedLayer && geo) { geo.resetStyle(selectedLayer); selectedLayer = null; }
+        if (selectedCountyLayer && countiesLayer) { countiesLayer.resetStyle(selectedCountyLayer); selectedCountyLayer = null; }
+        if (selectedProjectMarker) { selectedProjectMarker.setIcon(projectIcon); selectedProjectMarker = null; }
+        if (countiesLayer) map.removeLayer(countiesLayer);
+        showInPanel(`<div class="no-selection"><div class="icon">🗺️</div><h3>یک مورد را انتخاب کنید</h3><p>روی استان، شهرستان یا پروژه کلیک کنید</p></div>`);
+        closeToPeek();
+        if (fixedContributeBtn) fixedContributeBtn.style.display = 'none';
+        currentContractAddress = null;
+        currentProjectId = null;
+    } catch (err) {
+        console.error('zoomToIran error:', err);
+        map.setView([32.4279, 53.6880], 6);
+    }
 }
-window.zoomToIran = zoomToIran;
 
 function redirectToDonate(projectId) {
     if (projectId) window.location.href = 'donate.html?project=' + projectId;
     else alert('پروژه انتخاب نشده است');
 }
+
+// اتصال دکمه‌ها بعد از تعریف توابع
+function bindMapControl(el, handler) {
+    if (!el) return;
+    const run = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handler();
+    };
+    el.addEventListener('click', run);
+    el.addEventListener('touchend', run, { passive: false });
+}
+
+bindMapControl(homeBtn, zoomToIran);
+bindMapControl(contributeActionBtn, () => redirectToDonate(currentProjectId));
+
+window.zoomToIran = zoomToIran;
 window.redirectToDonate = redirectToDonate;
 window.toggleAccordion = toggleAccordion;
