@@ -142,41 +142,6 @@ export class TronClient {
     }
 
 
-    async getBlocks(
-        fromBlock,
-        toBlock
-    ) {
-
-        if (
-            !Number.isInteger(fromBlock) ||
-            !Number.isInteger(toBlock) ||
-            fromBlock < 0 ||
-            toBlock < fromBlock
-        ) {
-            throw new Error(
-                'Invalid block range'
-            );
-        }
-
-        const blocks = [];
-
-        for (
-            let block = fromBlock;
-            block <= toBlock;
-            block++
-        ) {
-
-            blocks.push(
-                await this.getBlock(
-                    block
-                )
-            );
-        }
-
-        return blocks;
-    }
-
-
     async getBlockTimestamp(
         blockNumber
     ) {
@@ -229,17 +194,14 @@ export class TronClient {
 
 
     /**
-     * Get TRC20 Transfer events emitted by a token contract.
+     * Incoming TRC20 transfers to a treasury only.
      *
-     * TronGrid endpoint:
+     * Uses account-scoped TronGrid API so we do not
+     * page through the entire USDT event stream
+     * (that caused Worker subrequest limit failures).
      *
-     * /v1/contracts/{contract}/events
-     *
-     * We intentionally query the token contract itself
-     * and filter the destination treasury in TronAdapter.
-     *
-     * This is important because the indexer must see the
-     * complete Transfer event stream of the USDT contract.
+     * GET /v1/accounts/{treasury}/transactions/trc20
+     *   ?only_to=true&contract_address={token}
      */
     async getTRC20Transfers(
         tokenAddress,
@@ -278,14 +240,22 @@ export class TronClient {
 
         let fingerprint = null;
 
+        // Hard cap pages per treasury per call (safety).
+        let pages = 0;
+        const maxPages = 5;
 
-        while (true) {
+
+        while (pages < maxPages) {
+
+            pages += 1;
 
             const params =
                 new URLSearchParams({
 
-                    event_name:
-                        'Transfer',
+                    only_to: 'true',
+
+                    contract_address:
+                        tokenAddress,
 
                     limit:
                         '200',
@@ -313,7 +283,7 @@ export class TronClient {
 
             const response =
                 await this.request(
-                    `/v1/contracts/${tokenAddress}/events?${params.toString()}`,
+                    `/v1/accounts/${treasuryAddress}/transactions/trc20?${params.toString()}`,
                     {
                         method: 'GET'
                     }
@@ -329,87 +299,33 @@ export class TronClient {
 
 
             for (
-                const event of response.data
+                const row of response.data
             ) {
 
-                /*
-                 * We explicitly accept only Transfer events.
-                 */
-                if (
-                    event?.event_name !==
-                    'Transfer'
-                ) {
-                    continue;
-                }
-
-
                 const transactionId =
-                    event?.transaction_id;
-
+                    row?.transaction_id;
 
                 if (!transactionId) {
                     continue;
                 }
 
-
-                /*
-                 * TronGrid exposes event_index.
-                 *
-                 * Use it as part of the identity so that
-                 * two Transfer events in one transaction
-                 * cannot collapse into one another.
-                 */
-                const eventIndex =
-                    Number.isInteger(
-                        event?.event_index
-                    )
-                        ? event.event_index
-                        : null;
-
-
                 const uniqueKey =
-                    `${transactionId}:${eventIndex ?? 'unknown'}`;
+                    `${transactionId}:${row?.block_timestamp ?? ''}:${row?.from ?? ''}:${row?.value ?? ''}`;
 
-
-                if (
-                    seen.has(uniqueKey)
-                ) {
+                if (seen.has(uniqueKey)) {
                     continue;
                 }
 
+                seen.add(uniqueKey);
 
-                seen.add(
-                    uniqueKey
-                );
-
-
-                const result =
-                    event?.result;
-
-
-                if (!result) {
-                    continue;
-                }
-
-
-                /*
-                 * TronGrid may expose both numeric keys
-                 * and named keys.
-                 */
                 const from =
-                    result.from ??
-                    result['0'];
-
+                    row.from;
 
                 const to =
-                    result.to ??
-                    result['1'];
-
+                    row.to;
 
                 const value =
-                    result.value ??
-                    result['2'];
-
+                    row.value;
 
                 if (
                     !from ||
@@ -420,34 +336,32 @@ export class TronClient {
                     continue;
                 }
 
-
-                /*
-                 * Keep the raw Transfer event.
-                 *
-                 * Treasury filtering is intentionally done
-                 * in TronAdapter because this client should
-                 * remain a generic TRC20 event reader.
-                 */
                 transfers.push({
 
                     transaction_id:
                         transactionId,
 
                     event_index:
-                        eventIndex,
+                        Number.isInteger(row?.event_count)
+                            ? row.event_count
+                            : 0,
 
                     block_number:
                         Number.isInteger(
-                            event.block_number
+                            row.block
                         )
-                            ? event.block_number
-                            : null,
+                            ? row.block
+                            : (
+                                Number.isInteger(row.block_number)
+                                    ? row.block_number
+                                    : null
+                            ),
 
                     block_timestamp:
                         Number.isInteger(
-                            event.block_timestamp
+                            row.block_timestamp
                         )
-                            ? event.block_timestamp
+                            ? row.block_timestamp
                             : null,
 
                     from,
@@ -461,7 +375,7 @@ export class TronClient {
                         'Transfer',
 
                     token_info:
-                        event.token_info || {
+                        row.token_info || {
                             symbol: 'USDT',
                             address: tokenAddress
                         }
@@ -469,10 +383,6 @@ export class TronClient {
             }
 
 
-            /*
-             * TronGrid pagination uses the fingerprint
-             * returned in meta.fingerprint.
-             */
             const nextFingerprint =
                 response.meta?.fingerprint;
 
@@ -485,10 +395,6 @@ export class TronClient {
             }
 
 
-            /*
-             * Safety guard against a broken RPC/API response
-             * returning the same fingerprint forever.
-             */
             if (
                 nextFingerprint === fingerprint
             ) {

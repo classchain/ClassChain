@@ -20,7 +20,7 @@
   },
 
   "vars": {
-    "NETWORK_IDS": "polygon_amoy",
+    "NETWORK_IDS": "polygon_amoy,tron_nile",
     "SAFE_CONFIRMATIONS": "20",
     "OVERLAP": "10",
     "PROJECTS_JSON_URL": "https://raw.githubusercontent.com/classchain/ClassChain/Donation/frontend/data/Projects.json"
@@ -28,5 +28,4 @@
 
   // Secret (set via CLI, do not commit):
   // npx wrangler secret put INDEXER_SYNC_SECRET
-  // Phase: polygon_amoy only. Re-add tron_nile after Amoy is stable.
 }

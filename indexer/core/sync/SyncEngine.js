@@ -51,6 +51,20 @@ export class SyncEngine {
         return latest;
     }
 
+    /**
+     * Keep each treasury under a small RPC budget so
+     * Amoy + Nile fit in one Worker invocation.
+     */
+    _maxBlocksPerRun(networkId, options) {
+        if (options.maxBlocksPerRun != null) {
+            return options.maxBlocksPerRun;
+        }
+        if (networkId === 'tron_nile' || String(networkId).startsWith('tron')) {
+            return 3_000;
+        }
+        return 2_000;
+    }
+
 
     async syncTreasury(
         treasury,
@@ -113,14 +127,11 @@ export class SyncEngine {
         const overlap =
             options.overlap ?? 10;
 
-        /**
-         * ~2 eth_getLogs per treasury (chunk=1000).
-         * ~12 Amoy treasuries fit under Cloudflare
-         * Worker subrequest limits in one invocation.
-         * Catch-up completes across successive cron runs.
-         */
         const maxBlocksPerRun =
-            options.maxBlocksPerRun ?? 2_000;
+            this._maxBlocksPerRun(
+                treasury.networkId,
+                options
+            );
 
 
         let fromBlock;

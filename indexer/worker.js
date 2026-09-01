@@ -1,7 +1,7 @@
 /**
  * ClassChain Indexer — Cloudflare Worker + HTTP API
  *
- * Phase: polygon_amoy only (tron_nile deferred until Amoy is stable).
+ * Networks: polygon_amoy + tron_nile
  *
  * Routes:
  *   GET  /health
@@ -19,8 +19,7 @@ import { TransferRepository } from './db/TransferRepository.js';
 import { SyncStateRepository } from './db/SyncStateRepository.js';
 import { createAdapter } from './adapters/createAdapter.js';
 
-// Phase 1: Amoy only. Re-add 'tron_nile' after Amoy is 0–100 stable.
-const DEFAULT_NETWORK_IDS = ['polygon_amoy'];
+const DEFAULT_NETWORK_IDS = ['polygon_amoy', 'tron_nile'];
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -99,17 +98,14 @@ export default {
     const path = url.pathname.replace(/\/+$/, '') || '/';
     const method = request.method.toUpperCase();
 
-    // CORS preflight
     if (method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
 
-    // Health
     if (method === 'GET' && path === '/health') {
       return jsonResponse({ ok: true, service: 'classchain-indexer', networks: readNetworkIds(env) });
     }
 
-    // Manual sync
     if (method === 'POST' && path === '/sync') {
       const secret = env.INDEXER_SYNC_SECRET;
       if (secret && request.headers.get('X-Indexer-Secret') !== secret) {
@@ -122,8 +118,6 @@ export default {
         return jsonResponse({ ok: false, error: e.message }, 500);
       }
     }
-
-    // === API ENDPOINTS ===
 
     if (method === 'GET' && path === '/api/donors') {
       const projectId = url.searchParams.get('projectId');
@@ -166,7 +160,6 @@ export default {
       return jsonResponse({ status: 'ok', treasuries: rows.results });
     }
 
-    // Default 404
     return jsonResponse({ ok: false, error: 'not_found' }, 404);
   },
 };

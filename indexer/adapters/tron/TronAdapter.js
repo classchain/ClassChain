@@ -5,11 +5,14 @@ import {
 } from '../../../shared/network-config.js';
 
 import {
-    tronAddressToHex,
-    tronAddressToTopic,
     tronHexToAddress
-
 } from './TronAddress.js';
+
+
+function normalizeTronAddr(addr) {
+    if (!addr || typeof addr !== 'string') return '';
+    return addr.trim();
+}
 
 
 export class TronAdapter {
@@ -97,14 +100,6 @@ export class TronAdapter {
         }
 
 
-        /*
-         * TronGrid's TRC20 endpoint is timestamp based.
-         *
-         * Resolve the timestamps of the requested
-         * block boundaries and use them as the query
-         * window.
-         */
-
         const fromTimestamp =
             await this.client.getBlockTimestamp(
                 fromBlock
@@ -126,10 +121,18 @@ export class TronAdapter {
         }
 
 
+        const treasuryAddress =
+            normalizeTronAddr(treasury.address);
+
+
+        /*
+         * Account-scoped incoming TRC20 only.
+         * Avoids scanning the global USDT event stream.
+         */
         const result =
             await this.client.getTRC20Transfers(
                 this.tokenAddress,
-                treasury.address,
+                treasuryAddress,
                 fromTimestamp,
                 toTimestamp
             );
@@ -143,58 +146,74 @@ export class TronAdapter {
             (result.data || [])
         ) {
 
-            /*
-             * We only accept incoming USDT transfers.
-             */
-
             if (
                 transfer.type !== 'Transfer'
-
             ) {
                 continue;
             }
 
-
-            /*
-             * Get transaction receipt/logs.
-             */
-
-            const txInfo =
-                await this.client.getTransactionInfo(
-                    transfer.transaction_id
+            const toAddr =
+                normalizeTronAddr(
+                    typeof transfer.to === 'string' && transfer.to.startsWith('T')
+                        ? transfer.to
+                        : (tronHexToAddress(transfer.to) || transfer.to)
                 );
 
-
             if (
-                txInfo?.receipt?.result !==
-                'SUCCESS'
+                toAddr &&
+                toAddr !== treasuryAddress
             ) {
                 continue;
             }
 
+            let blockNumber =
+                Number.isInteger(transfer.block_number)
+                    ? transfer.block_number
+                    : null;
+
+            let eventIndex =
+                Number.isInteger(transfer.event_index)
+                    ? transfer.event_index
+                    : 0;
+
+            let timestamp =
+                Number.isInteger(transfer.block_timestamp)
+                    ? Math.floor(transfer.block_timestamp / 1000)
+                    : null;
 
             /*
-             * Resolve the actual block number.
+             * Only hit gettransactioninfobyid when TronGrid
+             * did not provide block number (keeps subrequests low).
              */
+            if (!Number.isInteger(blockNumber)) {
+                const txInfo =
+                    await this.client.getTransactionInfo(
+                        transfer.transaction_id
+                    );
 
-            const blockNumber =
-                txInfo.blockNumber;
+                if (
+                    txInfo?.receipt?.result &&
+                    txInfo.receipt.result !== 'SUCCESS'
+                ) {
+                    continue;
+                }
 
+                blockNumber =
+                    txInfo?.blockNumber;
+
+                if (
+                    Number.isInteger(txInfo?.blockTimeStamp)
+                ) {
+                    timestamp =
+                        Math.floor(txInfo.blockTimeStamp / 1000);
+                }
+            }
 
             if (
                 !Number.isInteger(blockNumber)
             ) {
                 continue;
             }
-
-
-            /*
-             * Timestamp filtering is not enough.
-             *
-             * TronGrid queries by timestamp, so we
-             * explicitly enforce the requested block
-             * range here.
-             */
 
             if (
                 blockNumber < fromBlock ||
@@ -203,52 +222,26 @@ export class TronAdapter {
                 continue;
             }
 
-
-            /*
-             * Find the canonical TRC20 Transfer event.
-             */
-
-            const event =
-                this._findTransferEvent(
-                    txInfo,
-                    this.tokenAddress,
-                    treasury.address
-                );
-
-
-            if (!event) {
-                continue;
-            }
-
-
-            /*
-             * TRON transaction timestamp is
-             * milliseconds since Unix epoch.
-             */
-
-            const timestamp =
-                Number.isInteger(
-                    txInfo.blockTimeStamp
-                )
-                    ? Math.floor(
-                        txInfo.blockTimeStamp / 1000
-                    )
-                    : null;
-
-
             if (
                 !Number.isInteger(timestamp)
             ) {
-                continue;
+                timestamp = 0;
             }
 
+            let donor =
+                transfer.from;
 
-            /*
-             * Normalized transfer record.
-             *
-             * This is the canonical contract between
-             * Adapter and SyncEngine.
-             */
+            if (
+                typeof donor === 'string' &&
+                !donor.startsWith('T')
+            ) {
+                donor =
+                    tronHexToAddress(donor) || donor;
+            }
+
+            const amountNum =
+                Number(transfer.value) /
+                Math.pow(10, this.tokenDecimals);
 
             transfers.push({
 
@@ -264,10 +257,7 @@ export class TronAdapter {
                 treasury:
                     treasury.address,
 
-                donor:
-                    tronHexToAddress(
-                        transfer.from
-                    ),
+                donor,
 
                 token:
                     'USDT',
@@ -281,21 +271,14 @@ export class TronAdapter {
                     ),
 
                 amount:
-                    Number(
-                        transfer.value
-                    ) /
-                    Math.pow(
-                        10,
-                        this.tokenDecimals
-                    ),
+                    amountNum,
 
                 txHash:
                     transfer.transaction_id,
 
                 blockNumber,
 
-                eventIndex:
-                    event.index,
+                eventIndex,
 
                 timestamp
             });
@@ -303,65 +286,5 @@ export class TronAdapter {
 
 
         return transfers;
-    }
-
-
-    _findTransferEvent(
-        txInfo,
-        tokenAddress,
-        treasuryAddress
-    ) {
-
-        const TRANSFER_TOPIC =
-            'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
-
-
-        const tokenHex =
-            tronAddressToHex(
-                tokenAddress
-            )
-                .slice(-40)
-                .toLowerCase();
-
-
-        const treasuryTopic =
-            tronAddressToTopic(
-                treasuryAddress
-            )
-                .toLowerCase();
-
-
-        return (
-            txInfo?.log || []
-        )
-            .map(
-                (log, index) => ({
-                    log,
-                    index
-                })
-            )
-            .find(
-                ({ log }) => {
-
-                    if (
-                        log.address?.toLowerCase() !==
-                        tokenHex
-                    ) {
-                        return false;
-                    }
-
-                    if (
-                        log.topics?.[0]?.toLowerCase() !==
-                        TRANSFER_TOPIC
-                    ) {
-                        return false;
-                    }
-
-                    return (
-                        log.topics?.[2]?.toLowerCase() ===
-                        treasuryTopic
-                    );
-                }
-            ) || null;
     }
 }
