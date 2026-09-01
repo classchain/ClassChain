@@ -11,6 +11,51 @@
 </head>
 <body>
     <div class="container">
+        <!-- نقشه -->
+        <div id="map"></div>
+
+        <!-- کنترل‌های چپ: Home + Zoom -->
+        <div class="left-map-controls" id="leftMapControls">
+            <button class="map-ctrl-btn" type="button" id="homeBtn" title="بازگشت به ایران" aria-label="بازگشت به ایران">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                </svg>
+            </button>
+            <button class="map-ctrl-btn" type="button" id="zoomInBtn" title="بزرگ‌نمایی" aria-label="بزرگ‌نمایی">+</button>
+            <button class="map-ctrl-btn" type="button" id="zoomOutBtn" title="کوچک‌نمایی" aria-label="کوچک‌نمایی">−</button>
+        </div>
+
+        <!-- کنترل لایه‌ها -->
+        <div class="map-controls">
+            <button class="layers-btn" id="layersBtn" type="button" title="تغییر نوع نقشه" aria-label="انتخاب نوع نقشه" aria-expanded="false">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+                    <path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16zm0-11.47L17.74 9 12 13.47 6.26 9 12 4.53z"/>
+                </svg>
+            </button>
+            <div class="basemap-popup" id="basemapPopup" role="menu" hidden>
+                <button type="button" class="basemap-option active" data-value="carto" role="menuitem">
+                    <span class="basemap-swatch carto"></span>
+                    <span>رنگارنگ (پیش‌فرض)</span>
+                </button>
+                <button type="button" class="basemap-option" data-value="persiangis" role="menuitem">
+                    <span class="basemap-swatch persiangis"></span>
+                    <span>نقشه فارسی</span>
+                </button>
+                <button type="button" class="basemap-option" data-value="satellite" role="menuitem">
+                    <span class="basemap-swatch satellite"></span>
+                    <span>ماهواره‌ای</span>
+                </button>
+                <button type="button" class="basemap-option" data-value="light" role="menuitem">
+                    <span class="basemap-swatch light"></span>
+                    <span>خاکستری روشن</span>
+                </button>
+                <button type="button" class="basemap-option" data-value="osm" role="menuitem">
+                    <span class="basemap-swatch osm"></span>
+                    <span>استاندارد (OSM)</span>
+                </button>
+            </div>
+        </div>
+
         <!-- پنل اطلاعات -->
         <div class="info-panel panel-peek" id="infoPanelWrapper">
             <div class="panel-header" id="panelHeader">
@@ -26,64 +71,15 @@
                 </div>
             </div>
             <div class="fixed-contribute-button" id="fixedContributeBtn">
-                <button onclick="redirectToDonate(currentProjectId)">
-                    مشارکت در ساخت
-                </button>
+                <button type="button" id="contributeActionBtn">مشارکت در ساخت</button>
                 <p>(انتخاب شبکه و پرداخت با کیف پول)</p>
             </div>
-        </div>
-
-        <!-- نقشه -->
-        <div id="map"></div>
-    </div>
-
-    <!-- کنترل‌های چپ: Home + Zoom (هم‌لایه، زیر پنل) -->
-    <div class="left-map-controls" id="leftMapControls">
-        <button class="map-ctrl-btn" type="button" onclick="zoomToIran()" title="بازگشت به ایران" aria-label="بازگشت به ایران">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
-                <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-            </svg>
-        </button>
-        <button class="map-ctrl-btn" type="button" id="zoomInBtn" title="بزرگ‌نمایی" aria-label="بزرگ‌نمایی">+</button>
-        <button class="map-ctrl-btn" type="button" id="zoomOutBtn" title="کوچک‌نمایی" aria-label="کوچک‌نمایی">−</button>
-    </div>
-
-    <!-- کنترل لایه‌ها (راست) -->
-    <div class="map-controls">
-        <button class="layers-btn" id="layersBtn" type="button" title="تغییر نوع نقشه" aria-label="انتخاب نوع نقشه" aria-expanded="false">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-                <path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16zm0-11.47L17.74 9 12 13.47 6.26 9 12 4.53z"/>
-            </svg>
-        </button>
-
-        <div class="basemap-popup" id="basemapPopup" role="menu" hidden>
-            <button type="button" class="basemap-option active" data-value="carto" role="menuitem">
-                <span class="basemap-swatch carto"></span>
-                <span>رنگارنگ (پیش‌فرض)</span>
-            </button>
-            <button type="button" class="basemap-option" data-value="persiangis" role="menuitem">
-                <span class="basemap-swatch persiangis"></span>
-                <span>نقشه فارسی</span>
-            </button>
-            <button type="button" class="basemap-option" data-value="satellite" role="menuitem">
-                <span class="basemap-swatch satellite"></span>
-                <span>ماهواره‌ای</span>
-            </button>
-            <button type="button" class="basemap-option" data-value="light" role="menuitem">
-                <span class="basemap-swatch light"></span>
-                <span>خاکستری روشن</span>
-            </button>
-            <button type="button" class="basemap-option" data-value="osm" role="menuitem">
-                <span class="basemap-swatch osm"></span>
-                <span>استاندارد (OSM)</span>
-            </button>
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
-
     <script src="js/network-config.js"></script>
     <script src="js/raised-reader.js"></script>
     <script src="js/donor-reader.js"></script>
