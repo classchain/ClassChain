@@ -1,6 +1,9 @@
 let currentContractAddress = null;
 let currentProjectId = null;
-const map = L.map('map', { renderer: L.canvas() }).setView([32.4279, 53.6880], 5);
+const map = L.map('map', {
+    renderer: L.canvas(),
+    zoomControl: false
+}).setView([32.4279, 53.6880], 5);
 
 let selectedLayer = null;
 let selectedCountyLayer = null;
@@ -8,16 +11,27 @@ let selectedProjectMarker = null;
 let geo, countiesLayer = null, projectsLayer = null;
 
 const infoPanelWrapper = document.getElementById('infoPanelWrapper');
-const closePanelBtn = document.getElementById('closePanel');
 const fixedContributeBtn = document.getElementById('fixedContributeBtn');
 const panelHeader = document.getElementById('panelHeader');
 const panelContent = document.getElementById('infoPanel');
 const dragHandle = document.getElementById('dragHandle');
 const layersBtn = document.getElementById('layersBtn');
 const basemapPopup = document.getElementById('basemapPopup');
+const zoomInBtn = document.getElementById('zoomInBtn');
+const zoomOutBtn = document.getElementById('zoomOutBtn');
 
-// ========== مدیریت حالت پنل (فقط موبایل/تبلت) ==========
-// سه حالت: peek | half | full
+// ========== زوم سفارشی (هم‌لایه با Home، زیر پنل) ==========
+if (zoomInBtn) zoomInBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    map.zoomIn();
+});
+if (zoomOutBtn) zoomOutBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    map.zoomOut();
+});
+
+// ========== مدیریت حالت پنل ==========
+// سه حالت: peek (min) | half | full (max)
 let panelState = 'peek';
 const isMobile = () => window.innerWidth < 1024;
 
@@ -26,31 +40,20 @@ function setPanelState(state) {
     panelState = state;
     infoPanelWrapper.classList.remove('panel-peek', 'panel-half', 'panel-full', 'dragging');
     infoPanelWrapper.classList.add('panel-' + state);
-    // پاک کردن transform اینلاین تا CSS کلاس‌ها اعمال شوند
     infoPanelWrapper.style.transform = '';
     infoPanelWrapper.style.transition = '';
 }
 
-function openPanelHalf() {
-    setPanelState('half');
-}
+function openPanelHalf() { setPanelState('half'); }
+function openPanelFull() { setPanelState('full'); }
+function closeToPeek() { setPanelState('peek'); }
 
-function openPanelFull() {
-    setPanelState('full');
-}
-
-function closeToPeek() {
-    setPanelState('peek');
-}
-
-function togglePanelFromHeader() {
+// چرخه: min → half → max → min
+function cyclePanelFromHeader() {
     if (!isMobile()) return;
-    if (panelState === 'peek') {
-        openPanelHalf();
-    } else {
-        // half یا full → بستن به peek
-        closeToPeek();
-    }
+    if (panelState === 'peek') openPanelHalf();
+    else if (panelState === 'half') openPanelFull();
+    else closeToPeek();
 }
 
 function openPanel() {
@@ -63,27 +66,15 @@ function closePanel() {
 
 function showInPanel(content) {
     panelContent.innerHTML = content;
-    if (isMobile()) {
-        openPanelHalf();
-    }
-}
-
-// دکمه × → peek
-if (closePanelBtn) {
-    closePanelBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        closeToPeek();
-    });
+    if (isMobile()) openPanelHalf();
 }
 
 // کلیک روی نقشه → اگر full باشد به half
 map.getContainer().addEventListener('click', () => {
-    if (isMobile() && panelState === 'full') {
-        openPanelHalf();
-    }
+    if (isMobile() && panelState === 'full') openPanelHalf();
 });
 
-// ========== درگ فقط از drag-handle (نه کل هدر، نه محتوا) ==========
+// ========== درگ فقط از drag-handle ==========
 let dragStartY = 0;
 let dragStartTranslate = 0;
 let isDraggingPanel = false;
@@ -113,8 +104,7 @@ function onHandleTouchMove(e) {
     const deltaY = touch.clientY - dragStartY;
     if (Math.abs(deltaY) > 4) dragMoved = true;
     const deltaPercent = (deltaY / window.innerHeight) * 100;
-    let next = dragStartTranslate + deltaPercent;
-    next = Math.max(0, Math.min(85, next));
+    let next = Math.max(0, Math.min(85, dragStartTranslate + deltaPercent));
     infoPanelWrapper.style.transform = `translateY(${next}%)`;
 }
 
@@ -132,19 +122,14 @@ function onHandleTouchEnd() {
         if (parts) {
             const values = parts[1].split(',');
             if (values.length >= 6) {
-                const ty = parseFloat(values[5]);
-                current = (ty / window.innerHeight) * 100;
+                current = (parseFloat(values[5]) / window.innerHeight) * 100;
             }
         }
     }
 
-    if (current < 22) {
-        openPanelFull();
-    } else if (current < 62) {
-        openPanelHalf();
-    } else {
-        closeToPeek();
-    }
+    if (current < 22) openPanelFull();
+    else if (current < 62) openPanelHalf();
+    else closeToPeek();
 }
 
 if (dragHandle) {
@@ -154,43 +139,35 @@ if (dragHandle) {
     dragHandle.addEventListener('touchcancel', onHandleTouchEnd);
 }
 
-// کلیک روی هدر اصلی → toggle باز/بسته (بدون تداخل با لینک‌ها و آکاردئون که داخل محتوا هستند)
+// کلیک هدر: peek → half → full → peek
 if (panelHeader) {
     panelHeader.addEventListener('click', (e) => {
         if (!isMobile()) return;
-        if (e.target.closest('.close-btn')) return;
-        // اگر درگ واقعی از handle بوده، کلیک را نادیده بگیر
+        if (e.target.closest('.drag-handle') && dragMoved) {
+            dragMoved = false;
+            return;
+        }
         if (dragMoved) {
             dragMoved = false;
             return;
         }
-        togglePanelFromHeader();
+        cyclePanelFromHeader();
     });
 }
 
-// محتوا: اسکرول کاملاً مستقل — هیچ تغییری روی اندازه پنل
 if (panelContent) {
-    // جلوگیری از bubble شدن gesture به parent
-    panelContent.addEventListener('touchstart', (e) => {
-        e.stopPropagation();
-    }, { passive: true });
-
+    panelContent.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
     panelContent.addEventListener('touchmove', (e) => {
         e.stopPropagation();
-        // اگر به هر دلیل درگ پنل فعال شده بود، لغو شود
         if (isDraggingPanel) {
             isDraggingPanel = false;
             infoPanelWrapper.classList.remove('dragging');
-            setPanelState(panelState); // برگشت به حالت پایدار
+            setPanelState(panelState);
         }
     }, { passive: true });
-
-    panelContent.addEventListener('touchend', (e) => {
-        e.stopPropagation();
-    }, { passive: true });
+    panelContent.addEventListener('touchend', (e) => e.stopPropagation(), { passive: true });
 }
 
-// دکمه مشارکت هم نباید درگ پنل را فعال کند
 if (fixedContributeBtn) {
     fixedContributeBtn.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
     fixedContributeBtn.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: true });
@@ -226,7 +203,6 @@ function changeBasemap(val) {
     currentBasemap = basemapLayers[val];
     currentBasemapKey = val;
     currentBasemap.addTo(map);
-
     document.querySelectorAll('.basemap-option').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.value === val);
     });
@@ -266,11 +242,9 @@ document.addEventListener('click', (e) => {
     toggleBasemapPopup(true);
 });
 
-// ========== توابع کمکی UI ==========
 function toggleAccordion(element) {
     element.classList.toggle('collapsed');
-    const content = element.nextElementSibling;
-    content.classList.toggle('collapsed');
+    element.nextElementSibling.classList.toggle('collapsed');
 }
 
 function getProvinceColor(capita, min, max) {
@@ -325,7 +299,6 @@ const stylePulse = document.createElement('style');
 stylePulse.innerHTML = `@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(241,196,15,0.7); } 70% { box-shadow: 0 0 0 10px rgba(241,196,15,0); } 100% { box-shadow: 0 0 0 0 rgba(241,196,15,0); } }`;
 document.head.appendChild(stylePulse);
 
-// ========== بارگذاری استان‌ها ==========
 fetch('data/ir-new.json')
     .then(r => r.json())
     .then(data => {
@@ -379,7 +352,6 @@ fetch('data/ir-new.json')
         }).addTo(map);
     });
 
-// ========== بارگذاری پروژه‌ها ==========
 fetch('data/Projects.json')
     .then(r => r.json())
     .then(data => {
@@ -395,91 +367,66 @@ fetch('data/Projects.json')
                 marker.on('click', function(e) {
                     L.DomEvent.stopPropagation(e);
 
-                    if (selectedProjectMarker) {
-                        selectedProjectMarker.setIcon(projectIcon);
-                    }
-
+                    if (selectedProjectMarker) selectedProjectMarker.setIcon(projectIcon);
                     this.setIcon(selectedProjectIcon);
                     selectedProjectMarker = this;
 
-                    if (selectedLayer) {
-                        selectedLayer.setStyle({ fillOpacity: 0 });
-                    }
-
-                    if (selectedCountyLayer) {
-                        selectedCountyLayer.setStyle({ fillOpacity: 0 });
-                    }
+                    if (selectedLayer) selectedLayer.setStyle({ fillOpacity: 0 });
+                    if (selectedCountyLayer) selectedCountyLayer.setStyle({ fillOpacity: 0 });
 
                     let financialInfo = '';
 
                     const amoyAddress =
                         (a.funds?.polygon_amoy?.address && a.funds.polygon_amoy.address !== 'null'
-                            ? a.funds.polygon_amoy.address
-                            : null) ||
+                            ? a.funds.polygon_amoy.address : null) ||
                         (a.contractAddress && a.contractAddress !== 'null' && a.contractAddress !== ''
-                            ? a.contractAddress
-                            : null);
+                            ? a.contractAddress : null);
 
                     const tronAddress =
                         (a.funds?.tron_nile?.address && a.funds.tron_nile.address !== 'null'
-                            ? a.funds.tron_nile.address
-                            : null) ||
+                            ? a.funds.tron_nile.address : null) ||
                         (a.funds?.tron?.address && a.funds.tron.address !== 'null'
-                            ? a.funds.tron.address
-                            : null) ||
+                            ? a.funds.tron.address : null) ||
                         (a.contractAddressTron && a.contractAddressTron !== 'null' && a.contractAddressTron !== ''
-                            ? a.contractAddressTron
-                            : null);
+                            ? a.contractAddressTron : null);
 
                     const hasPolygon = !!amoyAddress;
 
                     if (hasPolygon || tronAddress) {
                         let fundsHtml = '';
-
                         if (hasPolygon) {
                             fundsHtml += `
                                 <div class="info-item" style="background:rgba(130,71,229,0.15); padding:12px; border-radius:8px; margin-top:10px;">
                                     <span class="info-label">🟣 خزانه Polygon Amoy:</span><br>
                                     <span class="info-value contract-address">
                                         <a href="https://amoy.polygonscan.com/address/${amoyAddress}" target="_blank"
-                                           style="color:#8247E5; text-decoration:underline; word-break:break-all;">
-                                            ${amoyAddress}
-                                        </a>
+                                           style="color:#8247E5; text-decoration:underline; word-break:break-all;">${amoyAddress}</a>
                                     </span>
-                                </div>
-                            `;
+                                </div>`;
                         }
-
                         if (tronAddress) {
                             fundsHtml += `
                                 <div class="info-item" style="background:rgba(239,0,39,0.12); padding:12px; border-radius:8px; margin-top:10px;">
                                     <span class="info-label">🔴 خزانه Tron Nile:</span><br>
                                     <span class="info-value contract-address">
                                         <a href="https://nile.tronscan.org/#/address/${tronAddress}" target="_blank"
-                                           style="color:#EF0027; text-decoration:underline; word-break:break-all;">
-                                            ${tronAddress}
-                                        </a>
+                                           style="color:#EF0027; text-decoration:underline; word-break:break-all;">${tronAddress}</a>
                                     </span>
-                                </div>
-                            `;
+                                </div>`;
                         }
-
                         financialInfo = `
                             <div style="margin-top:10px;">
                                 <span class="info-label" style="font-weight:bold;">خزانه‌های هوشمند پروژه:</span>
                                 ${fundsHtml}
                             </div>
-
                             <div class="info-item" style="margin-top:15px;">
                                 <span class="info-label">برآورد هزینه ساخت:</span>
                                 <span class="info-value">${a['targetAmount(USDT)'] ? Number(a['targetAmount(USDT)']).toLocaleString('fa-IR') + ' USDT' : 'نامشخص'}</span>
                             </div>
-
                             <div id="raisedSummary" style="margin-top:15px;">
                                 <span class="info-label">در حال خواندن مجموع کمک‌ها...</span>
                             </div>
-                            <div id="donorsList" style="margin-top:15px;"></div>
-                        `;
+                            <div id="donorsList" style="margin-top:15px;"></div>`;
                     } else {
                         financialInfo = '<div class="info-item" style="color:#e67e22; margin-top:15px;">خزانه هوشمند هنوز راه‌اندازی نشده</div>';
                     }
@@ -503,14 +450,10 @@ fetch('data/Projects.json')
                                 ${a['آدرس پروژه'] ? `<div class="info-item"><span class="info-label">آدرس:</span><span class="info-value">${a['آدرس پروژه']}</span></div>` : ''}
                             </div>
                         </div>
-
                         <div class="accordion-section">
                             <div class="accordion-title" onclick="toggleAccordion(this)">اطلاعات مالی</div>
-                            <div class="accordion-content">
-                                ${financialInfo}
-                            </div>
+                            <div class="accordion-content">${financialInfo}</div>
                         </div>
-
                         <div class="accordion-section">
                             <div class="accordion-title" onclick="toggleAccordion(this)">گزارشات پروژه</div>
                             <div class="accordion-content">
@@ -535,7 +478,6 @@ fetch('data/Projects.json')
                     }
 
                     if (isMobile()) openPanelFull();
-
                     map.setView([y, x], 14, { animate: true });
                 });
 
@@ -546,9 +488,7 @@ fetch('data/Projects.json')
         map.addLayer(markersCluster);
         console.log(`${data.features.length} پروژه با خوشه‌بندی بارگذاری شد`);
     })
-    .catch(err => {
-        console.error("خطا در بارگذاری پروژه‌ها:", err);
-    });
+    .catch(err => console.error("خطا در بارگذاری پروژه‌ها:", err));
 
 function showCountiesOfProvince(provinceName) {
     if (!countiesLayer) {
@@ -575,23 +515,15 @@ function showCountiesOfProvince(provinceName) {
                     },
                     onEachFeature: (feature, layer) => {
                         const c = feature.properties;
-
                         layer.on('click', e => {
                             L.DomEvent.stopPropagation(e);
-
                             if (selectedCountyLayer && selectedCountyLayer !== layer) countiesLayer.resetStyle(selectedCountyLayer);
                             if (selectedProjectMarker) selectedProjectMarker.setIcon(projectIcon);
-
                             layer.setStyle({ weight: 6, color: "#c62828", fill: false });
-
-                            if (selectedLayer) {
-                                selectedLayer.setStyle({ fillOpacity: 0 });
-                            }
-
+                            if (selectedLayer) selectedLayer.setStyle({ fillOpacity: 0 });
                             selectedCountyLayer = layer;
                             layer.bringToFront();
                             map.fitBounds(layer.getBounds(), { padding: [30, 30], animate: true, duration: 1 });
-
                             showInPanel(`
                                 <div class="province-info">
                                     <h3>${c.Name || c.name || 'نامشخص'}</h3>
@@ -602,11 +534,9 @@ function showCountiesOfProvince(provinceName) {
                                 </div>
                             `);
                         });
-
                         if ((c.pname || c.Pname) === provinceName) layer.addTo(map);
                     }
                 });
-
                 showCountiesOfProvince(provinceName);
             });
         return;
@@ -648,12 +578,8 @@ function aggregateIndexerDonors(rows) {
     if (!key) continue;
     const amount = Number(row.amount) || 0;
     const prev = map.get(key);
-    if (!prev) {
-      map.set(key, { donor: row.donor, total: amount, count: 1 });
-    } else {
-      prev.total += amount;
-      prev.count += 1;
-    }
+    if (!prev) map.set(key, { donor: row.donor, total: amount, count: 1 });
+    else { prev.total += amount; prev.count += 1; }
   }
   return [...map.values()].sort((a, b) => b.total - a.total);
 }
@@ -661,125 +587,67 @@ function aggregateIndexerDonors(rows) {
 async function loadDonors(projectAttributes) {
   const el = document.getElementById('donorsList');
   if (!el) return;
-
-  const projectId = String(
-    projectAttributes?.ProjectID ||
-    projectAttributes?.projectId ||
-    ''
-  );
-
-  if (!projectId) {
-    el.innerHTML = '';
-    return;
-  }
-
-  el.innerHTML =
-    '<span class="info-label">در حال بارگذاری مشارکت‌کنندگان...</span>';
-
+  const projectId = String(projectAttributes?.ProjectID || projectAttributes?.projectId || '');
+  if (!projectId) { el.innerHTML = ''; return; }
+  el.innerHTML = '<span class="info-label">در حال بارگذاری مشارکت‌کنندگان...</span>';
   try {
-    const res = await fetch(
-      `${INDEXER_API}/api/donors?projectId=${encodeURIComponent(projectId)}`,
-      { headers: { Accept: 'application/json' } }
-    );
+    const res = await fetch(`${INDEXER_API}/api/donors?projectId=${encodeURIComponent(projectId)}`, { headers: { Accept: 'application/json' } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
     const data = await res.json();
     const list = aggregateIndexerDonors(data.donors || []);
-
     if (!list.length) {
-      el.innerHTML =
-        '<span class="info-label">هنوز مشارکتی ثبت نشده — شما می‌توانید اولین نفر باشید.</span>';
+      el.innerHTML = '<span class="info-label">هنوز مشارکتی ثبت نشده — شما می‌توانید اولین نفر باشید.</span>';
       return;
     }
-
-    const rows = list
-      .slice(0, 12)
-      .map(
-        (d) => `
+    const rows = list.slice(0, 12).map(d => `
         <div style="display:flex;justify-content:space-between;gap:8px;font-size:0.92em;padding:3px 0;">
           <span title="${d.donor}">${shortDonorAddr(d.donor)}</span>
           <span><strong>${d.total.toFixed(2)}</strong> USDT</span>
-        </div>`
-      )
-      .join('');
-
-    const more =
-      list.length > 12
-        ? `<div style="opacity:.75;margin-top:4px;">و ${list.length - 12} مورد دیگر…</div>`
-        : '';
-
-    el.innerHTML = `
-      <div class="info-label" style="margin-bottom:6px;">مشارکت‌کنندگان (${list.length})</div>
-      ${rows}
-      ${more}
-    `;
+        </div>`).join('');
+    const more = list.length > 12 ? `<div style="opacity:.75;margin-top:4px;">و ${list.length - 12} مورد دیگر…</div>` : '';
+    el.innerHTML = `<div class="info-label" style="margin-bottom:6px;">مشارکت‌کنندگان (${list.length})</div>${rows}${more}`;
   } catch (e) {
     console.error('[WebGIS] Indexer donors failed:', e);
-    el.innerHTML =
-      '<span class="info-label" style="color:#e74c3c;">خطا در خواندن مشارکت‌کنندگان</span>';
+    el.innerHTML = '<span class="info-label" style="color:#e74c3c;">خطا در خواندن مشارکت‌کنندگان</span>';
   }
 }
 
 async function loadRaisedSummary(projectAttributes) {
     const el = document.getElementById('raisedSummary');
     if (!el) return;
-
     el.innerHTML = '<span class="info-label">در حال خواندن مجموع کمک‌ها از زنجیره...</span>';
-
     try {
         if (!window.ClassChainRaisedReader) {
             el.innerHTML = '<span class="info-label" style="color:#e67e22;">ماژول خواندن موجودی لود نشده</span>';
             return;
         }
-
         const { total, breakdown } = await window.ClassChainRaisedReader.getProjectRaisedUSDT(projectAttributes);
         const target = Number(projectAttributes['targetAmount(USDT)'] || 0);
         const percent = target > 0 ? Math.min((total / target) * 100, 100) : 0;
-
         let detailRows = '';
         breakdown.forEach((b) => {
             if (b.amount > 0) {
                 detailRows += `
-                    <div style="
-                        display:flex;
-                        justify-content:space-between;
-                        align-items:center;
-                        font-size:12px;
-                        color:#ecf0f1;
-                        margin-top:8px;
-                        padding:8px 10px;
-                        background:rgba(255,255,255,0.06);
-                        border-radius:6px;
-                        gap:10px;
-                    ">
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#ecf0f1;margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.06);border-radius:6px;gap:10px;">
                         <span style="opacity:0.9;">${b.network}</span>
                         <span style="font-weight:600; white-space:nowrap;">${b.amount.toFixed(2)} USDT</span>
-                    </div>
-                `;
+                    </div>`;
             }
         });
-
         el.innerHTML = `
             <div class="info-item" style="background:rgba(46,204,113,0.15);padding:12px;border-radius:8px;">
                 <div style="margin-bottom:4px;">
                     <span class="info-label" style="display:block; margin-bottom:6px;">مجموع کمک‌ها (همه شبکه‌ها)</span>
-                    <span class="info-value" style="font-weight:bold;color:#2ecc71;font-size:1.15em;display:block;">
-                        ${total.toFixed(2)} USDT
-                    </span>
+                    <span class="info-value" style="font-weight:bold;color:#2ecc71;font-size:1.15em;display:block;">${total.toFixed(2)} USDT</span>
                 </div>
                 ${target ? `<div style="font-size:12px;margin-top:8px;opacity:0.85;">هدف: ${target.toLocaleString('fa-IR')} USDT — ${percent.toFixed(1)}٪</div>` : ''}
                 ${detailRows ? `<div style="margin-top:10px; border-top:1px solid rgba(255,255,255,0.1); padding-top:4px;">${detailRows}</div>` : ''}
-            </div>
-        `;
-
+            </div>`;
         const donorsEl = document.getElementById('donorsList');
         if (donorsEl && total > 0) {
             const text = (donorsEl.textContent || '').trim();
-            if (text.includes('اولین مشارکت') || text.includes('هنوز کمک')) {
-                donorsEl.innerHTML = '';
-            }
+            if (text.includes('اولین مشارکت') || text.includes('هنوز کمک')) donorsEl.innerHTML = '';
         }
-
     } catch (e) {
         console.error(e);
         el.innerHTML = '<span class="info-label" style="color:#e74c3c;">خطا در خواندن موجودی</span>';
@@ -788,12 +656,10 @@ async function loadRaisedSummary(projectAttributes) {
 
 function zoomToIran() {
     map.flyTo([32.4279, 53.6880], 6, { animate: true, duration: 1.5 });
-
     if (selectedLayer && geo) { geo.resetStyle(selectedLayer); selectedLayer = null; }
     if (selectedCountyLayer && countiesLayer) { countiesLayer.resetStyle(selectedCountyLayer); selectedCountyLayer = null; }
     if (selectedProjectMarker) { selectedProjectMarker.setIcon(projectIcon); selectedProjectMarker = null; }
     if (countiesLayer) map.removeLayer(countiesLayer);
-
     showInPanel(`
         <div class="no-selection">
             <div class="icon">🗺️</div>
@@ -801,7 +667,6 @@ function zoomToIran() {
             <p>روی استان، شهرستان یا پروژه کلیک کنید</p>
         </div>
     `);
-
     closeToPeek();
     if (fixedContributeBtn) fixedContributeBtn.style.display = 'none';
     currentContractAddress = null;
@@ -809,9 +674,6 @@ function zoomToIran() {
 }
 
 function redirectToDonate(projectId) {
-    if (projectId) {
-        window.location.href = 'donate.html?project=' + projectId;
-    } else {
-        alert('پروژه انتخاب نشده است');
-    }
+    if (projectId) window.location.href = 'donate.html?project=' + projectId;
+    else alert('پروژه انتخاب نشده است');
 }
