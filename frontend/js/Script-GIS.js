@@ -1,5 +1,8 @@
 let currentContractAddress = null;
 let currentProjectId = null;
+/** نوع انتخاب فعلی روی نقشه: none | province | county | project */
+let selectionKind = 'none';
+
 const map = L.map('map', {
     renderer: L.canvas(),
     zoomControl: false
@@ -21,6 +24,24 @@ const basemapPopup = document.getElementById('basemapPopup');
 const zoomInBtn = document.getElementById('zoomInBtn');
 const zoomOutBtn = document.getElementById('zoomOutBtn');
 const homeBtn = document.getElementById('homeBtn');
+
+/**
+ * Context مشارکت فقط برای پروژهٔ دارای خزانه معتبر است.
+ * با هر انتخاب استان/شهرستان/ریست باید پاک شود تا CTA اشتباه نماند.
+ */
+function clearDonateContext() {
+    currentProjectId = null;
+    currentContractAddress = null;
+    if (fixedContributeBtn) fixedContributeBtn.style.display = 'none';
+}
+
+function enableDonateContext(projectId, contractAddress) {
+    currentProjectId = projectId || null;
+    currentContractAddress = contractAddress || null;
+    if (fixedContributeBtn) {
+        fixedContributeBtn.style.display = currentProjectId ? 'block' : 'none';
+    }
+}
 
 if (zoomInBtn) {
     zoomInBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); map.zoomIn(); });
@@ -265,9 +286,17 @@ fetch('data/ir-new.json').then(r => r.json()).then(data => {
             const p = feature.properties;
             layer.on('click', e => {
                 L.DomEvent.stopPropagation(e);
+
                 if (selectedLayer) geo.resetStyle(selectedLayer);
                 if (selectedCountyLayer) countiesLayer?.resetStyle(selectedCountyLayer);
-                if (selectedProjectMarker) selectedProjectMarker.setIcon(projectIcon);
+                if (selectedProjectMarker) {
+                    selectedProjectMarker.setIcon(projectIcon);
+                    selectedProjectMarker = null;
+                }
+
+                selectionKind = 'province';
+                clearDonateContext();
+
                 layer.setStyle({ weight: 6, color: '#e74c3c', fillOpacity: 0.9 });
                 selectedLayer = layer;
                 layer.bringToFront();
@@ -303,6 +332,8 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
             if (selectedLayer) selectedLayer.setStyle({ fillOpacity: 0 });
             if (selectedCountyLayer) selectedCountyLayer.setStyle({ fillOpacity: 0 });
 
+            selectionKind = 'project';
+
             const amoyAddress =
                 (a.funds?.polygon_amoy?.address && a.funds.polygon_amoy.address !== 'null' ? a.funds.polygon_amoy.address : null) ||
                 (a.contractAddress && a.contractAddress !== 'null' && a.contractAddress !== '' ? a.contractAddress : null);
@@ -311,9 +342,10 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
                 (a.funds?.tron?.address && a.funds.tron.address !== 'null' ? a.funds.tron.address : null) ||
                 (a.contractAddressTron && a.contractAddressTron !== 'null' && a.contractAddressTron !== '' ? a.contractAddressTron : null);
             const hasPolygon = !!amoyAddress;
+            const hasTreasury = hasPolygon || !!tronAddress;
 
             let financialInfo = '';
-            if (hasPolygon || tronAddress) {
+            if (hasTreasury) {
                 let fundsHtml = '';
                 if (hasPolygon) {
                     fundsHtml += `<div class="info-item" style="background:rgba(130,71,229,0.15); padding:12px; border-radius:8px; margin-top:10px;">
@@ -333,7 +365,6 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
                 financialInfo = '<div class="info-item" style="color:#e67e22; margin-top:15px;">خزانه هوشمند هنوز راه‌اندازی نشده</div>';
             }
 
-            currentProjectId = a.ProjectID;
             showInPanel(`
                 <div class="accordion-section"><div class="accordion-title" onclick="toggleAccordion(this)">اطلاعات عمومی پروژه</div>
                 <div class="accordion-content">
@@ -356,15 +387,14 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
                     <a href="financial-docs.html?project=${a['ProjectID']}" class="report-link" target="_blank">مستندات مالی</a>
                 </div></div>`);
 
-            if (hasPolygon || tronAddress) {
-                currentContractAddress = hasPolygon ? amoyAddress : tronAddress;
-                if (fixedContributeBtn) fixedContributeBtn.style.display = 'block';
+            if (hasTreasury) {
+                enableDonateContext(a.ProjectID, hasPolygon ? amoyAddress : tronAddress);
                 loadDonors(a);
                 loadRaisedSummary(a);
             } else {
-                currentContractAddress = null;
-                if (fixedContributeBtn) fixedContributeBtn.style.display = 'none';
+                clearDonateContext();
             }
+
             if (isMobile()) openPanelFull();
             map.setView([y, x], 14, { animate: true });
         });
@@ -391,8 +421,16 @@ function showCountiesOfProvince(provinceName) {
                     const c = feature.properties;
                     layer.on('click', e => {
                         L.DomEvent.stopPropagation(e);
+
                         if (selectedCountyLayer && selectedCountyLayer !== layer) countiesLayer.resetStyle(selectedCountyLayer);
-                        if (selectedProjectMarker) selectedProjectMarker.setIcon(projectIcon);
+                        if (selectedProjectMarker) {
+                            selectedProjectMarker.setIcon(projectIcon);
+                            selectedProjectMarker = null;
+                        }
+
+                        selectionKind = 'county';
+                        clearDonateContext();
+
                         layer.setStyle({ weight: 6, color: '#c62828', fill: false });
                         if (selectedLayer) selectedLayer.setStyle({ fillOpacity: 0 });
                         selectedCountyLayer = layer;
@@ -514,11 +552,12 @@ function zoomToIran() {
         if (selectedCountyLayer && countiesLayer) { countiesLayer.resetStyle(selectedCountyLayer); selectedCountyLayer = null; }
         if (selectedProjectMarker) { selectedProjectMarker.setIcon(projectIcon); selectedProjectMarker = null; }
         if (countiesLayer) map.removeLayer(countiesLayer);
+
+        selectionKind = 'none';
+        clearDonateContext();
+
         showInPanel(`<div class="no-selection"><div class="icon">🗺️</div><h3>یک مورد را انتخاب کنید</h3><p>روی استان، شهرستان یا پروژه کلیک کنید</p></div>`);
         closeToPeek();
-        if (fixedContributeBtn) fixedContributeBtn.style.display = 'none';
-        currentContractAddress = null;
-        currentProjectId = null;
     } catch (err) {
         console.error('zoomToIran error:', err);
         map.setView([32.4279, 53.6880], 6);
@@ -526,11 +565,14 @@ function zoomToIran() {
 }
 
 function redirectToDonate(projectId) {
-    if (projectId) window.location.href = 'donate.html?project=' + projectId;
-    else alert('پروژه انتخاب نشده است');
+    // فقط وقتی واقعاً یک پروژهٔ قابل‌مشارکت انتخاب شده باشد
+    if (selectionKind !== 'project' || !projectId) {
+        alert('پروژه انتخاب نشده است');
+        return;
+    }
+    window.location.href = 'donate.html?project=' + projectId;
 }
 
-// اتصال دکمه‌ها بعد از تعریف توابع
 function bindMapControl(el, handler) {
     if (!el) return;
     const run = (e) => {
