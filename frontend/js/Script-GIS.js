@@ -39,7 +39,6 @@ function enableDonateContext(projectId, contractAddress) {
     }
 }
 
-/** نرمال‌سازی آدرس خزانه */
 function normalizeFundAddress(value) {
     if (value == null) return null;
     const s = String(value).trim();
@@ -47,10 +46,6 @@ function normalizeFundAddress(value) {
     return s;
 }
 
-/**
- * جمع‌آوری همه خزانه‌های پروژه از funds + فیلدهای legacy
- * خروجی مقیاس‌پذیر: هر شبکهٔ جدید در a.funds خودکار اضافه می‌شود
- */
 function collectProjectFunds(projectAttributes) {
     const a = projectAttributes || {};
     const byNetwork = new Map();
@@ -63,7 +58,6 @@ function collectProjectFunds(projectAttributes) {
         byNetwork.set(networkId, { networkId, address });
     }
 
-    // legacy سازگاری با دادهٔ قدیمی
     const legacyPolygon = normalizeFundAddress(a.contractAddress);
     if (legacyPolygon && !byNetwork.has('polygon_amoy')) {
         byNetwork.set('polygon_amoy', { networkId: 'polygon_amoy', address: legacyPolygon });
@@ -89,7 +83,6 @@ function getNetworkMeta(networkId) {
             explorerUrl: (net.explorerUrl || net.explorer || '').replace(/\/$/, '')
         };
     }
-    // fallback اگر config هنوز آماده نباشد
     const FALLBACK = {
         polygon_amoy: { name: 'Polygon Amoy', type: 'EVM', color: '#8247E5', icon: '🟣', explorerUrl: 'https://amoy.polygonscan.com' },
         tron_nile: { name: 'Tron Nile', type: 'TVM', color: '#EF0027', icon: '🔴', explorerUrl: 'https://nile.tronscan.org' },
@@ -114,7 +107,7 @@ function fundExplorerUrl(meta, address) {
 
 /**
  * HTML خزانه‌ها: یک ستون، دو ردیف (نام شبکه + آدرس)
- * رنگ از هویت شبکه؛ آدرس روی پس‌زمینه تیره برای خوانایی
+ * ترکیب رنگ قبلی: پس‌زمینه ملایم با رنگ شبکه + لینک آدرس هم‌رنگ شبکه
  */
 function buildFundsHtml(projectAttributes) {
     const entries = collectProjectFunds(projectAttributes);
@@ -126,33 +119,25 @@ function buildFundsHtml(projectAttributes) {
         const color = meta.color;
         const addrInner = href
             ? `<a href="${href}" target="_blank" rel="noopener noreferrer"
-                  style="color:#ffffff; text-decoration:underline; text-underline-offset:2px; word-break:break-all;">${address}</a>`
-            : `<span style="color:#ffffff; word-break:break-all;">${address}</span>`;
+                  style="color:${color}; text-decoration:underline; word-break:break-all;">${address}</a>`
+            : `<span style="color:${color}; word-break:break-all;">${address}</span>`;
 
         return `
         <div style="
             margin-top:10px;
-            border-radius:10px;
-            overflow:hidden;
-            border:1px solid ${color}55;
-            background: linear-gradient(135deg, ${color}28 0%, ${color}12 100%);
+            padding:12px;
+            border-radius:8px;
+            background:${color}26;
         ">
             <div style="
-                padding:10px 12px 6px;
-                font-weight:700;
+                font-weight:bold;
+                color:#bdc3c7;
+                margin-bottom:8px;
                 font-size:0.95em;
-                color:#ecf0f1;
-                letter-spacing:0.01em;
             ">${meta.icon} ${meta.name}</div>
             <div style="
-                margin:0 10px 10px;
-                padding:10px 12px;
-                border-radius:8px;
-                background: rgba(0,0,0,0.45);
-                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-                font-size:0.82em;
-                line-height:1.45;
-                color:#ffffff;
+                font-size:0.85em;
+                line-height:1.4;
             ">${addrInner}</div>
         </div>`;
     }).join('');
