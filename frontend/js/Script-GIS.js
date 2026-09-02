@@ -25,10 +25,6 @@ const zoomInBtn = document.getElementById('zoomInBtn');
 const zoomOutBtn = document.getElementById('zoomOutBtn');
 const homeBtn = document.getElementById('homeBtn');
 
-/**
- * Context مشارکت فقط برای پروژهٔ دارای خزانه معتبر است.
- * با هر انتخاب استان/شهرستان/ریست باید پاک شود تا CTA اشتباه نماند.
- */
 function clearDonateContext() {
     currentProjectId = null;
     currentContractAddress = null;
@@ -43,6 +39,131 @@ function enableDonateContext(projectId, contractAddress) {
     }
 }
 
+/** نرمال‌سازی آدرس خزانه */
+function normalizeFundAddress(value) {
+    if (value == null) return null;
+    const s = String(value).trim();
+    if (!s || s === 'null' || s === 'undefined') return null;
+    return s;
+}
+
+/**
+ * جمع‌آوری همه خزانه‌های پروژه از funds + فیلدهای legacy
+ * خروجی مقیاس‌پذیر: هر شبکهٔ جدید در a.funds خودکار اضافه می‌شود
+ */
+function collectProjectFunds(projectAttributes) {
+    const a = projectAttributes || {};
+    const byNetwork = new Map();
+
+    const funds = a.funds && typeof a.funds === 'object' ? a.funds : {};
+    for (const [networkId, entry] of Object.entries(funds)) {
+        if (!entry || typeof entry !== 'object') continue;
+        const address = normalizeFundAddress(entry.address);
+        if (!address) continue;
+        byNetwork.set(networkId, { networkId, address });
+    }
+
+    // legacy سازگاری با دادهٔ قدیمی
+    const legacyPolygon = normalizeFundAddress(a.contractAddress);
+    if (legacyPolygon && !byNetwork.has('polygon_amoy')) {
+        byNetwork.set('polygon_amoy', { networkId: 'polygon_amoy', address: legacyPolygon });
+    }
+    const legacyTron = normalizeFundAddress(a.contractAddressTron);
+    if (legacyTron && !byNetwork.has('tron_nile') && !byNetwork.has('tron_mainnet')) {
+        byNetwork.set('tron_nile', { networkId: 'tron_nile', address: legacyTron });
+    }
+
+    return [...byNetwork.values()];
+}
+
+function getNetworkMeta(networkId) {
+    const cfg = window.ClassChainNetworkConfig;
+    const net = cfg?.getNetwork?.(networkId) || cfg?.NETWORKS?.[networkId] || null;
+    if (net) {
+        return {
+            id: net.id || networkId,
+            name: net.name || networkId,
+            type: net.type || 'EVM',
+            color: net.color || '#3498db',
+            icon: net.icon || '💎',
+            explorerUrl: (net.explorerUrl || net.explorer || '').replace(/\/$/, '')
+        };
+    }
+    // fallback اگر config هنوز آماده نباشد
+    const FALLBACK = {
+        polygon_amoy: { name: 'Polygon Amoy', type: 'EVM', color: '#8247E5', icon: '🟣', explorerUrl: 'https://amoy.polygonscan.com' },
+        tron_nile: { name: 'Tron Nile', type: 'TVM', color: '#EF0027', icon: '🔴', explorerUrl: 'https://nile.tronscan.org' },
+        tron_mainnet: { name: 'Tron Mainnet', type: 'TVM', color: '#EF0027', icon: '🔴', explorerUrl: 'https://tronscan.org' }
+    };
+    const fb = FALLBACK[networkId] || {};
+    return {
+        id: networkId,
+        name: fb.name || networkId,
+        type: fb.type || 'EVM',
+        color: fb.color || '#3498db',
+        icon: fb.icon || '💎',
+        explorerUrl: fb.explorerUrl || ''
+    };
+}
+
+function fundExplorerUrl(meta, address) {
+    if (!meta.explorerUrl || !address) return null;
+    if (meta.type === 'TVM') return `${meta.explorerUrl}/#/address/${address}`;
+    return `${meta.explorerUrl}/address/${address}`;
+}
+
+/**
+ * HTML خزانه‌ها: یک ستون، دو ردیف (نام شبکه + آدرس)
+ * رنگ از هویت شبکه؛ آدرس روی پس‌زمینه تیره برای خوانایی
+ */
+function buildFundsHtml(projectAttributes) {
+    const entries = collectProjectFunds(projectAttributes);
+    if (!entries.length) return { html: '', hasTreasury: false, primaryAddress: null };
+
+    const cards = entries.map(({ networkId, address }) => {
+        const meta = getNetworkMeta(networkId);
+        const href = fundExplorerUrl(meta, address);
+        const color = meta.color;
+        const addrInner = href
+            ? `<a href="${href}" target="_blank" rel="noopener noreferrer"
+                  style="color:#ffffff; text-decoration:underline; text-underline-offset:2px; word-break:break-all;">${address}</a>`
+            : `<span style="color:#ffffff; word-break:break-all;">${address}</span>`;
+
+        return `
+        <div style="
+            margin-top:10px;
+            border-radius:10px;
+            overflow:hidden;
+            border:1px solid ${color}55;
+            background: linear-gradient(135deg, ${color}28 0%, ${color}12 100%);
+        ">
+            <div style="
+                padding:10px 12px 6px;
+                font-weight:700;
+                font-size:0.95em;
+                color:#ecf0f1;
+                letter-spacing:0.01em;
+            ">${meta.icon} ${meta.name}</div>
+            <div style="
+                margin:0 10px 10px;
+                padding:10px 12px;
+                border-radius:8px;
+                background: rgba(0,0,0,0.45);
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                font-size:0.82em;
+                line-height:1.45;
+                color:#ffffff;
+            ">${addrInner}</div>
+        </div>`;
+    }).join('');
+
+    return {
+        html: cards,
+        hasTreasury: true,
+        primaryAddress: entries[0].address
+    };
+}
+
 if (zoomInBtn) {
     zoomInBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); map.zoomIn(); });
 }
@@ -50,7 +171,6 @@ if (zoomOutBtn) {
     zoomOutBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); map.zoomOut(); });
 }
 
-// ========== پنل: peek | half | full ==========
 let panelState = 'peek';
 const isMobile = () => window.innerWidth < 1024;
 const STATE_TRANSLATE = { peek: 78, half: 45, full: 0 };
@@ -334,31 +454,19 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
 
             selectionKind = 'project';
 
-            const amoyAddress =
-                (a.funds?.polygon_amoy?.address && a.funds.polygon_amoy.address !== 'null' ? a.funds.polygon_amoy.address : null) ||
-                (a.contractAddress && a.contractAddress !== 'null' && a.contractAddress !== '' ? a.contractAddress : null);
-            const tronAddress =
-                (a.funds?.tron_nile?.address && a.funds.tron_nile.address !== 'null' ? a.funds.tron_nile.address : null) ||
-                (a.funds?.tron?.address && a.funds.tron.address !== 'null' ? a.funds.tron.address : null) ||
-                (a.contractAddressTron && a.contractAddressTron !== 'null' && a.contractAddressTron !== '' ? a.contractAddressTron : null);
-            const hasPolygon = !!amoyAddress;
-            const hasTreasury = hasPolygon || !!tronAddress;
+            const { html: fundsCards, hasTreasury, primaryAddress } = buildFundsHtml(a);
 
             let financialInfo = '';
             if (hasTreasury) {
-                let fundsHtml = '';
-                if (hasPolygon) {
-                    fundsHtml += `<div class="info-item" style="background:rgba(130,71,229,0.15); padding:12px; border-radius:8px; margin-top:10px;">
-                        <span class="info-label">🟣 خزانه Polygon Amoy:</span><br>
-                        <span class="info-value contract-address"><a href="https://amoy.polygonscan.com/address/${amoyAddress}" target="_blank" style="color:#8247E5;text-decoration:underline;word-break:break-all;">${amoyAddress}</a></span></div>`;
-                }
-                if (tronAddress) {
-                    fundsHtml += `<div class="info-item" style="background:rgba(239,0,39,0.12); padding:12px; border-radius:8px; margin-top:10px;">
-                        <span class="info-label">🔴 خزانه Tron Nile:</span><br>
-                        <span class="info-value contract-address"><a href="https://nile.tronscan.org/#/address/${tronAddress}" target="_blank" style="color:#EF0027;text-decoration:underline;word-break:break-all;">${tronAddress}</a></span></div>`;
-                }
-                financialInfo = `<div style="margin-top:10px;"><span class="info-label" style="font-weight:bold;">خزانه‌های هوشمند پروژه:</span>${fundsHtml}</div>
-                    <div class="info-item" style="margin-top:15px;"><span class="info-label">برآورد هزینه ساخت:</span><span class="info-value">${a['targetAmount(USDT)'] ? Number(a['targetAmount(USDT)']).toLocaleString('fa-IR') + ' USDT' : 'نامشخص'}</span></div>
+                financialInfo = `
+                    <div style="margin-top:4px;">
+                        <span class="info-label" style="font-weight:bold; display:block; margin-bottom:4px;">خزانه‌های هوشمند پروژه</span>
+                        ${fundsCards}
+                    </div>
+                    <div class="info-item" style="margin-top:15px;">
+                        <span class="info-label">برآورد هزینه ساخت:</span>
+                        <span class="info-value">${a['targetAmount(USDT)'] ? Number(a['targetAmount(USDT)']).toLocaleString('fa-IR') + ' USDT' : 'نامشخص'}</span>
+                    </div>
                     <div id="raisedSummary" style="margin-top:15px;"><span class="info-label">در حال خواندن مجموع کمک‌ها...</span></div>
                     <div id="donorsList" style="margin-top:15px;"></div>`;
             } else {
@@ -388,7 +496,7 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
                 </div></div>`);
 
             if (hasTreasury) {
-                enableDonateContext(a.ProjectID, hasPolygon ? amoyAddress : tronAddress);
+                enableDonateContext(a.ProjectID, primaryAddress);
                 loadDonors(a);
                 loadRaisedSummary(a);
             } else {
@@ -565,7 +673,6 @@ function zoomToIran() {
 }
 
 function redirectToDonate(projectId) {
-    // فقط وقتی واقعاً یک پروژهٔ قابل‌مشارکت انتخاب شده باشد
     if (selectionKind !== 'project' || !projectId) {
         alert('پروژه انتخاب نشده است');
         return;
