@@ -185,9 +185,13 @@ function cyclePanelFromHeader() {
 function openPanel() { if (isMobile()) openPanelHalf(); }
 function closePanel() { if (isMobile()) closeToPeek(); }
 
-function showInPanel(content) {
+/** content را در پنل می‌گذارد؛ panelOpenState: null | 'half' | 'full' | 'peek' */
+function showInPanel(content, panelOpenState) {
     panelContent.innerHTML = content;
-    if (isMobile()) openPanelHalf();
+    if (!isMobile()) return;
+    if (panelOpenState === 'full') openPanelFull();
+    else if (panelOpenState === 'peek') closeToPeek();
+    else openPanelHalf();
 }
 
 map.getContainer().addEventListener('click', () => {
@@ -459,9 +463,12 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
                 financialInfo = '<div class="info-item" style="color:#e67e22; margin-top:15px;">خزانه هوشمند هنوز راه‌اندازی نشده</div>';
             }
 
+            // موبایل/تبلت: آکاردئون‌ها جمع؛ دسکتاپ باز
+            const accCls = isMobile() ? ' collapsed' : '';
+
             showInPanel(`
-                <div class="accordion-section"><div class="accordion-title" onclick="toggleAccordion(this)">اطلاعات عمومی پروژه</div>
-                <div class="accordion-content">
+                <div class="accordion-section"><div class="accordion-title${accCls}" onclick="toggleAccordion(this)">اطلاعات عمومی پروژه</div>
+                <div class="accordion-content${accCls}">
                     <div class="info-item"><span class="info-label">نام پروژه:</span><span class="info-value">${a['نام پروژه'] || 'بدون نام'}</span></div>
                     <div class="info-item"><span class="info-label">کد پروژه:</span><span class="info-value">${a['ProjectID']}</span></div>
                     <div class="info-item"><span class="info-label">استان:</span><span class="info-value">${a['استان']}</span></div>
@@ -474,12 +481,12 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
                     <div class="info-item"><span class="info-label">تلفن:</span><span class="info-value">${a['شماره تلفن مسئول پروژه'] || '—'}</span></div>
                     ${a['آدرس پروژه'] ? `<div class="info-item"><span class="info-label">آدرس:</span><span class="info-value">${a['آدرس پروژه']}</span></div>` : ''}
                 </div></div>
-                <div class="accordion-section"><div class="accordion-title" onclick="toggleAccordion(this)">اطلاعات مالی</div><div class="accordion-content">${financialInfo}</div></div>
-                <div class="accordion-section"><div class="accordion-title" onclick="toggleAccordion(this)">گزارشات پروژه</div>
-                <div class="accordion-content">
+                <div class="accordion-section"><div class="accordion-title${accCls}" onclick="toggleAccordion(this)">اطلاعات مالی</div><div class="accordion-content${accCls}">${financialInfo}</div></div>
+                <div class="accordion-section"><div class="accordion-title${accCls}" onclick="toggleAccordion(this)">گزارشات پروژه</div>
+                <div class="accordion-content${accCls}">
                     <a href="project-images.html?project=${a['ProjectID']}" class="report-link" target="_blank">تصاویر</a>
                     <a href="financial-docs.html?project=${a['ProjectID']}" class="report-link" target="_blank">مستندات مالی</a>
-                </div></div>`);
+                </div></div>`, isMobile() ? 'full' : null);
 
             if (hasTreasury) {
                 enableDonateContext(a.ProjectID, primaryAddress);
@@ -489,7 +496,6 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
                 clearDonateContext();
             }
 
-            if (isMobile()) openPanelFull();
             map.setView([y, x], 14, { animate: true });
         });
         markersCluster.addLayer(marker);
@@ -650,8 +656,7 @@ function zoomToIran() {
         selectionKind = 'none';
         clearDonateContext();
 
-        showInPanel(`<div class="no-selection"><div class="icon">🗺️</div><h3>یک مورد را انتخاب کنید</h3><p>روی استان، شهرستان یا پروژه کلیک کنید</p></div>`);
-        closeToPeek();
+        showInPanel(`<div class="no-selection"><div class="icon">🗺️</div><h3>یک مورد را انتخاب کنید</h3><p>روی استان، شهرستان یا پروژه کلیک کنید</p></div>`, 'peek');
     } catch (err) {
         console.error('zoomToIran error:', err);
         map.setView([32.4279, 53.6880], 6);
