@@ -68,12 +68,11 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .info-item { display: flex; justify-content: space-between; margin-bottom: 8px; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 0.95em; gap: 10px; }
 .info-label { font-weight: bold; color: #bdc3c7; flex-shrink: 0; }
 .info-value { color: #ecf0f1; text-align: left; }
-.contract-address { word-break: break-all; font-size: 0.85em; line-height: 1.4; }
+.contract-address { word-break: break-all; font-size: 0.85em; line-height: 1.4; direction: ltr; text-align: left; }
 
 .no-selection { text-align: center; padding: 40px 20px; color: #bdc3c7; opacity: 0.7; }
 .no-selection .icon { font-size: 3.5em; margin-bottom: 15px; opacity: 0.5; }
 
-/* دکمه مشارکت — برجسته */
 .fixed-contribute-button {
     flex-shrink: 0;
     text-align: center;
@@ -116,7 +115,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 
 .report-link { display: block; padding: 8px 0; color: #3498db; text-decoration: underline; font-size: 0.95em; }
 
-/* کنترل‌های نقشه — زیر پنل (z < 1000) تا روی جدول نیفتند */
 .left-map-controls {
     position: absolute;
     z-index: 500;
@@ -161,6 +159,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .leaflet-control-zoom { display: none !important; }
 .leaflet-control-container { z-index: 400 !important; }
 
+/* موبایل/تبلت: گوشه راست نقشه */
 .map-controls {
     position: absolute;
     z-index: 500;
@@ -306,10 +305,16 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     }
 }
 
+/* دسکتاپ: دکمه لایه‌ها کنار پنل (نه زیر آن) — پنل 350px */
 @media (min-width: 1024px) {
     .drag-handle { display: none; }
     .info-panel { transform: none !important; }
     .info-panel.panel-peek,
     .info-panel.panel-half,
     .info-panel.panel-full { transform: none !important; }
+
+    .map-controls {
+        right: 366px; /* 350 پنل + 16 فاصله */
+        top: 16px;
+    }
 }
