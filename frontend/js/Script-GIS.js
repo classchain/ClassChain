@@ -222,6 +222,7 @@ function setPanelState(state) {
     infoPanelWrapper.classList.add('panel-' + state);
     infoPanelWrapper.style.transform = '';
     infoPanelWrapper.style.transition = '';
+    // بعد از تغییر پوشش پنل، انتخاب فعلی را در ناحیهٔ قابل‌رؤیت بازتنظیم کن
     if (prev !== state) {
         requestAnimationFrame(() => refitActiveSelection());
     }
@@ -473,6 +474,7 @@ fetch('data/ir-new.json').then(r => r.json()).then(data => {
                         ${p.P_capita ? `<div class="info-item"><span class="info-label">سرانه استانی:</span><span class="info-value">${Number(p.P_capita).toFixed(2)}</span></div>` : ''}
                         <div class="info-item"><span class="info-label">شهرستان‌ها:</span><span class="info-value">در حال بارگذاری...</span></div>
                     </div>`);
+                // بعد از half شدن پنل، در ناحیهٔ قابل‌رؤیت fit کن
                 fitLayerToVisibleMap(layer, { duration: 1.1 });
                 showCountiesOfProvince(p.Name);
             });
@@ -512,7 +514,7 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
                         <span class="info-label">برآورد هزینه ساخت:</span>
                         <span class="info-value">${a['targetAmount(USDT)'] ? Number(a['targetAmount(USDT)']).toLocaleString('fa-IR') + ' USDT' : 'نامشخص'}</span>
                     </div>
-                    <div id="raisedSummary" style="margin-top:15px;"><span class="info-label">در حال خواندن موجودی خزانه...</span></div>
+                    <div id="raisedSummary" style="margin-top:15px;"><span class="info-label">در حال خواندن مجموع کمک‌ها...</span></div>
                     <div id="donorsList" style="margin-top:15px;"></div>`;
             } else {
                 financialInfo = '<div class="info-item" style="color:#e67e22; margin-top:15px;">خزانه هوشمند هنوز راه‌اندازی نشده</div>';
@@ -674,20 +676,25 @@ async function loadDonors(projectAttributes) {
 async function loadRaisedSummary(projectAttributes) {
     const el = document.getElementById('raisedSummary');
     if (!el) return;
-    el.innerHTML = '<span class="info-label">در حال خواندن موجودی خزانه از زنجیره...</span>';
+    el.innerHTML = '<span class="info-label">در حال خواندن مجموع کمک‌ها از زنجیره...</span>';
     try {
         if (!window.ClassChainRaisedReader) {
             el.innerHTML = '<span class="info-label" style="color:#e67e22;">ماژول خواندن موجودی لود نشده</span>';
             return;
         }
         const { total, breakdown } = await window.ClassChainRaisedReader.getProjectRaisedUSDT(projectAttributes);
+        const target = Number(projectAttributes['targetAmount(USDT)'] || 0);
+        const percent = target > 0 ? Math.min((total / target) * 100, 100) : 0;
         let detailRows = '';
         breakdown.forEach((b) => {
-            detailRows += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#ecf0f1;margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.06);border-radius:6px;gap:10px;"><span style="opacity:0.9;">${b.network}</span><span style="font-weight:600;white-space:nowrap;">${Number(b.amount || 0).toFixed(2)} USDT</span></div>`;
+            if (b.amount > 0) {
+                detailRows += `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:#ecf0f1;margin-top:8px;padding:8px 10px;background:rgba(255,255,255,0.06);border-radius:6px;gap:10px;"><span style="opacity:0.9;">${b.network}</span><span style="font-weight:600;white-space:nowrap;">${b.amount.toFixed(2)} USDT</span></div>`;
+            }
         });
         el.innerHTML = `<div class="info-item" style="background:rgba(46,204,113,0.15);padding:12px;border-radius:8px;">
-            <div style="margin-bottom:4px;"><span class="info-label" style="display:block;margin-bottom:6px;">موجودی خزانه (همه شبکه‌ها)</span>
+            <div style="margin-bottom:4px;"><span class="info-label" style="display:block;margin-bottom:6px;">مجموع کمک‌ها (همه شبکه‌ها)</span>
             <span class="info-value" style="font-weight:bold;color:#2ecc71;font-size:1.15em;display:block;">${total.toFixed(2)} USDT</span></div>
+            ${target ? `<div style="font-size:12px;margin-top:8px;opacity:0.85;">هدف: ${target.toLocaleString('fa-IR')} USDT — ${percent.toFixed(1)}٪</div>` : ''}
             ${detailRows ? `<div style="margin-top:10px;border-top:1px solid rgba(255,255,255,0.1);padding-top:4px;">${detailRows}</div>` : ''}</div>`;
         const donorsEl = document.getElementById('donorsList');
         if (donorsEl && total > 0) {
