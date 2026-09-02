@@ -105,9 +105,6 @@ function fundExplorerUrl(meta, address) {
     return `${meta.explorerUrl}/address/${address}`;
 }
 
-/**
- * HTML خزانه‌ها: یک ستون، دو ردیف (نام شبکه + آدرس چپ‌چین LTR)
- */
 function buildFundsHtml(projectAttributes) {
     const entries = collectProjectFunds(projectAttributes);
     if (!entries.length) return { html: '', hasTreasury: false, primaryAddress: null };
@@ -158,6 +155,8 @@ if (zoomOutBtn) {
 }
 
 let panelState = 'peek';
+/** تا این زمان، کلیک نقشه نباید full را به half برگرداند (جلوگیری از تداخل با انتخاب مارکر) */
+let suppressMapPanelCollapseUntil = 0;
 const isMobile = () => window.innerWidth < 1024;
 const STATE_TRANSLATE = { peek: 78, half: 45, full: 0 };
 
@@ -172,13 +171,16 @@ function setPanelState(state) {
 }
 
 function openPanelHalf() { setPanelState('half'); }
-function openPanelFull() { setPanelState('full'); }
+function openPanelFull() {
+    if (isMobile()) suppressMapPanelCollapseUntil = Date.now() + 800;
+    setPanelState('full');
+}
 function closeToPeek() { setPanelState('peek'); }
 
 function cyclePanelFromHeader() {
     if (!isMobile()) return;
     if (panelState === 'peek') setPanelState('half');
-    else if (panelState === 'half') setPanelState('full');
+    else if (panelState === 'half') openPanelFull();
     else setPanelState('peek');
 }
 
@@ -195,7 +197,10 @@ function showInPanel(content, panelOpenState) {
 }
 
 map.getContainer().addEventListener('click', () => {
-    if (isMobile() && panelState === 'full') openPanelHalf();
+    if (!isMobile() || panelState !== 'full') return;
+    // کلیک انتخاب پروژه/لایه معمولاً به نقشه هم می‌رسد و full را خراب می‌کند
+    if (Date.now() < suppressMapPanelCollapseUntil) return;
+    openPanelHalf();
 });
 
 let dragStartY = 0;
@@ -236,7 +241,7 @@ function onHandleTouchEnd() {
     if (m) current = parseFloat(m[1]);
     infoPanelWrapper.style.transform = '';
     infoPanelWrapper.style.transition = '';
-    if (current < 20) setPanelState('full');
+    if (current < 20) openPanelFull();
     else if (current < 60) setPanelState('half');
     else setPanelState('peek');
     setTimeout(() => { dragMoved = false; }, 50);
@@ -463,7 +468,6 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
                 financialInfo = '<div class="info-item" style="color:#e67e22; margin-top:15px;">خزانه هوشمند هنوز راه‌اندازی نشده</div>';
             }
 
-            // موبایل/تبلت: آکاردئون‌ها جمع؛ دسکتاپ باز
             const accCls = isMobile() ? ' collapsed' : '';
 
             showInPanel(`
@@ -487,6 +491,12 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
                     <a href="project-images.html?project=${a['ProjectID']}" class="report-link" target="_blank">تصاویر</a>
                     <a href="financial-docs.html?project=${a['ProjectID']}" class="report-link" target="_blank">مستندات مالی</a>
                 </div></div>`, isMobile() ? 'full' : null);
+
+            // اطمینان از full بعد از هر event باقی‌مانده از Leaflet
+            if (isMobile()) {
+                suppressMapPanelCollapseUntil = Date.now() + 800;
+                requestAnimationFrame(() => openPanelFull());
+            }
 
             if (hasTreasury) {
                 enableDonateContext(a.ProjectID, primaryAddress);
