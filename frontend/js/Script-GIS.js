@@ -177,13 +177,6 @@ function openPanelFull() {
 }
 function closeToPeek() { setPanelState('peek'); }
 
-function cyclePanelFromHeader() {
-    if (!isMobile()) return;
-    if (panelState === 'peek') setPanelState('half');
-    else if (panelState === 'half') openPanelFull();
-    else setPanelState('peek');
-}
-
 function openPanel() { if (isMobile()) openPanelHalf(); }
 function closePanel() { if (isMobile()) closeToPeek(); }
 
@@ -198,41 +191,44 @@ function showInPanel(content, panelOpenState) {
 
 map.getContainer().addEventListener('click', () => {
     if (!isMobile() || panelState !== 'full') return;
-    // کلیک انتخاب پروژه/لایه معمولاً به نقشه هم می‌رسد و full را خراب می‌کند
     if (Date.now() < suppressMapPanelCollapseUntil) return;
     openPanelHalf();
 });
 
+/* ========== تغییر حالت پنل فقط با درگ (نه کلیک) ========== */
 let dragStartY = 0;
 let dragStartTranslate = 0;
 let isDraggingPanel = false;
-let dragMoved = false;
 
-function onHandleTouchStart(e) {
+function clientYFromEvent(e) {
+    if (e.touches && e.touches[0]) return e.touches[0].clientY;
+    if (e.changedTouches && e.changedTouches[0]) return e.changedTouches[0].clientY;
+    return e.clientY;
+}
+
+function onPanelDragStart(e) {
     if (!isMobile()) return;
-    const touch = e.touches[0];
-    dragStartY = touch.clientY;
+    // فقط لمس/ماوس چپ
+    if (e.type === 'mousedown' && e.button !== 0) return;
+    dragStartY = clientYFromEvent(e);
     dragStartTranslate = STATE_TRANSLATE[panelState] ?? 78;
     isDraggingPanel = true;
-    dragMoved = false;
     infoPanelWrapper.classList.remove('panel-peek', 'panel-half', 'panel-full');
     infoPanelWrapper.classList.add('dragging');
     infoPanelWrapper.style.transition = 'none';
     infoPanelWrapper.style.transform = `translate3d(0, ${dragStartTranslate}%, 0)`;
 }
 
-function onHandleTouchMove(e) {
+function onPanelDragMove(e) {
     if (!isDraggingPanel || !isMobile()) return;
-    e.preventDefault();
-    const touch = e.touches[0];
-    const deltaY = touch.clientY - dragStartY;
-    if (Math.abs(deltaY) > 6) dragMoved = true;
+    if (e.cancelable) e.preventDefault();
+    const deltaY = clientYFromEvent(e) - dragStartY;
     const deltaPercent = (deltaY / window.innerHeight) * 100;
     let next = Math.max(0, Math.min(85, dragStartTranslate + deltaPercent));
     infoPanelWrapper.style.transform = `translate3d(0, ${next}%, 0)`;
 }
 
-function onHandleTouchEnd() {
+function onPanelDragEnd() {
     if (!isDraggingPanel || !isMobile()) return;
     isDraggingPanel = false;
     infoPanelWrapper.classList.remove('dragging');
@@ -244,23 +240,23 @@ function onHandleTouchEnd() {
     if (current < 20) openPanelFull();
     else if (current < 60) setPanelState('half');
     else setPanelState('peek');
-    setTimeout(() => { dragMoved = false; }, 50);
 }
 
-if (dragHandle) {
-    dragHandle.addEventListener('touchstart', onHandleTouchStart, { passive: true });
-    dragHandle.addEventListener('touchmove', onHandleTouchMove, { passive: false });
-    dragHandle.addEventListener('touchend', onHandleTouchEnd);
-    dragHandle.addEventListener('touchcancel', onHandleTouchEnd);
+function bindPanelDrag(el) {
+    if (!el) return;
+    el.addEventListener('touchstart', onPanelDragStart, { passive: true });
+    el.addEventListener('touchmove', onPanelDragMove, { passive: false });
+    el.addEventListener('touchend', onPanelDragEnd);
+    el.addEventListener('touchcancel', onPanelDragEnd);
+    el.addEventListener('mousedown', onPanelDragStart);
 }
 
-if (panelHeader) {
-    panelHeader.addEventListener('click', () => {
-        if (!isMobile()) return;
-        if (dragMoved) { dragMoved = false; return; }
-        cyclePanelFromHeader();
-    });
-}
+// حرکت/پایان درگ روی document تا خارج از هدر هم ادامه یابد
+document.addEventListener('mousemove', onPanelDragMove);
+document.addEventListener('mouseup', onPanelDragEnd);
+
+bindPanelDrag(dragHandle);
+bindPanelDrag(panelHeader);
 
 if (panelContent) {
     panelContent.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
@@ -492,7 +488,6 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
                     <a href="financial-docs.html?project=${a['ProjectID']}" class="report-link" target="_blank">مستندات مالی</a>
                 </div></div>`, isMobile() ? 'full' : null);
 
-            // اطمینان از full بعد از هر event باقی‌مانده از Leaflet
             if (isMobile()) {
                 suppressMapPanelCollapseUntil = Date.now() + 800;
                 requestAnimationFrame(() => openPanelFull());
