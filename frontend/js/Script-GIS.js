@@ -106,8 +106,7 @@ function fundExplorerUrl(meta, address) {
 }
 
 /**
- * HTML خزانه‌ها: یک ستون، دو ردیف (نام شبکه + آدرس)
- * ترکیب رنگ قبلی: پس‌زمینه ملایم با رنگ شبکه + لینک آدرس هم‌رنگ شبکه
+ * HTML خزانه‌ها: یک ستون، دو ردیف (نام شبکه + آدرس چپ‌چین LTR)
  */
 function buildFundsHtml(projectAttributes) {
     const entries = collectProjectFunds(projectAttributes);
@@ -138,6 +137,8 @@ function buildFundsHtml(projectAttributes) {
             <div style="
                 font-size:0.85em;
                 line-height:1.4;
+                direction:ltr;
+                text-align:left;
             ">${addrInner}</div>
         </div>`;
     }).join('');
