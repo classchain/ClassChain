@@ -155,19 +155,77 @@ if (zoomOutBtn) {
 }
 
 let panelState = 'peek';
-/** تا این زمان، کلیک نقشه نباید full را به half برگرداند (جلوگیری از تداخل با انتخاب مارکر) */
 let suppressMapPanelCollapseUntil = 0;
 const isMobile = () => window.innerWidth < 1024;
 const STATE_TRANSLATE = { peek: 78, half: 45, full: 0 };
 
+/** پوشش پایین صفحه توسط پنل (px) — هم‌تراز CSS */
+function getBottomCoverPx() {
+    if (!isMobile()) return 0;
+    const h = window.innerHeight;
+    const panelH = h * 0.9;
+    const translate = STATE_TRANSLATE[panelState] ?? 78;
+    const panelTop = (h - panelH) + (translate / 100) * panelH;
+    return Math.max(0, Math.round(h - panelTop));
+}
+
+function getFitBoundsOptions(extra) {
+    const side = 24;
+    const top = 24;
+    const bottom = isMobile() ? Math.max(48, getBottomCoverPx() + 16) : 40;
+    return Object.assign({
+        paddingTopLeft: [side, top],
+        paddingBottomRight: [side, bottom],
+        animate: true,
+        duration: 0.9
+    }, extra || {});
+}
+
+function fitLayerToVisibleMap(layer, extra) {
+    if (!layer) return;
+    try {
+        map.fitBounds(layer.getBounds(), getFitBoundsOptions(extra));
+    } catch (err) {
+        console.warn('fitLayerToVisibleMap', err);
+    }
+}
+
+function focusLatLngInVisibleMap(latlng, zoom) {
+    if (!latlng) return;
+    const z = zoom == null ? 14 : zoom;
+    if (!isMobile()) {
+        map.setView(latlng, z, { animate: true });
+        return;
+    }
+    map.setView(latlng, z, { animate: false });
+    const bottom = getBottomCoverPx();
+    map.panBy([0, Math.round(bottom / 2)], { animate: true, duration: 0.35 });
+}
+
+function refitActiveSelection() {
+    if (!isMobile()) return;
+    if (selectionKind === 'county' && selectedCountyLayer) {
+        fitLayerToVisibleMap(selectedCountyLayer, { duration: 0.55 });
+    } else if (selectionKind === 'province' && selectedLayer) {
+        fitLayerToVisibleMap(selectedLayer, { duration: 0.55 });
+    } else if (selectionKind === 'project' && selectedProjectMarker) {
+        focusLatLngInVisibleMap(selectedProjectMarker.getLatLng(), map.getZoom());
+    }
+}
+
 function setPanelState(state) {
     if (!isMobile()) return;
     if (!['peek', 'half', 'full'].includes(state)) state = 'peek';
+    const prev = panelState;
     panelState = state;
     infoPanelWrapper.classList.remove('panel-peek', 'panel-half', 'panel-full', 'dragging');
     infoPanelWrapper.classList.add('panel-' + state);
     infoPanelWrapper.style.transform = '';
     infoPanelWrapper.style.transition = '';
+    // بعد از تغییر پوشش پنل، انتخاب فعلی را در ناحیهٔ قابل‌رؤیت بازتنظیم کن
+    if (prev !== state) {
+        requestAnimationFrame(() => refitActiveSelection());
+    }
 }
 
 function openPanelHalf() { setPanelState('half'); }
@@ -180,7 +238,6 @@ function closeToPeek() { setPanelState('peek'); }
 function openPanel() { if (isMobile()) openPanelHalf(); }
 function closePanel() { if (isMobile()) closeToPeek(); }
 
-/** content را در پنل می‌گذارد؛ panelOpenState: null | 'half' | 'full' | 'peek' */
 function showInPanel(content, panelOpenState) {
     panelContent.innerHTML = content;
     if (!isMobile()) return;
@@ -195,7 +252,6 @@ map.getContainer().addEventListener('click', () => {
     openPanelHalf();
 });
 
-/* ========== تغییر حالت پنل فقط با درگ (نه کلیک) ========== */
 let dragStartY = 0;
 let dragStartTranslate = 0;
 let isDraggingPanel = false;
@@ -208,7 +264,6 @@ function clientYFromEvent(e) {
 
 function onPanelDragStart(e) {
     if (!isMobile()) return;
-    // فقط لمس/ماوس چپ
     if (e.type === 'mousedown' && e.button !== 0) return;
     dragStartY = clientYFromEvent(e);
     dragStartTranslate = STATE_TRANSLATE[panelState] ?? 78;
@@ -251,7 +306,6 @@ function bindPanelDrag(el) {
     el.addEventListener('mousedown', onPanelDragStart);
 }
 
-// حرکت/پایان درگ روی document تا خارج از هدر هم ادامه یابد
 document.addEventListener('mousemove', onPanelDragMove);
 document.addEventListener('mouseup', onPanelDragEnd);
 
@@ -411,7 +465,7 @@ fetch('data/ir-new.json').then(r => r.json()).then(data => {
                 layer.setStyle({ weight: 6, color: '#e74c3c', fillOpacity: 0.9 });
                 selectedLayer = layer;
                 layer.bringToFront();
-                map.fitBounds(layer.getBounds(), { padding: [40, 40], animate: true, duration: 1.3 });
+
                 showInPanel(`
                     <div class="province-info">
                         <h3>استان ${p.Name || 'نامشخص'}</h3>
@@ -420,6 +474,8 @@ fetch('data/ir-new.json').then(r => r.json()).then(data => {
                         ${p.P_capita ? `<div class="info-item"><span class="info-label">سرانه استانی:</span><span class="info-value">${Number(p.P_capita).toFixed(2)}</span></div>` : ''}
                         <div class="info-item"><span class="info-label">شهرستان‌ها:</span><span class="info-value">در حال بارگذاری...</span></div>
                     </div>`);
+                // بعد از half شدن پنل، در ناحیهٔ قابل‌رؤیت fit کن
+                fitLayerToVisibleMap(layer, { duration: 1.1 });
                 showCountiesOfProvince(p.Name);
             });
             layer.on('mouseover', () => { if (selectedLayer !== layer) layer.setStyle({ weight: 5 }); });
@@ -501,7 +557,7 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
                 clearDonateContext();
             }
 
-            map.setView([y, x], 14, { animate: true });
+            focusLatLngInVisibleMap([y, x], 14);
         });
         markersCluster.addLayer(marker);
     });
@@ -540,7 +596,7 @@ function showCountiesOfProvince(provinceName) {
                         if (selectedLayer) selectedLayer.setStyle({ fillOpacity: 0 });
                         selectedCountyLayer = layer;
                         layer.bringToFront();
-                        map.fitBounds(layer.getBounds(), { padding: [30, 30], animate: true, duration: 1 });
+
                         showInPanel(`<div class="province-info">
                             <h3>${c.Name || c.name || 'نامشخص'}</h3>
                             <div class="info-item"><span class="info-label">استان:</span><span class="info-value">${c.pname || c.Pname || provinceName}</span></div>
@@ -548,6 +604,7 @@ function showCountiesOfProvince(provinceName) {
                             ${c.area ? `<div class="info-item"><span class="info-label">مساحت:</span><span class="info-value">${Number(c.area).toLocaleString('fa-IR')} هکتار</span></div>` : ''}
                             ${c.C_capita !== undefined ? `<div class="info-item"><span class="info-label">سرانه شهرستانی:</span><span class="info-value">${c.C_capita === 0 ? 'صفر' : Number(c.C_capita).toFixed(2)}</span></div>` : ''}
                         </div>`);
+                        fitLayerToVisibleMap(layer, { duration: 1 });
                     });
                     if ((c.pname || c.Pname) === provinceName) layer.addTo(map);
                 }
