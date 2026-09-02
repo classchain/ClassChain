@@ -11,7 +11,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     z-index: 1;
 }
 
-/* ========== پنل ========== */
 .info-panel {
     position: absolute;
     top: 0;
@@ -159,7 +158,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
 .leaflet-control-zoom { display: none !important; }
 .leaflet-control-container { z-index: 400 !important; }
 
-/* موبایل/تبلت: گوشه راست نقشه */
 .map-controls {
     position: absolute;
     z-index: 500;
@@ -272,10 +270,13 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     .panel-header {
         border-radius: 18px 18px 0 0;
         padding: 8px 16px 12px;
-        cursor: pointer;
+        cursor: grab;
         -webkit-tap-highlight-color: transparent;
         user-select: none;
-        touch-action: manipulation;
+        touch-action: none;
+    }
+    .panel-header:active {
+        cursor: grabbing;
     }
 
     .drag-handle {
@@ -305,7 +306,6 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     }
 }
 
-/* دسکتاپ: دکمه لایه‌ها کنار پنل (نه زیر آن) — پنل 350px */
 @media (min-width: 1024px) {
     .drag-handle { display: none; }
     .info-panel { transform: none !important; }
@@ -314,7 +314,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; height: 100
     .info-panel.panel-full { transform: none !important; }
 
     .map-controls {
-        right: 366px; /* 350 پنل + 16 فاصله */
+        right: 366px;
         top: 16px;
     }
 }
