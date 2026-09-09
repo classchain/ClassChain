@@ -324,4 +324,66 @@ export class ProjectManager {
       return null;
     }
   }
+
+  // ============================================
+  // افزودن پروژه جدید
+  // ============================================
+  async addProject(attributes) {
+    if (!this.projects) {
+      await this.loadProjects();
+    }
+
+    if (!this.projects) {
+      throw new Error('داده‌های پروژه‌ها بارگذاری نشده است');
+    }
+
+    const projectId = (attributes.ProjectID || '').toString().trim();
+    if (!projectId) {
+      throw new Error('ProjectID الزامی است');
+    }
+
+    // بررسی یکتایی
+    const existing = this.projects.features?.find(
+      f => f.attributes?.ProjectID === projectId
+    );
+    if (existing) {
+      throw new Error(`پروژه با شناسه ${projectId} از قبل وجود دارد`);
+    }
+
+    // ساخت آبجکت کامل با مقادیر پیش‌فرض
+    const newFeature = {
+      attributes: {
+        x: attributes.x != null ? Number(attributes.x) : 0,
+        y: attributes.y != null ? Number(attributes.y) : 0,
+        ProjectID: projectId,
+        'نوع پروژه (نیاز)': attributes['نوع پروژه (نیاز)'] || 'احداث فضای آموزشی',
+        'نام پروژه': attributes['نام پروژه'] || '',
+        'استان': attributes['استان'] || '',
+        'منطقه': attributes['منطقه'] || '',
+        'آدرس پروژه': attributes['آدرس پروژه'] || '',
+        'محل اجرا': attributes['محل اجرا'] || 'شهری',
+        'کد فضا': attributes['کد فضا'] || '',
+        'تعداد کلاس': attributes['تعداد کلاس'] != null ? Number(attributes['تعداد کلاس']) : 0,
+        'زیربنا': attributes['زیربنا'] != null ? Number(attributes['زیربنا']) : 0,
+        'ماهیت پروژه': attributes['ماهیت پروژه'] || 'خیرین',
+        'مسئول پروژه': attributes['مسئول پروژه'] || '',
+        'شماره تلفن مسئول پروژه': attributes['شماره تلفن مسئول پروژه'] || '',
+        'وضعیت راهبری پروژه': attributes['وضعیت راهبری پروژه'] || '',
+        'targetAmount(USDT)': attributes['targetAmount(USDT)'] != null ? Number(attributes['targetAmount(USDT)']) : 0,
+        status: null,
+        raisedAmount: null,
+        funds: {}
+      }
+    };
+
+    if (!Array.isArray(this.projects.features)) {
+      this.projects.features = [];
+    }
+
+    this.projects.features.push(newFeature);
+    console.log(`✅ پروژه جدید ${projectId} اضافه شد`);
+
+    return this.projects;
+  }
+
 }
