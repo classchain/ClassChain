@@ -204,15 +204,31 @@ section { padding: 72px 0; }
 .transparency-box {
     background: var(--green-950); color: white; border-radius: var(--radius-lg);
     padding: 35px; display: grid; gap: 30px; overflow: hidden; position: relative;
+    isolation: isolate;
+}
+.transparency-box > div {
+    position: relative;
+    z-index: 1;
 }
 .transparency-box::after {
-    content: ""; position: absolute; width: 260px; height: 260px; border-radius: 50%;
-    border: 1px solid rgba(255,255,255,.08); right: -100px; bottom: -130px;
-    pointer-events: none;
+    content: "";
+    position: absolute;
+    width: 260px;
+    height: 260px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.08);
+    inset-inline-end: -120px;
+    bottom: -140px;
+    z-index: 0;
+    pointer-events: none !important;
 }
 .transparency-box .btn {
     position: relative;
     z-index: 2;
+    display: inline-flex;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    cursor: pointer;
 }
 .transparency-box h2 { font-size: clamp(1.6rem, 5vw, 2.5rem); line-height: 1.4; margin-bottom: 12px; }
 .transparency-box p { color: rgba(255,255,255,.72); max-width: none; }
