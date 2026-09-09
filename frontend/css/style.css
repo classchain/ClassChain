@@ -208,6 +208,11 @@ section { padding: 72px 0; }
 .transparency-box::after {
     content: ""; position: absolute; width: 260px; height: 260px; border-radius: 50%;
     border: 1px solid rgba(255,255,255,.08); right: -100px; bottom: -130px;
+    pointer-events: none;
+}
+.transparency-box .btn {
+    position: relative;
+    z-index: 2;
 }
 .transparency-box h2 { font-size: clamp(1.6rem, 5vw, 2.5rem); line-height: 1.4; margin-bottom: 12px; }
 .transparency-box p { color: rgba(255,255,255,.72); max-width: none; }
