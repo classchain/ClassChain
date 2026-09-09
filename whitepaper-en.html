@@ -1,1 +1,352 @@
-SEE_FILE
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClassChain White Paper | Digital Donor Community</title>
+<meta name="description" content="ClassChain White Paper — decentralized funding for transparent school building with USDT, NFT certificates, and DAO governance.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--green-950:#12372d;--green-900:#17483a;--green-800:#1d5a48;--green-700:#28735b;--cream:#f7f3e9;--cream-dark:#eee8d9;--white:#fff;--gold:#c89b3c;--gold-light:#ead9a8;--text:#18342b;--text-soft:#5c6d65;--border:rgba(24,52,43,.11);--shadow-sm:0 8px 25px rgba(18,55,45,.07);--radius-md:20px;--radius-lg:32px;--container:1180px;--toc-width:280px}
+*{box-sizing:border-box;margin:0;padding:0}html{scroll-behavior:smooth}
+body{font-family:Vazirmatn,system-ui,sans-serif;background:var(--cream);color:var(--text);line-height:1.75}
+a{color:var(--green-800);text-decoration:none}a:hover{color:var(--green-950)}
+.container{width:min(var(--container),calc(100% - 32px));margin-inline:auto}
+.site-header{position:sticky;top:0;z-index:1000;background:rgba(247,243,233,.94);backdrop-filter:blur(14px);border-bottom:1px solid rgba(24,52,43,.07)}
+.nav{min-height:72px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--green-900);white-space:nowrap}
+.brand-mark{width:38px;height:38px;border-radius:12px;background:var(--green-900);color:#fff;display:grid;place-items:center}
+.nav-links{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.lang-switch{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff}
+.lang-switch a{padding:8px 12px;font-size:.8rem;font-weight:700;color:var(--text-soft)}
+.lang-switch a.active{background:var(--green-900);color:#fff}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:13px;border:1px solid transparent;cursor:pointer;font-size:.9rem;font-weight:700;font-family:inherit;transition:transform .2s,background .2s}
+.btn:hover{transform:translateY(-1px)}
+.btn-primary{background:var(--green-900);color:#fff}.btn-primary:hover{background:var(--green-800);color:#fff}
+.btn-secondary{background:#fff;color:var(--green-900);border-color:var(--border)}
+.btn-ghost{background:transparent;color:var(--text-soft);border-color:var(--border)}
+.wp-hero{background:var(--green-950);color:#fff;padding:56px 0 48px;text-align:center}
+.wp-hero .eyebrow{display:inline-flex;align-items:center;gap:8px;color:var(--gold-light);font-size:.82rem;font-weight:700;margin-bottom:14px}
+.wp-hero .eyebrow-dot{width:8px;height:8px;background:var(--gold);border-radius:50%}
+.wp-hero h1{font-size:clamp(1.8rem,5vw,2.8rem);line-height:1.3;margin-bottom:12px}
+.wp-hero .subtitle{color:rgba(255,255,255,.72);max-width:680px;margin:0 auto 22px;font-size:1.02rem}
+.wp-hero-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.wp-layout{display:grid;gap:28px;padding:36px 0 72px}
+@media(min-width:960px){.wp-layout{grid-template-columns:var(--toc-width) 1fr;gap:40px;align-items:start}}
+.toc-wrap{background:#fff;border:1px solid var(--border);border-radius:var(--radius-md);padding:20px 18px;box-shadow:var(--shadow-sm)}
+@media(min-width:960px){.toc-wrap{position:sticky;top:88px;max-height:calc(100vh - 110px);overflow-y:auto}}
+.toc-title{font-size:.78rem;font-weight:800;color:var(--green-700);margin-bottom:12px;text-transform:uppercase}
+.toc-list{list-style:none;display:grid;gap:2px}
+.toc-list a{display:block;padding:7px 10px;border-radius:10px;font-size:.82rem;color:var(--text-soft);line-height:1.45}
+.toc-list a:hover,.toc-list a.active{background:var(--cream);color:var(--green-900);font-weight:600}
+.toc-list .toc-h3{padding-inline-start:18px;font-size:.78rem}
+.toc-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;background:transparent;font-family:inherit;font-size:.9rem;font-weight:700;color:var(--green-900);cursor:pointer;padding:0}
+@media(min-width:960px){.toc-toggle{pointer-events:none}.toc-toggle .chevron{display:none}}
+.toc-body{display:none;margin-top:12px}.toc-body.open{display:block}
+@media(min-width:960px){.toc-body{display:block!important}}
+.wp-content{background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px 22px 40px;box-shadow:var(--shadow-sm)}
+@media(min-width:600px){.wp-content{padding:40px 44px 52px}}
+.wp-content h2{font-size:clamp(1.35rem,3.5vw,1.75rem);color:var(--green-950);margin:42px 0 16px;padding-top:8px;scroll-margin-top:96px;line-height:1.35}
+.wp-content h2:first-child{margin-top:0}
+.wp-content h3{font-size:1.08rem;color:var(--green-900);margin:28px 0 10px;scroll-margin-top:96px}
+.wp-content h4{font-size:.98rem;color:var(--green-800);margin:20px 0 8px;scroll-margin-top:96px}
+.wp-content p{color:var(--text-soft);margin-bottom:14px;font-size:.95rem}
+.wp-content ul,.wp-content ol{margin:0 0 16px;padding-inline-start:1.35rem;color:var(--text-soft);font-size:.95rem}
+.wp-content li{margin-bottom:8px}.wp-content strong{color:var(--text);font-weight:700}
+.wp-content hr{border:0;border-top:1px solid var(--border);margin:36px 0}
+.callout{background:var(--cream);border:1px solid var(--border);border-radius:16px;padding:18px 20px;margin:18px 0 22px;color:var(--text-soft);font-size:.92rem}
+.callout strong{color:var(--green-900)}
+.pillars{display:grid;gap:12px;margin:18px 0 22px}
+@media(min-width:700px){.pillars{grid-template-columns:repeat(3,1fr)}}
+.pillar{background:var(--cream);border:1px solid var(--border);border-radius:16px;padding:16px}
+.pillar h4{margin:0 0 8px;color:var(--green-900)}.pillar p{margin:0;font-size:.86rem}
+table{width:100%;border-collapse:collapse;margin:16px 0 22px;font-size:.88rem;overflow-x:auto;display:block}
+th,td{border:1px solid var(--border);padding:10px 12px;text-align:start;color:var(--text-soft);min-width:120px}
+th{background:var(--cream-dark);color:var(--green-950);font-weight:700}
+tr:nth-child(even) td{background:rgba(247,243,233,.45)}
+footer{background:#102e26;color:#fff;padding:36px 0 24px}
+.footer-inner{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:center;color:rgba(255,255,255,.55);font-size:.8rem}
+.footer-inner a{color:rgba(255,255,255,.75)}.footer-inner a:hover{color:#fff}
+</style>
+</head>
+<body>
+<header class="site-header"><div class="container"><nav class="nav">
+<a href="index.html" class="brand" aria-label="ClassChain"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 3.2 3 11h2.5v8.5h4.2V14h4.6v5.5h4.2V11H21L12 3.2z"/></svg></span><span class="brand-text">ClassChain</span></a>
+<div class="nav-links">
+<div class="lang-switch" aria-label="Language"><a href="whitepaper.html">FA</a><a href="whitepaper-en.html" class="active">EN</a></div>
+<a href="index.html" class="btn btn-ghost">Back to site</a>
+<a href="frontend/WebGIS.html" class="btn btn-secondary">Project map</a>
+<a href="frontend/donate.html" class="btn btn-primary">Contribute</a>
+</div></nav></div></header>
+
+<section class="wp-hero"><div class="container">
+<div class="eyebrow"><span class="eyebrow-dot"></span><span>White Paper · 2026 edition</span></div>
+<h1>ClassChain</h1>
+<p class="subtitle">A decentralized funding protocol for transparent school building — direct USDT contributions, NFT participation certificates, and DAO governance</p>
+<div class="wp-hero-actions">
+<a href="#toc" class="btn btn-secondary" style="background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.22)">Table of contents</a>
+<a href="#s1" class="btn btn-primary" style="background:var(--gold);color:var(--green-950)">Start reading</a>
+</div></div></section>
+
+<div class="container wp-layout">
+<aside class="toc-wrap" id="toc">
+<button type="button" class="toc-toggle" id="tocToggle" aria-expanded="false"><span>Table of contents</span><span class="chevron" aria-hidden="true">▾</span></button>
+<div class="toc-body" id="tocBody">
+<div class="toc-title">Sections</div>
+<ul class="toc-list">
+<li><a href="#s1">1. Executive Summary</a></li>
+<li><a href="#s2">2. Introduction</a></li>
+<li><a href="#s3">3. The Problem</a></li>
+<li><a class="toc-h3" href="#s3-1">3.1 Donor community demographics</a></li>
+<li><a class="toc-h3" href="#s3-2">3.2 Small, recurring giving</a></li>
+<li><a class="toc-h3" href="#s3-3">3.3 Digital generation</a></li>
+<li><a class="toc-h3" href="#s3-4">3.4 Insufficient transparency</a></li>
+<li><a class="toc-h3" href="#s3-5">3.5 Diaspora access</a></li>
+<li><a class="toc-h3" href="#s3-6">3.6 Sanctions & banking risk</a></li>
+<li><a class="toc-h3" href="#s3-7">3.7 Centralized decisions</a></li>
+<li><a class="toc-h3" href="#s3-8">3.8 Funding shortfall</a></li>
+<li><a class="toc-h3" href="#s3-9">3.9 Missing shared narrative</a></li>
+<li><a class="toc-h3" href="#s3-10">3.10 Problem summary</a></li>
+<li><a href="#s4">4. Our Solution</a></li>
+<li><a href="#s5">5. Technical Architecture</a></li>
+<li><a href="#s6">6. Development Notes</a></li>
+<li><a href="#s7">7. Economic & Funding Model</a></li>
+<li><a href="#s8">8. Roadmap</a></li>
+<li><a href="#s9">9. Governance (DAO)</a></li>
+<li><a href="#s10">10. Team & Advisors</a></li>
+<li><a href="#s11">11. Legal Notes & Risks</a></li>
+<li><a href="#s12">12. Closing & Invitation</a></li>
+</ul></div></aside>
+
+<article class="wp-content">
+<h2 id="s1">1. Executive Summary</h2>
+<p><strong>ClassChain</strong> is a decentralized funding protocol built on blockchain technology with a focus on educational equity. Its purpose is to make it easier for Iranians inside and outside the country—and international volunteers—to fund school construction in underserved areas.</p>
+<p>Where shortage of educational space still denies children a fair chance to learn, ClassChain provides a <strong>transparent, corruption-resistant pathway</strong> so donors and young people worldwide can participate <strong>directly and with confidence</strong>.</p>
+<div class="callout"><strong>ClassChain’s current model</strong> is based on direct <strong>USDT</strong> contributions. <strong>No native token is issued for fundraising or speculation.</strong> Contributors send USDT and receive an <strong>NFT certificate</strong> as proof of participation and voting rights.</div>
+<p>ClassChain rests on three pillars:</p>
+<div class="pillars">
+<div class="pillar"><h4>Financial & operational transparency</h4><p>Via blockchain, smart contracts, and the WebGIS layer</p></div>
+<div class="pillar"><h4>Collective decision-making</h4><p>Through NFT certificates and a DAO—without a speculative native token</p></div>
+<div class="pillar"><h4>Equal educational opportunity</h4><p>For children in need; school building as building the future</p></div>
+</div>
+<p>We believe school construction is more than erecting a building—it is building a durable future. ClassChain is not only a funding platform; it is a <strong>social movement</strong> in which every participant can matter.</p>
+<p><strong>ClassChain is investment in education: a bridge between financial innovation and social justice.</strong></p>
+<hr>
+
+<h2 id="s2">2. Introduction</h2>
+<p>Education is a fundamental human right and the foundation of sustainable development. A school is not merely a structure; it is a <strong>gateway to a brighter future</strong>. Yet across many urban and rural areas of Iran, shortage of classroom space and overcrowding still constrain learning opportunities.</p>
+<p>Substantial financial and volunteer capacity exists inside and outside the country. What has often blocked participation is <strong>lack of transparency, inefficient traditional channels, and costly intermediaries</strong>.</p>
+<p><strong>ClassChain</strong> responds with blockchain, NFTs, and DAO tools to create a transparent and democratic path so any concerned individual can fund school building <strong>directly</strong>.</p>
+<div class="callout">On ClassChain, every NFT certificate is a concrete expression of hope, educational justice, and civic participation—not a speculative instrument.</div>
+<hr>
+
+<h2 id="s3">3. The Problem</h2>
+<p>Educational infrastructure in parts of Iran faces <strong>space shortages, aging facilities, and high student density</strong>. Despite the valuable work of school-building donor communities, development has remained fragile and overly dependent on a small group of large donors.</p>
+<h3 id="s3-1">3.1 Donor community demographics</h3>
+<p>An older average age and traditional patterns have made it harder to connect diaspora communities and younger generations in a sustained way.</p>
+<h3 id="s3-2">3.2 Limited mechanisms for small, recurring gifts</h3>
+<p>Traditional models favor large one-off gifts. Simple paths for modest, regular contributions are scarce, leaving social capacity unused.</p>
+<h3 id="s3-3">3.3 Misalignment with the digital generation</h3>
+<p>Without digital certificates, transparent voting, and blockchain-based recognition, tech-native participants have weaker incentives to stay engaged.</p>
+<h3 id="s3-4">3.4 Insufficient transparency in spending and reporting</h3>
+<p>Inconsistent, mostly offline reporting erodes trust and reduces repeat giving.</p>
+<h3 id="s3-5">3.5 Hard access for Iranians abroad</h3>
+<p>High transfer costs and the absence of a clear channel limit diaspora participation.</p>
+<h3 id="s3-6">3.6 Exposure to sanctions and banking crises</h3>
+<p>Heavy dependence on domestic banking makes transfers and project continuity fragile under stress.</p>
+<h3 id="s3-7">3.7 Centralized decision-making</h3>
+<p>Project prioritization is often concentrated; local communities rarely sit at the decision table.</p>
+<h3 id="s3-8">3.8 Funding shortfall</h3>
+<p>Without creative, transparent collective-funding tools, school-building opportunities remain constrained.</p>
+<h3 id="s3-9">3.9 Missing shared national narrative</h3>
+<p>Giving for schools often stays personal and fragmented, without a shared cultural story.</p>
+<h3 id="s3-10">3.10 Summary</h3>
+<p>Blockchain, NFTs, and DAOs can democratize participation and clarify money flows. ClassChain applies that capacity to school building so every contribution and every vote reflects educational justice and public trust.</p>
+<hr>
+
+<h2 id="s4">4. Our Solution</h2>
+<p>ClassChain builds a transparent digital ecosystem for school funding that:</p>
+<ul>
+<li><strong>Turns individual acts into collective movement</strong></li>
+<li><strong>Enables small, gradual USDT contributions</strong></li>
+<li><strong>Maximizes transparency on-chain and via WebGIS</strong></li>
+<li><strong>Opens decisions to NFT holders through a DAO</strong></li>
+<li><strong>Engages younger generations</strong></li>
+<li><strong>Offers social incentives for smaller donors</strong></li>
+<li><strong>Empowers the diaspora</strong></li>
+<li><strong>Uses multi-chain infrastructure less dependent on a single banking path</strong></li>
+<li><strong>Builds a shared cultural narrative around school construction</strong></li>
+</ul>
+<div class="callout"><strong>Decision power shifts toward the community.</strong> NFT certificates represent participation rights and voting power—not speculative trading instruments in the current model.</div>
+<p>Each project is either funded directly by larger donors or assembled from many small gifts in a common pool. The community can also take part in decisions such as <strong>naming schools</strong>.</p>
+<hr>
+
+<h2 id="s5">5. Technical Architecture</h2>
+<h3>5.1 Blockchain infrastructure</h3>
+<p><strong>Multi-chain</strong> design (EVM and TVM): broader access, less single-network dependency, user choice of fees/speed, and support for multiple wallets (e.g. MetaMask, TronLink, WalletConnect).</p>
+<p>Core financial logic—USDT tracking, fund creation, NFT issuance, and DAO voting—runs <strong>on-chain</strong> wherever practical. Contracts deploy first on testnets, then mainnets.</p>
+<h3>5.2 Smart contracts</h3>
+<ul>
+<li>Direct acceptance of USDT (and supported stablecoins)</li>
+<li>Independent fund per school project</li>
+<li>NFT certificates for participation and voting rights</li>
+<li>DAO voting and allocation mechanisms</li>
+</ul>
+<p>NFT standards: ERC-721 or ERC-1155 (and TVM equivalents). Contracts are published as open source and audited before mainnet deployment.</p>
+<h3>5.3 Frontend</h3>
+<p>Modern web UI optimized for desktop and mobile; wallet connection; project browsing; USDT contribution and status tracking.</p>
+<h3>5.4 Backend</h3>
+<p>Project metadata, notifications, and APIs related to WebGIS. The long-term path reduces server dependence and increases decentralization.</p>
+<h3>5.5 Fund structure</h3>
+<ul>
+<li><strong>Project-specific funds:</strong> dedicated contract/fund per school campaign</li>
+<li><strong>Common contribution pool:</strong> shared resources allocated via DAO rules</li>
+</ul>
+<p>Balances are held in USDT and remain publicly observable.</p>
+<h3>5.6 DAO governance</h3>
+<p>NFT holders can vote on topics such as selecting projects from the common pool and related development proposals. Voting may be fully on-chain or hybrid depending on cost and UX.</p>
+<h3>5.7 WebGIS</h3>
+<p>Interactive maps of project locations, funding status, filters, progress reports, and links to on-chain financial data.</p>
+<h3>5.8 Real-time transparency</h3>
+<p>Live dashboards, explorer links, historical trends, and construction/DAO status tracking.</p>
+<h3>5.9 Security & scalability</h3>
+<p>Independent audits, backend access control, horizontal scale readiness, and multi-chain support; decentralized metadata storage (e.g. IPFS) planned for later phases.</p>
+<hr>
+
+<h2 id="s6">6. Development Notes</h2>
+<h3>6.1 Standards</h3>
+<p>NFTs: ERC-721/1155 and TVM equivalents. USDT funds: custom design focused on security and transparency.</p>
+<h3>6.2 Open source & audit</h3>
+<p>Contracts are published on GitHub. Third-party security audits precede mainnet deployment; ABI and integration docs live in the same repository.</p>
+<h3>6.3 Phased capability rollout</h3>
+<table><thead><tr><th>Phase</th><th>Focus</th><th>Includes</th></tr></thead><tbody>
+<tr><td>1</td><td>MVP</td><td>USDT intake, participation records, project display</td></tr>
+<tr><td>2</td><td>DAO</td><td>NFT issuance, voting, resource allocation</td></tr>
+<tr><td>3</td><td>WebGIS</td><td>Maps, progress reporting, map-based participation</td></tr>
+<tr><td>4</td><td>Less server dependency</td><td>Gradual move toward more decentralized components</td></tr>
+</tbody></table>
+<hr>
+
+<h2 id="s7">7. Economic & Funding Model</h2>
+<h3>7.1 Core principles</h3>
+<ul>
+<li>Direct USDT contributions</li>
+<li>NFTs as participation certificates and voting rights</li>
+<li>Full on-chain visibility of money flows</li>
+<li><strong>No native token for fundraising or speculation in the current model</strong></li>
+</ul>
+<h3>7.2 Key components</h3>
+<h4>Direct funding</h4>
+<p>Donors send USDT to a project fund or the common pool. A transparent operational share (up to about 5% if applied) may cover running costs. Construction spends come from the same funds. Transactions are reportable via WebGIS and chain explorers.</p>
+<h4>Two fund models</h4>
+<ul>
+<li><strong>Project-specific funds</strong> for direct support of a chosen school</li>
+<li><strong>Common pool</strong> for smaller gifts, later allocated by NFT-holder votes</li>
+</ul>
+<h4>Role of NFTs</h4>
+<p>Proof of participation, voting instrument, and social recognition—not a speculative asset in the current design.</p>
+<h4>Longer-term incentives</h4>
+<p>Input on location priority and school naming; digital–physical recognition where agreed; opening ceremonies; social standing tied to certificates.</p>
+<h3>7.3 Financial transparency rules</h3>
+<p>Smart contracts, progress reports on WebGIS, NFT-holder access to related statements, and DAO-led allocation decisions.</p>
+<h3>7.4 Economic risk management</h3>
+<p>USDT focus, multi-chain resilience, avoidance of speculative token design, and contract audits.</p>
+<h3>7.5 Social impact</h3>
+<p>Paths for small and large donors and for CSR; human experiences of openings and progress reporting remain central.</p>
+<h3>7.6 Economic conclusion</h3>
+<p>Stablecoin for giving, NFTs for proof and voice, DAO for collective decisions—without requiring a native token purchase to “invest.”</p>
+<hr>
+
+<h2 id="s8">8. Roadmap</h2>
+<p><strong>Vision:</strong> a transparent, durable ecosystem for school building with Web3 tools and direct USDT participation.</p>
+<h3>8.1 Phase 1 — Infrastructure (Q2–Q3 2025)</h3>
+<p>USDT/NFT model design, white paper, multi-chain contracts, WebGIS design, public contribution site.</p>
+<h3>8.2 Phase 2 — Early donors (Q4 2025)</h3>
+<p>Live USDT intake, first project funds, common pool, NFT certificates, early DAO votes.</p>
+<h3>8.3 Phase 3 — First builds (Q1–Q2 2026)</h3>
+<p>Construction from raised funds, participation recognition, openings, visual transparency reports.</p>
+<h3>8.4 Phase 4 — Product & reach (Q3–Q4 2026)</h3>
+<p>Better mobile UX, stronger DAO tooling, NGO/CSR partnerships, wider chain support.</p>
+<h3>8.5 Phase 5 — Ecosystem maturity (2027)</h3>
+<p>Operational stability, more projects, further decentralization. <em>The current model remains USDT + participation NFTs; a native-token secondary market is not a primary goal of this phase.</em></p>
+<h3>8.6 Phase 6 — Self-governance & broader adoption (2028+)</h3>
+<p>Larger DAO role; potential adaptation of the model to similar public-good domains.</p>
+<h3>8.7 Roadmap priorities</h3>
+<ul>
+<li>Early years: USDT, real construction, transparency</li>
+<li>Avoid speculative design in the current model</li>
+<li>NFTs and DAO as the trust and decision layer</li>
+</ul>
+<hr>
+
+<h2 id="s9">9. Governance (DAO)</h2>
+<p>ClassChain uses a multi-tier model so large and small donors share decision-making. <strong>Each relevant NFT equals one vote</strong> within its participation domain.</p>
+<table><thead><tr><th>Donor type</th><th>How they give</th><th>Project allocation</th><th>Voting</th></tr></thead><tbody>
+<tr><td>Large</td><td>Directly to a project</td><td>Defined from the start</td><td>Project NFT votes</td></tr>
+<tr><td>Small</td><td>Common pool</td><td>After public vote</td><td>General DAO via participation NFTs</td></tr>
+</tbody></table>
+<h3>9.2 Large donors</h3>
+<p>They fund a specific project with USDT. These projects need not enter the common-pool queue queue. Project NFTs govern naming and project-level decisions.</p>
+<h3>9.3 Small donors</h3>
+<p>Contributions enter the common pool. When the pool reaches a defined threshold (for example, enough to fund the costliest proposed project), voting begins. Valid contributions can mint NFTs and voting rights. Allocation follows published rules if a costlier or cheaper project wins.</p>
+<h3>9.4 Access & incentives</h3>
+<p>Project NFT holders can access related reports, vote on operational and naming matters, and receive defined social recognition.</p>
+<h3>9.5 Governance security</h3>
+<p>Funds follow smart-contract rules after deposit. Voting power is tied to real participation to limit empty voting.</p>
+<hr>
+
+<h2 id="s10">10. Team & Advisors</h2>
+<p>Team and advisor names will be published in later white-paper editions once formalized.</p>
+<hr>
+
+<h2 id="s11">11. Legal Notes & Risks</h2>
+<h3>11.1 Non-speculative, public-benefit intent</h3>
+<p>ClassChain is oriented toward transparent school funding. The current model relies on <strong>direct stablecoin contributions</strong>, not a native fundraising token.</p>
+<h3>11.2 Local regulations</h3>
+<p>Users must comply with crypto-transfer and charity rules in their jurisdiction. ClassChain does not assume liability for users’ local-law violations.</p>
+<h3>11.3 Technical & operational risks</h3>
+<ul>
+<li>Smart-contract risk (even after audits)</li>
+<li>Blockchain network risk (delays, fees, forks)</li>
+<li>Construction delivery risk across regions</li>
+<li>Sanctions and international constraints (reduced by multi-chain USDT design, not eliminated)</li>
+</ul>
+<hr>
+
+<h2 id="s12">12. Closing & Invitation</h2>
+<p>Where educational justice is still out of reach for many children, <strong>ClassChain</strong> is an attempt to redefine participation, transparency, and solidarity.</p>
+<p>Building a school is building the future. That future cannot rest only on scattered gifts; it needs a model where any concerned person, anywhere, can act effectively, transparently, and directly.</p>
+<ul>
+<li>A contributor is a member of an impact community—not only a payer</li>
+<li>A gift is a step in collective responsibility—not only a transaction</li>
+<li>Technology is a new language of trust—not only a tool</li>
+</ul>
+<div class="callout">This is not only a project. <strong>It is a new narrative of trust, justice, and building the future—classroom by classroom.</strong></div>
+<p style="margin-top:28px">
+<a href="frontend/donate.html" class="btn btn-primary">Start contributing</a>&nbsp;
+<a href="frontend/WebGIS.html" class="btn btn-secondary">View project map</a>&nbsp;
+<a href="index.html" class="btn btn-ghost">Back to home</a>
+</p>
+</article>
+</div>
+
+<footer><div class="container footer-inner">
+<span>© ClassChain — White Paper · 2026</span>
+<span><a href="index.html">Home</a> · <a href="frontend/donate.html">Contribute</a> · <a href="frontend/WebGIS.html">WebGIS</a> · <a href="whitepaper.html">فارسی</a></span>
+</div></footer>
+
+<script>
+(function(){
+var toggle=document.getElementById("tocToggle"),body=document.getElementById("tocBody");
+if(toggle&&body){toggle.addEventListener("click",function(){var open=body.classList.toggle("open");toggle.setAttribute("aria-expanded",String(open));});}
+var links=document.querySelectorAll(".toc-list a"),sections=[];
+links.forEach(function(a){var id=a.getAttribute("href").slice(1),el=document.getElementById(id);if(el)sections.push({id:id,el:el,link:a});});
+function onScroll(){var y=window.scrollY+120,current=sections[0];for(var i=0;i<sections.length;i++){if(sections[i].el.offsetTop<=y)current=sections[i];}links.forEach(function(a){a.classList.remove("active");});if(current)current.link.classList.add("active");}
+window.addEventListener("scroll",onScroll,{passive:true});onScroll();
+links.forEach(function(a){a.addEventListener("click",function(){if(window.innerWidth<960&&body){body.classList.remove("open");if(toggle)toggle.setAttribute("aria-expanded","false");}});});
+})();
+</script>
+</body>
+</html>
