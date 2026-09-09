@@ -492,7 +492,7 @@
       "attributes": {
         "x": 60.20675,
         "y": 34.07498,
-        "ProjectID": "9601",
+        "ProjectID": "9602",
         "نوع پروژه (نیاز)": "تکمیل پروژه نیمه تمام",
         "نام پروژه": " تکميل مدرسه 6 کلاسه در مقطع ابتدايي، شهرستان خواف، روستاي چاه زول، شرکت صنايع معدني فولاد سنگان  ",
         "استان": "استان خراسان رضوي",
@@ -510,17 +510,6 @@
         "status": null,
         "raisedAmount": null,
         "funds": {
-          "tron_nile": {
-            "address": "TEPWCvWDMcgcVKnSjp4e9YsgxmEcpekEp3",
-            "multisigAddress": null,
-            "owners": [
-              "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1"
-            ],
-            "requiredSignatures": 1,
-            "createdAt": "2026-09-09T11:49:52.114Z",
-            "network": "tron_nile",
-            "isMultisig": false
-          }
         }
       }
     },
