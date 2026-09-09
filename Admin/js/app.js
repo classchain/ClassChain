@@ -9,6 +9,7 @@ import {
 import { NetworkManager } from './core/NetworkManager.js';
 import { ContractManager } from './core/ContractManager.js';
 import { ProjectManager } from './core/ProjectManager.js';
+import { setupAddProject } from './addProject.js';
 
 // نرمال‌سازی آدرس Tron (از helper مشترک config)
 function toTronBase58(address) {
@@ -1210,6 +1211,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (createBtn) {
         createBtn.addEventListener('click', createFund);
     }
+
+    // راه‌اندازی بخش افزودن پروژه
+    setupAddProject(projectManager, loadProjectsTable);
 
     // رویدادهای تب‌های مالکیت
     document.querySelectorAll('.ownership-tab').forEach(tab => {
