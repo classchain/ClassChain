@@ -384,6 +384,223 @@
             }
         }
 
+        // ==================== EVM TX LAYER (مقیاس‌پذیر) ====================
+        /**
+         * تبدیل مقدار به hex سازگار با کیف‌پول‌ها
+         */
+        toHex(value) {
+            if (value == null) return undefined;
+            if (typeof value === 'string') {
+                if (value.startsWith('0x') || value.startsWith('0X')) {
+                    return value.toLowerCase();
+                }
+                // decimal string
+                try {
+                    return '0x' + BigInt(value).toString(16);
+                } catch (_) {
+                    return value;
+                }
+            }
+            if (typeof value === 'number') {
+                return '0x' + Math.floor(value).toString(16);
+            }
+            if (typeof value === 'bigint') {
+                return '0x' + value.toString(16);
+            }
+            // BN / BigNumber از web3
+            if (typeof value.toString === 'function') {
+                try {
+                    return '0x' + BigInt(value.toString(10)).toString(16);
+                } catch (_) {
+                    return '0x' + BigInt(value.toString()).toString(16);
+                }
+            }
+            return undefined;
+        }
+
+        /**
+         * تشخیص پشتیبانی EIP-1559 از خود زنجیره (نه از نام شبکه)
+         * هر شبکه جدید بدون hardcode کار می‌کند.
+         */
+        async detectEip1559(web3) {
+            try {
+                const block = await web3.eth.getBlock('latest');
+                return !!(block && block.baseFeePerGas != null);
+            } catch (_) {
+                return false;
+            }
+        }
+
+        /**
+         * ساخت آبجکت تراکنش مینیمال و سازگار با همه کیف‌پول‌ها
+         * - type را force نمی‌کند
+         * - اگر زنجیره EIP-1559 باشد، maxFee/maxPriority می‌گذارد
+         * - وگرنه gasPrice legacy
+         * - gas limit اختیاری است؛ اگر estimate شکست خورد کیف‌پول خودش تخمین می‌زند
+         */
+        async buildEvmTxRequest(web3, { from, to, data, value = '0x0' }) {
+            const tx = {
+                from,
+                to,
+                data,
+                value: this.toHex(value) || '0x0'
+            };
+
+            const supports1559 = await this.detectEip1559(web3);
+
+            if (supports1559) {
+                try {
+                    const feeHistory = await web3.eth.getFeeHistory(
+                        5,
+                        'latest',
+                        [25, 50, 75]
+                    );
+                    const bases = feeHistory.baseFeePerGas || [];
+                    const base = BigInt(
+                        bases[bases.length - 1] || bases[0] || 0
+                    );
+                    const rewards = feeHistory.reward || [];
+                    let tipSum = 0n;
+                    let tipCount = 0;
+                    for (const row of rewards) {
+                        // percentile 50 (index 1) اگر موجود باشد
+                        const tipVal = row[1] != null ? row[1] : row[0];
+                        if (tipVal != null) {
+                            tipSum += BigInt(tipVal);
+                            tipCount += 1;
+                        }
+                    }
+                    const tip =
+                        tipCount > 0
+                            ? tipSum / BigInt(tipCount)
+                            : 1500000000n; // 1.5 gwei
+                    const maxPriorityFeePerGas = tip;
+                    // headroom برای نوسان baseFee
+                    const maxFeePerGas = base * 2n + maxPriorityFeePerGas;
+
+                    tx.maxPriorityFeePerGas = this.toHex(maxPriorityFeePerGas);
+                    tx.maxFeePerGas = this.toHex(maxFeePerGas);
+                } catch (e) {
+                    console.warn(
+                        '[WalletManager] feeHistory failed; wallet will fill fees',
+                        e
+                    );
+                }
+            } else {
+                try {
+                    const gasPrice = await web3.eth.getGasPrice();
+                    tx.gasPrice = this.toHex(gasPrice);
+                } catch (e) {
+                    console.warn(
+                        '[WalletManager] getGasPrice failed; wallet will fill gasPrice',
+                        e
+                    );
+                }
+            }
+
+            // تخمین gas — اختیاری؛ شکست آن نباید ارسال را متوقف کند
+            try {
+                const estimated = await web3.eth.estimateGas({
+                    from,
+                    to,
+                    data,
+                    value: tx.value
+                });
+                const padded = Math.floor(Number(estimated) * 1.25);
+                tx.gas = this.toHex(padded);
+            } catch (e) {
+                console.warn(
+                    '[WalletManager] estimateGas failed; wallet will estimate',
+                    e
+                );
+            }
+
+            return tx;
+        }
+
+        /**
+         * انتظار برای receipt از RPC عمومی (نه session کیف‌پول)
+         * برای WalletConnect حیاتی است تا send resolve شود.
+         */
+        async waitForReceipt(web3, txHash, { timeoutMs = 180000, intervalMs = 2500 } = {}) {
+            const started = Date.now();
+            while (Date.now() - started < timeoutMs) {
+                try {
+                    const receipt = await web3.eth.getTransactionReceipt(txHash);
+                    if (receipt) {
+                        return receipt;
+                    }
+                } catch (e) {
+                    console.warn('[WalletManager] getTransactionReceipt:', e);
+                }
+                await new Promise((r) => setTimeout(r, intervalMs));
+            }
+            throw new Error(
+                `تأیید تراکنش در زمان مقرر انجام نشد. هش: ${txHash}`
+            );
+        }
+
+        /**
+         * API واحد ارسال تراکنش EVM
+         * injected و WalletConnect یک مسیر دارند.
+         * donate فقط encode می‌کند؛ ارسال اینجا انجام می‌شود.
+         */
+        async sendEvmTransaction(connection, { to, data, value = '0x0' }) {
+            if (!connection || connection.type !== 'EVM') {
+                throw new Error('اتصال EVM برقرار نیست');
+            }
+
+            const { provider, web3, account } = connection;
+            if (!provider || !web3 || !account) {
+                throw new Error('provider یا حساب نامعتبر است');
+            }
+
+            const tx = await this.buildEvmTxRequest(web3, {
+                from: account,
+                to,
+                data,
+                value
+            });
+
+            console.log('[WalletManager] eth_sendTransaction', {
+                via: connection.via,
+                to: tx.to,
+                hasGas: !!tx.gas,
+                hasMaxFee: !!tx.maxFeePerGas,
+                hasGasPrice: !!tx.gasPrice
+            });
+
+            let txHash;
+            try {
+                txHash = await provider.request({
+                    method: 'eth_sendTransaction',
+                    params: [tx]
+                });
+            } catch (err) {
+                if (
+                    err?.code === 4001 ||
+                    (err?.message &&
+                        (err.message.includes('User rejected') ||
+                            err.message.includes('User denied') ||
+                            err.message.includes('rejected')))
+                ) {
+                    throw new Error('تراکنش توسط کاربر لغو شد');
+                }
+                throw err;
+            }
+
+            if (!txHash) {
+                throw new Error('هش تراکنش از کیف‌پول دریافت نشد');
+            }
+
+            const receipt = await this.waitForReceipt(web3, txHash);
+            return {
+                transactionHash: txHash,
+                status: receipt.status === true || receipt.status === 1 || receipt.status === '0x1',
+                receipt
+            };
+        }
+
         // ==================== TVM (بدون تغییر رفتار قبلی) ====================
         openInTronLink() {
             const param = {

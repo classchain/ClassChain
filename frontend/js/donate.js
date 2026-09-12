@@ -8,43 +8,6 @@ let projects = {};
 const networkConfig = window.ClassChainNetworkConfig || { NETWORKS: {}, getDonationNetworks: () => [] };
 function getNetworks() {return networkConfig.NETWORKS || {};}
 
-async function buildTxOptions(
-    web3Instance,
-    from,
-    gasEstimate,
-    multiplier = 1.25
-) {
-    const gas = Math.floor(
-        Number(gasEstimate) * multiplier
-    );
-
-    let gasPrice;
-
-    try {
-        gasPrice =
-            await web3Instance.eth.getGasPrice();
-
-    } catch (e) {
-        console.warn(
-            '[Donate] getGasPrice failed, using fallback',
-            e
-        );
-
-        gasPrice =
-            web3Instance.utils.toWei(
-                '30',
-                'gwei'
-            );
-    }
-
-    return {
-        from,
-        gas,
-        gasPrice,
-        type: '0x0'
-    };
-}
-
 const walletManager = new window.ClassChainWalletManager();
 const INDEXER_API =
   window.CLASSCHAIN_INDEXER_API ||
@@ -1113,7 +1076,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 const approveAmount = amount;
                 const txHashEl = document.getElementById('txHash');
-				
+                const walletLabel = net.walletName || 'کیف پول';
+
                 if (paymentStatusTitle) {
                     paymentStatusTitle.textContent = 'در انتظار تأیید شما';
                 }
@@ -1125,29 +1089,23 @@ document.addEventListener('DOMContentLoaded', function() {
                             <strong>${selectedAmount} USDT</strong>
                             برای این کمک را صادر کند.
                         </p>
-                        <p>لطفاً درخواست را در MetaMask تأیید کنید.</p>
+                        <p>لطفاً درخواست را در ${walletLabel} تأیید کنید.</p>
                     `;
                 }
 
-                const approveGas = await tokenContract.methods
+                // encode فقط — ارسال از WalletManager (injected و WC یکسان)
+                const approveData = tokenContract.methods
                     .approve(currentContract, approveAmount)
-                    .estimateGas({ from: userAddress });
+                    .encodeABI();
 
-				const approveOpts = await buildTxOptions(
-				    web3,
-				    userAddress,
-				    approveGas,
-				    1.25
-				);
-				
-				const approveTx = await tokenContract.methods
-				    .approve(
-				        currentContract,
-				        approveAmount
-				    )
-				    .send(approveOpts);
-
-                approveTxHash = approveTx.transactionHash;
+                const approveResult = await walletManager.sendEvmTransaction(
+                    connection,
+                    {
+                        to: net.usdtAddress,
+                        data: approveData
+                    }
+                );
+                approveTxHash = approveResult.transactionHash;
                 
                 if (paymentStatusTitle) {
                     paymentStatusTitle.textContent = 'اجازه انتقال صادر شد';
@@ -1164,7 +1122,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             اکنون مبلغ ${selectedAmount} USDT به خزانه پروژه منتقل می‌شود.
                         </p>
                         <p>
-                            لطفاً تراکنش دوم را در MetaMask تأیید کنید.
+                            لطفاً تراکنش دوم را در کیف پول تأیید کنید.
                         </p>
                         <p>
                             <a href="${net.explorer}/tx/${approveTxHash}" target="_blank">
@@ -1175,7 +1133,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 if (paymentStatusTitle) {
-                    paymentStatusTitle.textContent = 'در حال ثبت کمک در شبکه...';
+                    paymentStatusTitle.textContent = 'در انتظار تأیید تراکنش واریز...';
                 }
 
                 if (txHashEl) {
@@ -1184,39 +1142,31 @@ document.addEventListener('DOMContentLoaded', function() {
                             <strong>مرحله ۲ از ۲ — ثبت کمک</strong>
                         </p>
                         <p>
-                            تراکنش شما ارسال شد.
-                        </p>
-                        <p>
-                            در حال انتظار برای ثبت آن در شبکه...
+                            لطفاً تراکنش واریز را در کیف پول تأیید کنید.
                         </p>
                     `;
                 }
-                const depositGas = await fundContract.methods
+
+                const depositData = fundContract.methods
                     .depositToken(net.usdtAddress, amount)
-                    .estimateGas({ from: userAddress });
+                    .encodeABI();
 
-				const depositOpts = await buildTxOptions(
-				    web3,
-				    userAddress,
-				    depositGas,
-				    1.3
-				);
-				
-				const depositTx = await fundContract.methods
-				    .depositToken(
-				        net.usdtAddress,
-				        amount
-				    )
-				    .send(depositOpts);
+                const depositResult = await walletManager.sendEvmTransaction(
+                    connection,
+                    {
+                        to: currentContract,
+                        data: depositData
+                    }
+                );
+                depositTxHash = depositResult.transactionHash;
 
-                depositTxHash = depositTx.transactionHash;
-				if (!depositTx || depositTx.status !== true) {
-    				const error = new Error(
-        				'تراکنش Deposit در شبکه ناموفق شد و قرارداد آن را Revert کرد.'
-    				);
-    				error.txHash = depositTxHash;
-    				throw error;
-				}
+                if (!depositResult.status) {
+                    const error = new Error(
+                        'تراکنش Deposit در شبکه ناموفق شد و قرارداد آن را Revert کرد.'
+                    );
+                    error.txHash = depositTxHash;
+                    throw error;
+                }
                 if (paymentStatusTitle) {
                     paymentStatusTitle.textContent = 'پرداخت با موفقیت ثبت شد';
                 }
