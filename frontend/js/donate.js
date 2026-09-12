@@ -733,285 +733,285 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-if (net.type === 'TVM') {
-
-    const fundDepositABI = [{
-        inputs: [
-            { name: "token", type: "address" },
-            { name: "amount", type: "uint256" }
-        ],
-        name: "depositToken",
-        outputs: [],
-        stateMutability: "nonpayable",
-        type: "function"
-    }];
-
-    let approveTxHash = null;
-    let depositTxHash = null;
-
-    try {
-        const tronWeb = connection.tronWeb;
-
-        const amount = Math.floor(
-            selectedAmount * (10 ** net.tokenDecimals)
-        );
-
-        if (paymentStatusTitle) {
-            paymentStatusTitle.textContent = 'در انتظار تأیید شما';
-        }
-
-        if (txHash) {
-            txHash.innerHTML = `
-                <p>
-                    <strong>مرحله ۱ از ۲ — اجازه انتقال کمک</strong>
-                </p>
-                <p>
-                    برای ادامه، کیف پول شما باید اجازه انتقال
-                    <strong>${selectedAmount} USDT</strong>
-                    را صادر کند.
-                </p>
-                <p>
-                    لطفاً درخواست را در TronLink تأیید کنید.
-                </p>
-            `;
-        }
-
-        const usdtContract =
-            await tronWeb.contract().at(net.usdtAddress);
-
-        const approveTx =
-            await usdtContract
-                .approve(currentContract, amount)
-                .send();
-
-        approveTxHash = approveTx;
-
-        if (paymentStatusTitle) {
-            paymentStatusTitle.textContent =
-                'در حال تأیید Approve در شبکه...';
-        }
-
-        const approveResult =
-            await waitForTronTransaction(
-                tronWeb,
-                approveTxHash
-            );
-
-        if (!approveResult.success) {
-            throw new Error(
-                approveResult.error ||
-                'تراکنش Approve در شبکه ناموفق بود.'
-            );
-        }
-
-        if (txHash) {
-            txHash.innerHTML = `
-                <p style="color: green;">
-                    ✓ اجازه انتقال ${selectedAmount} USDT
-                    با موفقیت در شبکه تأیید شد.
-                </p>
-
-                <p>
-                    <strong>مرحله ۲ از ۲ — ثبت کمک</strong>
-                </p>
-
-                <p>
-                    اکنون مبلغ ${selectedAmount} USDT
-                    به خزانه پروژه منتقل می‌شود.
-                </p>
-
-                <p>
-                    لطفاً تراکنش دوم را در TronLink تأیید کنید.
-                </p>
-
-                <p>
-                    <a
-                        href="${net.explorer}/transaction/${approveTxHash}"
-                        target="_blank"
-                    >
-                        مشاهده Approve
-                    </a>
-                </p>
-            `;
-        }
-
-        if (paymentStatusTitle) {
-            paymentStatusTitle.textContent =
-                'در حال ثبت کمک در شبکه...';
-        }
-
-        const fundContract =
-            await tronWeb.contract(
-                fundDepositABI,
-                currentContract
-            );
-
-        const depositTx =
-            await fundContract
-                .depositToken(
-                    net.usdtAddress,
-                    amount
-                )
-                .send();
-
-        depositTxHash = depositTx;
-
-        if (paymentStatusTitle) {
-            paymentStatusTitle.textContent =
-                'در حال تأیید واریز در شبکه...';
-        }
-
-        if (txHash) {
-            txHash.innerHTML = `
-                <p>
-                    <strong>مرحله ۲ از ۲ — تأیید واریز</strong>
-                </p>
-
-                <p>
-                    تراکنش ارسال شد.
-                </p>
-
-                <p>
-                    در حال انتظار برای تأیید نهایی شبکه...
-                </p>
-
-                <p>
-                    <a
-                        href="${net.explorer}/transaction/${depositTxHash}"
-                        target="_blank"
-                    >
-                        مشاهده تراکنش Deposit
-                    </a>
-                </p>
-            `;
-        }
-
-        const depositResult =
-            await waitForTronTransaction(
-                tronWeb,
-                depositTxHash
-            );
-
-        if (!depositResult.success) {
-            throw new Error(
-                depositResult.error ||
-                'تراکنش Deposit در شبکه ناموفق بود.'
-            );
-        }
-
-        if (paymentStatusTitle) {
-            paymentStatusTitle.textContent =
-                'پرداخت با موفقیت ثبت شد';
-        }
-
-        if (txHash) {
-            txHash.innerHTML = `
-                <p style="color: green; font-size: 1.15em;">
-                    🎉 کمک شما با موفقیت در شبکه ثبت شد! ❤️
-                </p>
-
-                <p>
-                    مبلغ:
-                    <strong>${selectedAmount} USDT</strong>
-                </p>
-
-                <p>
-                    <a
-                        href="${net.explorer}/transaction/${approveTxHash}"
-                        target="_blank"
-                    >
-                        مشاهده Approve
-                    </a>
-                    |
-                    <a
-                        href="${net.explorer}/transaction/${depositTxHash}"
-                        target="_blank"
-                    >
-                        مشاهده Deposit
-                    </a>
-                </p>
-
-                <p>
-                    ClassChain از حمایت شما سپاسگزار است! ❤️
-                </p>
-            `;
-        }
-
-        if (successMsg) {
-            successMsg.style.display = 'block';
-        }
-
-        if (connectBtn) {
-            connectBtn.style.display = 'none';
-        }
-
-        optimisticProgressUpdate(selectedAmount);
-
-        setTimeout(() => {
-            const t =
-                projects?.['targetAmount(USDT)'] || 100000;
-
-            loadProgress(t);
-        }, 8000);
-
-    } catch (err) {
-
-        console.error(
-            'خطا در تراکنش TRON:',
-            err
-        );
-
-        let userMessage =
-            'خطا در تراکنش:\\n';
-
-        if (err.code === 4001) {
-            userMessage +=
-                '❌ شما تراکنش را لغو کردید.';
-        }
-        else if (
-            err.message &&
-            err.message.includes('insufficient funds')
-        ) {
-            userMessage +=
-                '❌ موجودی کیف پول کافی نیست.';
-        }
-        else {
-            userMessage +=
-                `❌ ${err.message || 'خطای نامشخص'}`;
-        }
-
-        if (approveTxHash && !depositTxHash) {
-            userMessage +=
-                `\n\n` +
-                `✅ Approve موفق بود:\n` +
-                `${net.explorer}/transaction/${approveTxHash}` +
-                `\n❌ اما مرحله Deposit انجام نشد.`;
-        }
-
-        if (approveTxHash && depositTxHash) {
-            userMessage +=
-                `\n\n` +
-                `Approve:\n` +
-                `${net.explorer}/transaction/${approveTxHash}` +
-                `\n\nDeposit:\n` +
-                `${net.explorer}/transaction/${depositTxHash}` +
-                `\n\n❌ Deposit در شبکه ناموفق بود.`;
-        }
-
-        if (successMsg) {
-            successMsg.style.display = 'none';
-        }
-
-        if (connectBtn) {
-            connectBtn.style.display = 'block';
-            connectBtn.disabled = false;
-        }
-
-        alert(userMessage);
-    }
-
-    return;
-}
+			if (net.type === 'TVM') {
+			
+			    const fundDepositABI = [{
+			        inputs: [
+			            { name: "token", type: "address" },
+			            { name: "amount", type: "uint256" }
+			        ],
+			        name: "depositToken",
+			        outputs: [],
+			        stateMutability: "nonpayable",
+			        type: "function"
+			    }];
+			
+			    let approveTxHash = null;
+			    let depositTxHash = null;
+			
+			    try {
+			        const tronWeb = connection.tronWeb;
+			
+			        const amount = Math.floor(
+			            selectedAmount * (10 ** net.tokenDecimals)
+			        );
+			
+			        if (paymentStatusTitle) {
+			            paymentStatusTitle.textContent = 'در انتظار تأیید شما';
+			        }
+			
+			        if (txHash) {
+			            txHash.innerHTML = `
+			                <p>
+			                    <strong>مرحله ۱ از ۲ — اجازه انتقال کمک</strong>
+			                </p>
+			                <p>
+			                    برای ادامه، کیف پول شما باید اجازه انتقال
+			                    <strong>${selectedAmount} USDT</strong>
+			                    را صادر کند.
+			                </p>
+			                <p>
+			                    لطفاً درخواست را در TronLink تأیید کنید.
+			                </p>
+			            `;
+			        }
+			
+			        const usdtContract =
+			            await tronWeb.contract().at(net.usdtAddress);
+			
+			        const approveTx =
+			            await usdtContract
+			                .approve(currentContract, amount)
+			                .send();
+			
+			        approveTxHash = approveTx;
+			
+			        if (paymentStatusTitle) {
+			            paymentStatusTitle.textContent =
+			                'در حال تأیید Approve در شبکه...';
+			        }
+			
+			        const approveResult =
+			            await waitForTronTransaction(
+			                tronWeb,
+			                approveTxHash
+			            );
+			
+			        if (!approveResult.success) {
+			            throw new Error(
+			                approveResult.error ||
+			                'تراکنش Approve در شبکه ناموفق بود.'
+			            );
+			        }
+			
+			        if (txHash) {
+			            txHash.innerHTML = `
+			                <p style="color: green;">
+			                    ✓ اجازه انتقال ${selectedAmount} USDT
+			                    با موفقیت در شبکه تأیید شد.
+			                </p>
+			
+			                <p>
+			                    <strong>مرحله ۲ از ۲ — ثبت کمک</strong>
+			                </p>
+			
+			                <p>
+			                    اکنون مبلغ ${selectedAmount} USDT
+			                    به خزانه پروژه منتقل می‌شود.
+			                </p>
+			
+			                <p>
+			                    لطفاً تراکنش دوم را در TronLink تأیید کنید.
+			                </p>
+			
+			                <p>
+			                    <a
+			                        href="${net.explorer}/transaction/${approveTxHash}"
+			                        target="_blank"
+			                    >
+			                        مشاهده Approve
+			                    </a>
+			                </p>
+			            `;
+			        }
+			
+			        if (paymentStatusTitle) {
+			            paymentStatusTitle.textContent =
+			                'در حال ثبت کمک در شبکه...';
+			        }
+			
+			        const fundContract =
+			            await tronWeb.contract(
+			                fundDepositABI,
+			                currentContract
+			            );
+			
+			        const depositTx =
+			            await fundContract
+			                .depositToken(
+			                    net.usdtAddress,
+			                    amount
+			                )
+			                .send();
+			
+			        depositTxHash = depositTx;
+			
+			        if (paymentStatusTitle) {
+			            paymentStatusTitle.textContent =
+			                'در حال تأیید واریز در شبکه...';
+			        }
+			
+			        if (txHash) {
+			            txHash.innerHTML = `
+			                <p>
+			                    <strong>مرحله ۲ از ۲ — تأیید واریز</strong>
+			                </p>
+			
+			                <p>
+			                    تراکنش ارسال شد.
+			                </p>
+			
+			                <p>
+			                    در حال انتظار برای تأیید نهایی شبکه...
+			                </p>
+			
+			                <p>
+			                    <a
+			                        href="${net.explorer}/transaction/${depositTxHash}"
+			                        target="_blank"
+			                    >
+			                        مشاهده تراکنش Deposit
+			                    </a>
+			                </p>
+			            `;
+			        }
+			
+			        const depositResult =
+			            await waitForTronTransaction(
+			                tronWeb,
+			                depositTxHash
+			            );
+			
+			        if (!depositResult.success) {
+			            throw new Error(
+			                depositResult.error ||
+			                'تراکنش Deposit در شبکه ناموفق بود.'
+			            );
+			        }
+			
+			        if (paymentStatusTitle) {
+			            paymentStatusTitle.textContent =
+			                'پرداخت با موفقیت ثبت شد';
+			        }
+			
+			        if (txHash) {
+			            txHash.innerHTML = `
+			                <p style="color: green; font-size: 1.15em;">
+			                    🎉 کمک شما با موفقیت در شبکه ثبت شد! ❤️
+			                </p>
+			
+			                <p>
+			                    مبلغ:
+			                    <strong>${selectedAmount} USDT</strong>
+			                </p>
+			
+			                <p>
+			                    <a
+			                        href="${net.explorer}/transaction/${approveTxHash}"
+			                        target="_blank"
+			                    >
+			                        مشاهده Approve
+			                    </a>
+			                    |
+			                    <a
+			                        href="${net.explorer}/transaction/${depositTxHash}"
+			                        target="_blank"
+			                    >
+			                        مشاهده Deposit
+			                    </a>
+			                </p>
+			
+			                <p>
+			                    ClassChain از حمایت شما سپاسگزار است! ❤️
+			                </p>
+			            `;
+			        }
+			
+			        if (successMsg) {
+			            successMsg.style.display = 'block';
+			        }
+			
+			        if (connectBtn) {
+			            connectBtn.style.display = 'none';
+			        }
+			
+			        optimisticProgressUpdate(selectedAmount);
+			
+			        setTimeout(() => {
+			            const t =
+			                projects?.['targetAmount(USDT)'] || 100000;
+			
+			            loadProgress(t);
+			        }, 8000);
+			
+			    } catch (err) {
+			
+			        console.error(
+			            'خطا در تراکنش TRON:',
+			            err
+			        );
+			
+			        let userMessage =
+			            'خطا در تراکنش:\\n';
+			
+			        if (err.code === 4001) {
+			            userMessage +=
+			                '❌ شما تراکنش را لغو کردید.';
+			        }
+			        else if (
+			            err.message &&
+			            err.message.includes('insufficient funds')
+			        ) {
+			            userMessage +=
+			                '❌ موجودی کیف پول کافی نیست.';
+			        }
+			        else {
+			            userMessage +=
+			                `❌ ${err.message || 'خطای نامشخص'}`;
+			        }
+			
+			        if (approveTxHash && !depositTxHash) {
+			            userMessage +=
+			                `\n\n` +
+			                `✅ Approve موفق بود:\n` +
+			                `${net.explorer}/transaction/${approveTxHash}` +
+			                `\n❌ اما مرحله Deposit انجام نشد.`;
+			        }
+			
+			        if (approveTxHash && depositTxHash) {
+			            userMessage +=
+			                `\n\n` +
+			                `Approve:\n` +
+			                `${net.explorer}/transaction/${approveTxHash}` +
+			                `\n\nDeposit:\n` +
+			                `${net.explorer}/transaction/${depositTxHash}` +
+			                `\n\n❌ Deposit در شبکه ناموفق بود.`;
+			        }
+			
+			        if (successMsg) {
+			            successMsg.style.display = 'none';
+			        }
+			
+			        if (connectBtn) {
+			            connectBtn.style.display = 'block';
+			            connectBtn.disabled = false;
+			        }
+			
+			        alert(userMessage);
+			    }
+			
+			    return;
+			}
 
             let approveTxHash = null;
             let depositTxHash = null;
@@ -1095,12 +1095,19 @@ if (net.type === 'TVM') {
                     .approve(currentContract, approveAmount)
                     .estimateGas({ from: userAddress });
 
-                const approveTx = await tokenContract.methods
-                    .approve(currentContract, approveAmount)
-                    .send({
-                        from: userAddress,
-                        gas: Math.floor(approveGas * 1.25)
-                    });
+				const approveOpts = await buildTxOptions(
+				    web3,
+				    userAddress,
+				    approveGas,
+				    1.25
+				);
+				
+				const approveTx = await tokenContract.methods
+				    .approve(
+				        currentContract,
+				        approveAmount
+				    )
+				    .send(approveOpts);
 
                 approveTxHash = approveTx.transactionHash;
                 
@@ -1150,12 +1157,19 @@ if (net.type === 'TVM') {
                     .depositToken(net.usdtAddress, amount)
                     .estimateGas({ from: userAddress });
 
-                const depositTx = await fundContract.methods
-                    .depositToken(net.usdtAddress, amount)
-                    .send({
-                        from: userAddress,
-                        gas: Math.floor(depositGas * 1.3)
-                    });
+				const depositOpts = await buildTxOptions(
+				    web3,
+				    userAddress,
+				    depositGas,
+				    1.3
+				);
+				
+				const depositTx = await fundContract.methods
+				    .depositToken(
+				        net.usdtAddress,
+				        amount
+				    )
+				    .send(depositOpts);
 
                 depositTxHash = depositTx.transactionHash;
 				if (!depositTx || depositTx.status !== true) {
