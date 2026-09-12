@@ -58,23 +58,6 @@ function getTokenDecimals(network) {
     return getNetworks()[network]?.tokenDecimals || 6;
 }
 
-async function buildTxOptions(web3Instance, from, gasEstimate, multiplier = 1.25) {
-    const gas = Math.floor(Number(gasEstimate) * multiplier);
-    let gasPrice;
-    try {
-        gasPrice = await web3Instance.eth.getGasPrice();
-    } catch (e) {
-        console.warn('[Donate] getGasPrice failed, using fallback', e);
-        gasPrice = web3Instance.utils.toWei('30', 'gwei');
-    }
-    return {
-        from,
-        gas,
-        gasPrice,
-        type: '0x0'  // legacy – جلوگیری از خطای EIP-1559
-    };
-}
-
 /**
  * آدرس خزانه پروژه برای یک شبکه
  *
@@ -1112,16 +1095,12 @@ if (net.type === 'TVM') {
                     .approve(currentContract, approveAmount)
                     .estimateGas({ from: userAddress });
 
-                //const approveTx = await tokenContract.methods
-                    //.approve(currentContract, approveAmount)
-                    //.send({
-                    //    from: userAddress,
-                    //    gas: Math.floor(approveGas * 1.25)
-                    //});
-                const approveOpts = await buildTxOptions(web3, userAddress, approveGas, 1.25);
                 const approveTx = await tokenContract.methods
                     .approve(currentContract, approveAmount)
-                    .send(approveOpts);
+                    .send({
+                        from: userAddress,
+                        gas: Math.floor(approveGas * 1.25)
+                    });
 
                 approveTxHash = approveTx.transactionHash;
                 
@@ -1171,17 +1150,13 @@ if (net.type === 'TVM') {
                     .depositToken(net.usdtAddress, amount)
                     .estimateGas({ from: userAddress });
 
-                //const depositTx = await fundContract.methods
-                //    .depositToken(net.usdtAddress, amount)
-                //    .send({
-                //        from: userAddress,
-                //        gas: Math.floor(depositGas * 1.3)
-                //    });
-                const depositOpts = await buildTxOptions(web3, userAddress, depositGas, 1.3);
                 const depositTx = await fundContract.methods
                     .depositToken(net.usdtAddress, amount)
-                    .send(depositOpts);
-              
+                    .send({
+                        from: userAddress,
+                        gas: Math.floor(depositGas * 1.3)
+                    });
+
                 depositTxHash = depositTx.transactionHash;
 				if (!depositTx || depositTx.status !== true) {
     				const error = new Error(
