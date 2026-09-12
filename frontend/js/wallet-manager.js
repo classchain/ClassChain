@@ -420,7 +420,6 @@
 
         /**
          * تشخیص پشتیبانی EIP-1559 از خود زنجیره (نه از نام شبکه)
-         * هر شبکه جدید بدون hardcode کار می‌کند.
          */
         async detectEip1559(web3) {
             try {
@@ -432,13 +431,23 @@
         }
 
         /**
-         * ساخت آبجکت تراکنش مینیمال و سازگار با همه کیف‌پول‌ها
-         * - type را force نمی‌کند
-         * - اگر زنجیره EIP-1559 باشد، maxFee/maxPriority می‌گذارد
-         * - وگرنه gasPrice legacy
-         * - gas limit اختیاری است؛ اگر estimate شکست خورد کیف‌پول خودش تخمین می‌زند
+         * ساخت آبجکت تراکنش
+         *
+         * feeMode:
+         *  - 'none'    → فقط from/to/data/value/(gas) — کیف‌پول fee را پر می‌کند
+         *                (الگوی صحیح و مقیاس‌پذیر برای WalletConnect + MetaMask/Trust)
+         *  - 'eip1559' → maxFeePerGas + maxPriorityFeePerGas
+         *  - 'legacy'  → gasPrice
+         *  - 'auto'    → تشخیص از زنجیره (فقط برای injected)
+         *
+         * type را force نمی‌کنیم.
+         * فیلدهای EIP-1559 و legacy را هرگز مخلوط نمی‌کنیم.
          */
-        async buildEvmTxRequest(web3, { from, to, data, value = '0x0' }) {
+        async buildEvmTxRequest(
+            web3,
+            { from, to, data, value = '0x0' },
+            { feeMode = 'none' } = {}
+        ) {
             const tx = {
                 from,
                 to,
@@ -446,9 +455,28 @@
                 value: this.toHex(value) || '0x0'
             };
 
-            const supports1559 = await this.detectEip1559(web3);
+            // gas limit اختیاری
+            try {
+                const estimated = await web3.eth.estimateGas({
+                    from,
+                    to,
+                    data,
+                    value: tx.value
+                });
+                tx.gas = this.toHex(Math.floor(Number(estimated) * 1.25));
+            } catch (e) {
+                console.warn(
+                    '[WalletManager] estimateGas failed; wallet will estimate',
+                    e
+                );
+            }
 
-            if (supports1559) {
+            let mode = feeMode;
+            if (mode === 'auto') {
+                mode = (await this.detectEip1559(web3)) ? 'eip1559' : 'legacy';
+            }
+
+            if (mode === 'eip1559') {
                 try {
                     const feeHistory = await web3.eth.getFeeHistory(
                         5,
@@ -463,7 +491,6 @@
                     let tipSum = 0n;
                     let tipCount = 0;
                     for (const row of rewards) {
-                        // percentile 50 (index 1) اگر موجود باشد
                         const tipVal = row[1] != null ? row[1] : row[0];
                         if (tipVal != null) {
                             tipSum += BigInt(tipVal);
@@ -473,54 +500,57 @@
                     const tip =
                         tipCount > 0
                             ? tipSum / BigInt(tipCount)
-                            : 1500000000n; // 1.5 gwei
+                            : 1500000000n;
                     const maxPriorityFeePerGas = tip;
-                    // headroom برای نوسان baseFee
                     const maxFeePerGas = base * 2n + maxPriorityFeePerGas;
-
                     tx.maxPriorityFeePerGas = this.toHex(maxPriorityFeePerGas);
                     tx.maxFeePerGas = this.toHex(maxFeePerGas);
                 } catch (e) {
                     console.warn(
-                        '[WalletManager] feeHistory failed; wallet will fill fees',
+                        '[WalletManager] feeHistory failed; omitting fee fields',
                         e
                     );
                 }
-            } else {
+            } else if (mode === 'legacy') {
                 try {
                     const gasPrice = await web3.eth.getGasPrice();
                     tx.gasPrice = this.toHex(gasPrice);
                 } catch (e) {
                     console.warn(
-                        '[WalletManager] getGasPrice failed; wallet will fill gasPrice',
+                        '[WalletManager] getGasPrice failed; omitting gasPrice',
                         e
                     );
                 }
             }
-
-            // تخمین gas — اختیاری؛ شکست آن نباید ارسال را متوقف کند
-            try {
-                const estimated = await web3.eth.estimateGas({
-                    from,
-                    to,
-                    data,
-                    value: tx.value
-                });
-                const padded = Math.floor(Number(estimated) * 1.25);
-                tx.gas = this.toHex(padded);
-            } catch (e) {
-                console.warn(
-                    '[WalletManager] estimateGas failed; wallet will estimate',
-                    e
-                );
-            }
+            // mode === 'none' → بدون فیلد fee
 
             return tx;
         }
 
+        isUserRejectedError(err) {
+            return (
+                err?.code === 4001 ||
+                (err?.message &&
+                    (err.message.includes('User rejected') ||
+                        err.message.includes('User denied') ||
+                        err.message.includes('rejected') ||
+                        err.message.includes('لغو')))
+            );
+        }
+
+        isEip1559MismatchError(err) {
+            const msg = String(err?.message || err || '');
+            return (
+                msg.includes('EIP-1559') ||
+                msg.includes('EIP1559') ||
+                msg.includes('maxFeePerGas') ||
+                msg.includes('maxPriorityFeePerGas') ||
+                msg.includes('does not support EIP-1559')
+            );
+        }
+
         /**
          * انتظار برای receipt از RPC عمومی (نه session کیف‌پول)
-         * برای WalletConnect حیاتی است تا send resolve شود.
          */
         async waitForReceipt(web3, txHash, { timeoutMs = 180000, intervalMs = 2500 } = {}) {
             const started = Date.now();
@@ -541,9 +571,56 @@
         }
 
         /**
+         * اطمینان از هم‌خوانی chainId قبل از ارسال
+         */
+        async ensureEvmChain(connection) {
+            const { provider, web3, network } = connection;
+            if (!network?.chainId || !provider) return;
+
+            let current = null;
+            try {
+                current = Number(
+                    provider.chainId ||
+                        (await provider.request({ method: 'eth_chainId' })) ||
+                        (await web3.eth.getChainId())
+                );
+            } catch (_) {
+                try {
+                    current = Number(await web3.eth.getChainId());
+                } catch (__) {}
+            }
+
+            if (current != null && current !== Number(network.chainId)) {
+                console.warn(
+                    '[WalletManager] chain mismatch, switching',
+                    current,
+                    '→',
+                    network.chainId
+                );
+                await this.switchEVMNetwork(network, provider);
+            }
+        }
+
+        /**
+         * ارسال یک بار با feeMode مشخص
+         */
+        async requestSendTransaction(provider, tx) {
+            return provider.request({
+                method: 'eth_sendTransaction',
+                params: [tx]
+            });
+        }
+
+        /**
          * API واحد ارسال تراکنش EVM
-         * injected و WalletConnect یک مسیر دارند.
-         * donate فقط encode می‌کند؛ ارسال اینجا انجام می‌شود.
+         *
+         * WalletConnect: همیشه ابتدا بدون فیلد fee (minimal).
+         * MetaMask روی موبایل اگر dapp فیلد EIP-1559 بفرستد ولی
+         * تعریف شبکه داخل کیف‌پول ناقص باشد، خطای
+         * "does not support EIP-1559" می‌دهد — حتی روی Amoy.
+         * Trust معمولاً سخت‌گیر نیست؛ برای همین فقط MetaMask می‌ترکید.
+         *
+         * injected: auto (تشخیص از زنجیره)، با fallback به none.
          */
         async sendEvmTransaction(connection, { to, data, value = '0x0' }) {
             if (!connection || connection.type !== 'EVM') {
@@ -555,38 +632,78 @@
                 throw new Error('provider یا حساب نامعتبر است');
             }
 
-            const tx = await this.buildEvmTxRequest(web3, {
-                from: account,
-                to,
-                data,
-                value
-            });
+            await this.ensureEvmChain(connection);
 
-            console.log('[WalletManager] eth_sendTransaction', {
-                via: connection.via,
-                to: tx.to,
-                hasGas: !!tx.gas,
-                hasMaxFee: !!tx.maxFeePerGas,
-                hasGasPrice: !!tx.gasPrice
-            });
+            // مسیر اصلی برای همه کیف‌پول‌های موبایل از WC: minimal
+            // injected هم با minimal سازگار است؛ fee را کیف‌پول پر می‌کند
+            const primaryMode =
+                connection.via === 'walletconnect' ? 'none' : 'auto';
 
-            let txHash;
-            try {
-                txHash = await provider.request({
-                    method: 'eth_sendTransaction',
-                    params: [tx]
+            const tryModes =
+                primaryMode === 'none'
+                    ? ['none']
+                    : ['auto', 'none', 'legacy'];
+
+            let lastError = null;
+            let txHash = null;
+
+            for (const feeMode of tryModes) {
+                const tx = await this.buildEvmTxRequest(
+                    web3,
+                    { from: account, to, data, value },
+                    { feeMode }
+                );
+
+                console.log('[WalletManager] eth_sendTransaction attempt', {
+                    via: connection.via,
+                    feeMode,
+                    to: tx.to,
+                    hasGas: !!tx.gas,
+                    hasMaxFee: !!tx.maxFeePerGas,
+                    hasGasPrice: !!tx.gasPrice
                 });
-            } catch (err) {
-                if (
-                    err?.code === 4001 ||
-                    (err?.message &&
-                        (err.message.includes('User rejected') ||
-                            err.message.includes('User denied') ||
-                            err.message.includes('rejected')))
-                ) {
-                    throw new Error('تراکنش توسط کاربر لغو شد');
+
+                try {
+                    txHash = await this.requestSendTransaction(provider, tx);
+                    lastError = null;
+                    break;
+                } catch (err) {
+                    lastError = err;
+                    console.warn(
+                        '[WalletManager] send attempt failed',
+                        feeMode,
+                        err?.message || err
+                    );
+
+                    if (this.isUserRejectedError(err)) {
+                        throw new Error('تراکنش توسط کاربر لغو شد');
+                    }
+
+                    // mismatch EIP-1559 → سراغ mode بعدی
+                    if (
+                        this.isEip1559MismatchError(err) &&
+                        feeMode !== 'none'
+                    ) {
+                        continue;
+                    }
+
+                    // خطای دیگر روی WC: یک بار با none retry
+                    if (
+                        connection.via === 'walletconnect' &&
+                        feeMode !== 'none'
+                    ) {
+                        continue;
+                    }
+
+                    // آخرین mode یا خطای غیرقابل retry
+                    if (feeMode === tryModes[tryModes.length - 1]) {
+                        throw err;
+                    }
                 }
-                throw err;
+            }
+
+            if (lastError && !txHash) {
+                throw lastError;
             }
 
             if (!txHash) {
@@ -596,7 +713,10 @@
             const receipt = await this.waitForReceipt(web3, txHash);
             return {
                 transactionHash: txHash,
-                status: receipt.status === true || receipt.status === 1 || receipt.status === '0x1',
+                status:
+                    receipt.status === true ||
+                    receipt.status === 1 ||
+                    receipt.status === '0x1',
                 receipt
             };
         }
