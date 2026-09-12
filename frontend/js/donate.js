@@ -672,6 +672,47 @@ async function loadDonorsFromIndexer(projectId) {
 }
 
 // ==================== تابع اصلی Donate ====================
+
+/**
+ * بازیابی مبلغ/شبکه/تیک شرایط از query string
+ * بعد از باز شدن صفحه داخل TronLink (storage مرورگر قبلی در دسترس نیست)
+ */
+function restoreDonateStateFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const amountParam = params.get('amount');
+    const networkParam = params.get('network');
+    const termsParam = params.get('terms');
+    const resume = params.get('tron_resume') === '1';
+
+    if (amountParam) {
+        const n = parseFloat(amountParam);
+        if (!isNaN(n) && n > 0) {
+            selectedAmount = n;
+            const customAmount = document.getElementById('customAmount');
+            if (customAmount) customAmount.value = String(n);
+        }
+    }
+
+    if (networkParam && getNetworks()[networkParam]) {
+        const select = document.getElementById('networkSelect');
+        if (select) {
+            select.value = networkParam;
+        }
+        selectNetwork(networkParam);
+    }
+
+    if (termsParam === '1') {
+        const termsConsent = document.getElementById('termsConsent');
+        if (termsConsent) {
+            termsConsent.checked = true;
+        }
+    }
+
+    updateButtonState();
+
+    return { resume, networkParam, amountParam };
+}
+
 document.addEventListener('DOMContentLoaded', function() {
 
     const customAmount = document.getElementById('customAmount');
@@ -726,7 +767,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     txHash.innerHTML = '';
                 }
                 
-                connection = await walletManager.connect(net);
+                const termsEl = document.getElementById('termsConsent');
+                connection = await walletManager.connect(net, {
+                    amount: selectedAmount,
+                    terms: !!(termsEl && termsEl.checked)
+                });
                 updateWalletInfo(connection);
             } catch (err) {
                 if (successMsg) successMsg.style.display = 'none';
@@ -1246,6 +1291,29 @@ async function initializeDonatePage() {
         financialTask,
         donorsTask,
     ]);
+
+    // بازیابی state بعد از لود پروژه/شبکه‌ها (سناریوی TronLink in-app)
+    const restored = restoreDonateStateFromUrl();
+    console.log('[Donate] state from URL', restored);
+
+    // اگر از deep link TronLink آمده‌ایم و کیف پول inject شده،
+    // کاربر فقط یک‌بار دکمه را می‌زند — مبلغ/شبکه از قبل پر است.
+    // (auto-click نمی‌کنیم تا کاربر کنترل داشته باشد؛ فقط UI آماده است)
+    if (restored.resume) {
+        const btn = document.getElementById('connectBtn');
+        if (btn && !btn.disabled) {
+            // اسکرول به دکمه برای دیده شدن
+            try {
+                btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch (_) {}
+        }
+        // پاک کردن tron_resume از URL تا refresh دوباره resume نکند (اختیاری)
+        try {
+            const u = new URL(window.location.href);
+            u.searchParams.delete('tron_resume');
+            window.history.replaceState({}, '', u.toString());
+        } catch (_) {}
+    }
 }
 initializeDonatePage();
 updateButtonState();

@@ -188,7 +188,7 @@
             return this.wcProvider;
         }
 
-        async connect(network) {
+        async connect(network, options = {}) {
             if (!network || !network.enabled) {
                 throw new Error('این شبکه هنوز برای پرداخت فعال نیست');
             }
@@ -198,7 +198,7 @@
             }
 
             if (network.type === 'TVM') {
-                return this.connectTVM(network);
+                return this.connectTVM(network, options);
             }
 
             throw new Error(
@@ -338,11 +338,73 @@
             return this.connectWithWalletConnect(network);
         }
 
+        /**
+         * لیست RPCهای ترجیحی برای هر chainId
+         * اولویت با network-config است؛ این فقط پشتیبان پایدار است.
+         */
+        getPreferredRpcUrls(network) {
+            const chainId = Number(network?.chainId);
+            const fromConfig = [];
+            if (network?.rpcUrl) fromConfig.push(network.rpcUrl);
+            if (Array.isArray(network?.rpcFallbacks)) {
+                fromConfig.push(...network.rpcFallbacks);
+            }
+
+            // RPCهای پایدار شناخته‌شده (testnet/mainnetهای رایج)
+            const known = {
+                80002: [
+                    'https://rpc-amoy.polygon.technology',
+                    'https://polygon-amoy-bor-rpc.publicnode.com',
+                    'https://80002.rpc.thirdweb.com'
+                ],
+                137: [
+                    'https://polygon-rpc.com',
+                    'https://polygon-bor-rpc.publicnode.com',
+                    'https://rpc.ankr.com/polygon'
+                ],
+                1: [
+                    'https://ethereum-rpc.publicnode.com',
+                    'https://cloudflare-eth.com'
+                ]
+            };
+
+            const extra = known[chainId] || [];
+            const seen = new Set();
+            const out = [];
+            for (const u of [...fromConfig, ...extra]) {
+                if (!u || seen.has(u)) continue;
+                // drpc و endpointهای ناپایدار را به انتها ببر
+                seen.add(u);
+                out.push(u);
+            }
+            // drpc را آخر بگذار اگر جایی هست
+            out.sort((a, b) => {
+                const score = (u) =>
+                    /drpc\.org/i.test(u) ? 1 : 0;
+                return score(a) - score(b);
+            });
+            return out;
+        }
+
         async switchEVMNetwork(network, provider) {
             const target = provider || window.ethereum;
             if (!target || !network?.chainId) return;
 
             const chainIdHex = `0x${Number(network.chainId).toString(16)}`;
+            const rpcUrls = this.getPreferredRpcUrls(network);
+            const explorer = network.explorerUrl || network.explorer;
+
+            const addParams = {
+                chainId: chainIdHex,
+                chainName: network.name || `Chain ${network.chainId}`,
+                nativeCurrency: {
+                    name: network.nativeToken || 'ETH',
+                    symbol: network.nativeToken || 'ETH',
+                    decimals: 18
+                },
+                rpcUrls: rpcUrls.length ? rpcUrls : ['https://rpc-amoy.polygon.technology'],
+                blockExplorerUrls: explorer ? [explorer] : undefined
+            };
 
             try {
                 await target.request({
@@ -355,21 +417,7 @@
                     try {
                         await target.request({
                             method: 'wallet_addEthereumChain',
-                            params: [
-                                {
-                                    chainId: chainIdHex,
-                                    chainName: network.name || `Chain ${network.chainId}`,
-                                    nativeCurrency: {
-                                        name: network.nativeToken || 'ETH',
-                                        symbol: network.nativeToken || 'ETH',
-                                        decimals: 18
-                                    },
-                                    rpcUrls: [network.rpcUrl].filter(Boolean),
-                                    blockExplorerUrls: network.explorerUrl
-                                        ? [network.explorerUrl]
-                                        : undefined
-                                }
-                            ]
+                            params: [addParams]
                         });
                     } catch (addErr) {
                         throw new Error(
@@ -381,6 +429,41 @@
                         `شبکه کیف پول با ${network.name} هماهنگ نیست. لطفاً شبکه را تغییر دهید.`
                     );
                 }
+            }
+        }
+
+        /**
+         * تلاش برای به‌روزرسانی RPC شبکه داخل کیف‌پول
+         * (اگر از قبل اضافه شده باشد، بعضی کیف‌پول‌ها نادیده می‌گیرند)
+         */
+        async tryRefreshWalletRpc(connection) {
+            const { provider, network } = connection || {};
+            if (!provider || !network?.chainId) return;
+            if (typeof provider.request !== 'function') return;
+
+            const chainIdHex = `0x${Number(network.chainId).toString(16)}`;
+            const rpcUrls = this.getPreferredRpcUrls(network);
+            const explorer = network.explorerUrl || network.explorer;
+
+            try {
+                await provider.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [
+                        {
+                            chainId: chainIdHex,
+                            chainName: network.name || `Chain ${network.chainId}`,
+                            nativeCurrency: {
+                                name: network.nativeToken || 'ETH',
+                                symbol: network.nativeToken || 'ETH',
+                                decimals: 18
+                            },
+                            rpcUrls,
+                            blockExplorerUrls: explorer ? [explorer] : undefined
+                        }
+                    ]
+                });
+            } catch (_) {
+                // عمداً نادیده — همه کیف‌پول‌ها اجازه update نمی‌دهند
             }
         }
 
@@ -578,11 +661,7 @@
                 console.warn('[WalletManager] primary getGasPrice failed', e);
             }
 
-            const urls = [];
-            if (network?.rpcUrl) urls.push(network.rpcUrl);
-            if (Array.isArray(network?.rpcFallbacks)) {
-                urls.push(...network.rpcFallbacks);
-            }
+            const urls = this.getPreferredRpcUrls(network || {});
 
             for (const url of urls) {
                 if (!url) continue;
@@ -695,6 +774,11 @@
                 throw new Error('provider یا حساب نامعتبر است');
             }
 
+            // تلاش برای RPC بهتر داخل کیف‌پول (اگر پشتیبانی کند)
+            try {
+                await this.tryRefreshWalletRpc(connection);
+            } catch (_) {}
+
             await this.ensureEvmChain(connection);
 
             /**
@@ -768,6 +852,20 @@
             }
 
             if (lastError && !txHash) {
+                if (this.isRpcEndpointError(lastError)) {
+                    const rpcHint =
+                        this.getPreferredRpcUrls(connection.network || {})[0] ||
+                        'https://rpc-amoy.polygon.technology';
+                    throw new Error(
+                        'RPC شبکه داخل کیف‌پول در دسترس نیست.\n\n' +
+                            'این خطا از MetaMask است نه از سایت.\n' +
+                            'مسیر رفع:\n' +
+                            'MetaMask → Settings → Networks → Amoy → RPC URL\n' +
+                            'این آدرس را بگذارید:\n' +
+                            rpcHint +
+                            '\n\nبعد دوباره پرداخت را امتحان کنید.'
+                    );
+                }
                 throw lastError;
             }
 
@@ -786,10 +884,39 @@
             };
         }
 
-        // ==================== TVM (بدون تغییر رفتار قبلی) ====================
-        openInTronLink() {
+        // ==================== TVM ====================
+        isInTronLinkBrowser() {
+            const ua = navigator.userAgent || '';
+            if (/TronLink/i.test(ua)) return true;
+            try {
+                if (window.tronWeb && window.tronWeb.ready) return true;
+            } catch (_) {}
+            return false;
+        }
+
+        /**
+         * ساخت URL با state فرم تا داخل TronLink دوباره پر نشود.
+         * Chrome/Samsung و in-app TronLink storage مشترک ندارند؛
+         * فقط query string قابل اتکا است.
+         */
+        buildTronLinkReturnUrl(extraParams = {}) {
+            const url = new URL(window.location.href);
+            Object.entries(extraParams).forEach(([k, v]) => {
+                if (v === undefined || v === null || v === '') {
+                    url.searchParams.delete(k);
+                } else {
+                    url.searchParams.set(k, String(v));
+                }
+            });
+            // داخل TronLink بعد از لود، جریان پرداخت را ادامه بده
+            url.searchParams.set('tron_resume', '1');
+            return url.toString();
+        }
+
+        openInTronLink(returnUrl) {
+            const targetUrl = returnUrl || window.location.href;
             const param = {
-                url: window.location.href,
+                url: targetUrl,
                 action: 'open',
                 protocol: 'TronLink',
                 version: '1.0'
@@ -798,12 +925,26 @@
             window.location.href = `tronlinkoutside://pull.activity?param=${encoded}`;
         }
 
-        async connectTVM(network) {
+        /**
+         * اتصال TVM
+         * - اگر injected باشد → مستقیم
+         * - موبایل بدون injected → deep link با state در URL
+         */
+        async connectTVM(network, options = {}) {
             if (!window.tronWeb && !window.tron) {
                 if (this.isMobile()) {
-                    this.openInTronLink();
+                    const returnUrl =
+                        options.returnUrl ||
+                        this.buildTronLinkReturnUrl({
+                            network: network?.id || '',
+                            amount: options.amount || '',
+                            terms: options.terms ? '1' : ''
+                        });
+                    this.openInTronLink(returnUrl);
                     throw new Error(
-                        'در حال باز کردن صفحه داخل TronLink... لطفاً چند ثانیه صبر کنید و دوباره تلاش کنید.'
+                        'در حال باز کردن صفحه داخل TronLink...\n' +
+                            'بعد از باز شدن، اگر فرم خالی بود یک‌بار دکمه پرداخت را بزنید؛\n' +
+                            'مبلغ و شبکه از روی لینک بازیابی می‌شوند.'
                     );
                 }
                 throw new Error('لطفاً TronLink را نصب و فعال کنید');
