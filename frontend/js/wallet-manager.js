@@ -988,6 +988,157 @@
             return this.connection;
         }
 
+
+        /**
+         * انتظار برای نتیجه تراکنش TRON از شبکه
+         */
+        async waitForTronTransaction(tronWeb, txId, options = {}) {
+            const timeoutMs = options.timeoutMs || 120000;
+            const intervalMs = options.intervalMs || 3000;
+            const startedAt = Date.now();
+
+            while (Date.now() - startedAt < timeoutMs) {
+                try {
+                    const info = await tronWeb.trx.getTransactionInfo(txId);
+
+                    if (info && info.id) {
+                        if (info.receipt?.result === 'SUCCESS') {
+                            return { success: true, info, transactionHash: txId };
+                        }
+
+                        if (
+                            info.receipt?.result === 'FAILED' ||
+                            info.result === 'FAILED' ||
+                            info.resMessage
+                        ) {
+                            return {
+                                success: false,
+                                info,
+                                transactionHash: txId,
+                                error:
+                                    info.resMessage ||
+                                    'Transaction execution failed'
+                            };
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[WalletManager] wait TRON tx:', e);
+                }
+
+                await new Promise((resolve) => setTimeout(resolve, intervalMs));
+            }
+
+            throw new Error(
+                'زمان انتظار برای تأیید تراکنش در شبکه TRON به پایان رسید.'
+            );
+        }
+
+        /**
+         * API واحد ارسال تراکنش TVM (هم‌تراز sendEvmTransaction)
+         *
+         * donate فقط ABI/method/args را می‌دهد؛
+         * اتصال، send و wait اینجا انجام می‌شود.
+         *
+         * @param {object} connection - خروجی connectTVM
+         * @param {object} spec
+         * @param {string} spec.contractAddress
+         * @param {Array|null} spec.abi - اگر null، از ABI داخلی قرارداد استفاده می‌شود
+         * @param {string} spec.method - نام متد مثل approve / depositToken
+         * @param {Array} spec.args
+         * @param {object} [spec.sendOptions] - گزینه‌های tronWeb .send()
+         */
+        async sendTvmTransaction(
+            connection,
+            { contractAddress, abi = null, method, args = [], sendOptions = {} }
+        ) {
+            if (!connection || connection.type !== 'TVM') {
+                throw new Error('اتصال TVM برقرار نیست');
+            }
+
+            const tronWeb = connection.tronWeb;
+            if (!tronWeb) {
+                throw new Error('tronWeb در دسترس نیست');
+            }
+            if (!contractAddress) {
+                throw new Error('آدرس قرارداد مشخص نیست');
+            }
+            if (!method) {
+                throw new Error('نام متد قرارداد مشخص نیست');
+            }
+
+            let contract;
+            try {
+                if (abi && Array.isArray(abi) && abi.length) {
+                    contract = await tronWeb.contract(abi, contractAddress);
+                } else {
+                    contract = await tronWeb.contract().at(contractAddress);
+                }
+            } catch (e) {
+                console.error('[WalletManager] load TRON contract failed', e);
+                throw new Error(
+                    'بارگذاری قرارداد TRON ناموفق بود: ' +
+                        (e?.message || String(e))
+                );
+            }
+
+            if (!contract[method] || typeof contract[method] !== 'function') {
+                throw new Error(`متد ${method} روی قرارداد یافت نشد`);
+            }
+
+            console.log('[WalletManager] TRON send', {
+                via: connection.via,
+                method,
+                contractAddress,
+                argsPreview: args.map((a) =>
+                    typeof a === 'string' && a.length > 12
+                        ? a.slice(0, 10) + '…'
+                        : a
+                )
+            });
+
+            let txId;
+            try {
+                txId = await contract[method](...args).send(sendOptions);
+            } catch (err) {
+                if (
+                    err?.code === 4001 ||
+                    (err?.message &&
+                        (err.message.includes('User rejected') ||
+                            err.message.includes('User denied') ||
+                            err.message.includes('Confirmation declined') ||
+                            err.message.includes('cancel')))
+                ) {
+                    throw new Error('تراکنش توسط کاربر لغو شد');
+                }
+                throw err;
+            }
+
+            if (!txId) {
+                throw new Error('شناسه تراکنش TRON از کیف‌پول دریافت نشد');
+            }
+
+            // بعضی نسخه‌ها object برمی‌گردانند
+            if (typeof txId === 'object') {
+                txId = txId.txid || txId.transaction?.txID || txId;
+            }
+
+            const result = await this.waitForTronTransaction(tronWeb, txId);
+
+            if (!result.success) {
+                const error = new Error(
+                    result.error || 'تراکنش TRON در شبکه ناموفق بود.'
+                );
+                error.txHash = txId;
+                throw error;
+            }
+
+            return {
+                transactionHash: txId,
+                status: true,
+                info: result.info
+            };
+        }
+
         async disconnect() {
             if (this.wcProvider) {
                 try {
@@ -999,6 +1150,7 @@
             }
             this.connection = null;
         }
+
     }
 
     window.ClassChainWalletManager = WalletManager;
