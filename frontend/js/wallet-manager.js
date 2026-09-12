@@ -1,34 +1,153 @@
 (function () {
+    const WC_PROJECT_ID = 'd107a68716b924622b16e8190105acf0';
+
     class WalletManager {
         constructor() {
             this.connection = null;
+            this.wcProvider = null;
         }
 
-        // تشخیص موبایل
         isMobile() {
-            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+                navigator.userAgent
+            );
         }
 
-        // ساخت Deep Link برای MetaMask
-        openInMetaMask() {
-            const currentUrl = window.location.href;
-            // حذف https:// از اول (طبق مستندات MetaMask)
-            const dappUrl = currentUrl.replace(/^https?:\/\//, '');
-            const deepLink = `https://link.metamask.io/dapp/${dappUrl}`;
-            window.location.href = deepLink;
+        /**
+         * همه شبکه‌های EVM فعال را از network-config می‌خواند
+         * تا با اضافه شدن شبکه جدید، WalletConnect خودکار پشتیبانی کند.
+         */
+        getAllEnabledEvmNetworks() {
+            const cfg = window.ClassChainNetworkConfig;
+            const networks =
+                (cfg && cfg.NETWORKS) ||
+                {};
+
+            return Object.values(networks).filter(
+                (n) =>
+                    n &&
+                    n.type === 'EVM' &&
+                    n.enabled &&
+                    n.chainId &&
+                    n.rpcUrl
+            );
         }
 
-        // ساخت Deep Link برای TronLink
-        openInTronLink() {
-            const param = {
-                url: window.location.href,
-                action: "open",
-                protocol: "TronLink",
-                version: "1.0"
-            };
-            const encoded = encodeURIComponent(JSON.stringify(param));
-            // native deep link
-            window.location.href = `tronlinkoutside://pull.activity?param=${encoded}`;
+        buildWalletConnectMaps(preferredNetwork) {
+            const all = this.getAllEnabledEvmNetworks();
+
+            // مطمئن شو شبکه فعلی هم در لیست باشد
+            if (
+                preferredNetwork &&
+                preferredNetwork.type === 'EVM' &&
+                preferredNetwork.chainId &&
+                !all.some((n) => n.chainId === preferredNetwork.chainId)
+            ) {
+                all.push(preferredNetwork);
+            }
+
+            const optionalChains = all.map((n) => Number(n.chainId));
+            const rpcMap = {};
+
+            all.forEach((n) => {
+                rpcMap[String(n.chainId)] = n.rpcUrl;
+            });
+
+            // حداقل یک chain برای init لازم است
+            if (optionalChains.length === 0 && preferredNetwork?.chainId) {
+                optionalChains.push(Number(preferredNetwork.chainId));
+                if (preferredNetwork.rpcUrl) {
+                    rpcMap[String(preferredNetwork.chainId)] =
+                        preferredNetwork.rpcUrl;
+                }
+            }
+
+            return { optionalChains, rpcMap };
+        }
+
+        resolveEthereumProviderCtor() {
+            if (window.EthereumProvider) {
+                return window.EthereumProvider;
+            }
+            if (
+                window.WalletConnectEthereumProvider &&
+                window.WalletConnectEthereumProvider.EthereumProvider
+            ) {
+                return window.WalletConnectEthereumProvider.EthereumProvider;
+            }
+            if (
+                window.WalletConnectEthereumProvider &&
+                typeof window.WalletConnectEthereumProvider.init === 'function'
+            ) {
+                return window.WalletConnectEthereumProvider;
+            }
+            // برخی باندل‌های UMD
+            if (
+                window['@walletconnect/ethereum-provider'] &&
+                window['@walletconnect/ethereum-provider'].EthereumProvider
+            ) {
+                return window['@walletconnect/ethereum-provider']
+                    .EthereumProvider;
+            }
+            return null;
+        }
+
+        async initWalletConnect(network) {
+            if (this.wcProvider) {
+                return this.wcProvider;
+            }
+
+            const EthereumProvider = this.resolveEthereumProviderCtor();
+            if (!EthereumProvider || typeof EthereumProvider.init !== 'function') {
+                throw new Error(
+                    'کتابخانه WalletConnect بارگذاری نشده است. صفحه را رفرش کنید.'
+                );
+            }
+
+            const { optionalChains, rpcMap } =
+                this.buildWalletConnectMaps(network);
+
+            if (!optionalChains.length) {
+                throw new Error('هیچ شبکه EVM فعالی برای WalletConnect یافت نشد');
+            }
+
+            this.wcProvider = await EthereumProvider.init({
+                projectId: WC_PROJECT_ID,
+                metadata: {
+                    name: 'ClassChain',
+                    description:
+                        'پلتفرم شفاف مدرسه‌سازی با بلاکچین | Transparent school-building platform',
+                    url: window.location.origin,
+                    icons: [
+                        window.location.origin + '/favicon.ico',
+                        'https://avatars.githubusercontent.com/u/classchain'
+                    ]
+                },
+                showQrModal: true,
+                optionalChains,
+                rpcMap,
+                methods: [
+                    'eth_sendTransaction',
+                    'eth_signTransaction',
+                    'eth_sign',
+                    'personal_sign',
+                    'eth_signTypedData',
+                    'eth_signTypedData_v4',
+                    'wallet_switchEthereumChain',
+                    'wallet_addEthereumChain',
+                    'eth_accounts',
+                    'eth_requestAccounts',
+                    'eth_chainId'
+                ],
+                events: [
+                    'chainChanged',
+                    'accountsChanged',
+                    'connect',
+                    'disconnect'
+                ]
+            });
+
+            return this.wcProvider;
         }
 
         async connect(network) {
@@ -44,80 +163,175 @@
                 return this.connectTVM(network);
             }
 
-            throw new Error(`کیف پول ${network.walletName || network.wallet} هنوز پشتیبانی نمی‌شود`);
+            throw new Error(
+                `کیف پول ${network.walletName || network.wallet} هنوز پشتیبانی نمی‌شود`
+            );
         }
 
         async connectEVM(network) {
-            // اگر در موبایل هستیم و MetaMask inject نشده
-            if (typeof window.ethereum === 'undefined') {
-                if (this.isMobile()) {
-                    // باز کردن صفحه داخل مرورگر MetaMask
-                    this.openInMetaMask();
-                    // کاربر از اپ خارج می‌شود، پس خطا می‌دهیم تا جریان متوقف شود
-                    throw new Error('در حال باز کردن صفحه داخل MetaMask... لطفاً چند ثانیه صبر کنید و دوباره تلاش کنید.');
+            // مسیر ۱: provider تزریق‌شده (اکستنشن دسکتاپ یا in-app browser)
+            if (typeof window.ethereum !== 'undefined') {
+                await window.ethereum.request({
+                    method: 'eth_requestAccounts'
+                });
+
+                const web3 = new Web3(window.ethereum);
+                const accounts = await web3.eth.getAccounts();
+
+                if (!accounts || accounts.length === 0) {
+                    throw new Error('هیچ حسابی در کیف پول یافت نشد');
                 }
-                throw new Error('لطفاً MetaMask یا کیف پول سازگار با EVM را نصب کنید');
+
+                const currentChainId = Number(await web3.eth.getChainId());
+                if (network.chainId && currentChainId !== network.chainId) {
+                    await this.switchEVMNetwork(network, window.ethereum);
+                }
+
+                this.connection = {
+                    type: 'EVM',
+                    account: accounts[0],
+                    provider: window.ethereum,
+                    web3,
+                    network,
+                    via: 'injected'
+                };
+
+                return this.connection;
             }
 
-            await window.ethereum.request({ method: 'eth_requestAccounts' });
-            const web3 = new Web3(window.ethereum);
-            const accounts = await web3.eth.getAccounts();
+            // مسیر ۲: WalletConnect (موبایل / دسکتاپ بدون اکستنشن)
+            try {
+                const provider = await this.initWalletConnect(network);
 
-            if (!accounts || accounts.length === 0) {
-                throw new Error('هیچ حسابی در MetaMask یافت نشد');
+                await provider.connect();
+
+                const accounts = await provider.request({
+                    method: 'eth_requestAccounts'
+                });
+
+                if (!accounts || accounts.length === 0) {
+                    throw new Error(
+                        'هیچ حسابی از طریق WalletConnect دریافت نشد'
+                    );
+                }
+
+                const web3 = new Web3(provider);
+
+                const currentChainId = Number(await web3.eth.getChainId());
+                if (network.chainId && currentChainId !== Number(network.chainId)) {
+                    await this.switchEVMNetwork(network, provider);
+                }
+
+                this.connection = {
+                    type: 'EVM',
+                    account: accounts[0],
+                    provider,
+                    web3,
+                    network,
+                    via: 'walletconnect'
+                };
+
+                return this.connection;
+            } catch (err) {
+                console.error('[WalletManager] WalletConnect error:', err);
+
+                if (
+                    err?.code === 4001 ||
+                    (err?.message &&
+                        (err.message.includes('User rejected') ||
+                            err.message.includes('User denied') ||
+                            err.message.includes('rejected')))
+                ) {
+                    throw new Error('اتصال توسط کاربر لغو شد');
+                }
+
+                throw new Error(
+                    err?.message || 'خطا در اتصال با WalletConnect'
+                );
             }
-
-            const currentChainId = Number(await web3.eth.getChainId());
-            if (network.chainId && currentChainId !== network.chainId) {
-                await this.switchEVMNetwork(network);
-            }
-
-            this.connection = {
-                type: 'EVM',
-                account: accounts[0],
-                provider: window.ethereum,
-                web3,
-                network
-            };
-
-            return this.connection;
         }
 
-        async switchEVMNetwork(network) {
+        async switchEVMNetwork(network, provider) {
+            const target = provider || window.ethereum;
+            if (!target || !network?.chainId) return;
+
+            const chainIdHex = `0x${Number(network.chainId).toString(16)}`;
+
             try {
-                await window.ethereum.request({
+                await target.request({
                     method: 'wallet_switchEthereumChain',
-                    params: [{ chainId: `0x${network.chainId.toString(16)}` }]
+                    params: [{ chainId: chainIdHex }]
                 });
             } catch (error) {
-                // اگر شبکه وجود نداشت، می‌توانیم بعداً addEthereumChain اضافه کنیم
-                throw new Error(`شبکه کیف پول با ${network.name} هماهنگ نیست. لطفاً شبکه را تغییر دهید.`);
+                // 4902 = chain not added
+                if (error?.code === 4902 || error?.code === -32603) {
+                    try {
+                        await target.request({
+                            method: 'wallet_addEthereumChain',
+                            params: [
+                                {
+                                    chainId: chainIdHex,
+                                    chainName: network.name || `Chain ${network.chainId}`,
+                                    nativeCurrency: {
+                                        name: network.nativeToken || 'ETH',
+                                        symbol: network.nativeToken || 'ETH',
+                                        decimals: 18
+                                    },
+                                    rpcUrls: [network.rpcUrl].filter(Boolean),
+                                    blockExplorerUrls: network.explorerUrl
+                                        ? [network.explorerUrl]
+                                        : undefined
+                                }
+                            ]
+                        });
+                    } catch (addErr) {
+                        throw new Error(
+                            `افزودن شبکه ${network.name} ناموفق بود. لطفاً شبکه را دستی اضافه کنید.`
+                        );
+                    }
+                } else {
+                    throw new Error(
+                        `شبکه کیف پول با ${network.name} هماهنگ نیست. لطفاً شبکه را تغییر دهید.`
+                    );
+                }
             }
+        }
+
+        // ==================== TVM (بدون تغییر رفتار قبلی) ====================
+        openInTronLink() {
+            const param = {
+                url: window.location.href,
+                action: 'open',
+                protocol: 'TronLink',
+                version: '1.0'
+            };
+            const encoded = encodeURIComponent(JSON.stringify(param));
+            window.location.href = `tronlinkoutside://pull.activity?param=${encoded}`;
         }
 
         async connectTVM(network) {
-            // اگر در موبایل هستیم و TronLink inject نشده
             if (!window.tronWeb && !window.tron) {
                 if (this.isMobile()) {
                     this.openInTronLink();
-                    throw new Error('در حال باز کردن صفحه داخل TronLink... لطفاً چند ثانیه صبر کنید و دوباره تلاش کنید.');
+                    throw new Error(
+                        'در حال باز کردن صفحه داخل TronLink... لطفاً چند ثانیه صبر کنید و دوباره تلاش کنید.'
+                    );
                 }
                 throw new Error('لطفاً TronLink را نصب و فعال کنید');
             }
 
-            // پشتیبانی از هر دو حالت قدیمی و جدید TronLink
             const tronProvider = window.tron || window.tronWeb;
             let tronWeb = window.tronWeb;
 
-            // اگر فقط window.tron وجود دارد
             if (window.tron && window.tron.tronWeb) {
                 tronWeb = window.tron.tronWeb;
             }
 
-            // درخواست دسترسی (نسخه‌های جدید)
             if (tronProvider && typeof tronProvider.request === 'function') {
                 try {
-                    await tronProvider.request({ method: 'tron_requestAccounts' });
+                    await tronProvider.request({
+                        method: 'tron_requestAccounts'
+                    });
                 } catch (e) {
                     // بعضی نسخه‌ها این متد را ندارند
                 }
@@ -127,7 +341,9 @@
 
             const account = tronWeb?.defaultAddress?.base58;
             if (!account) {
-                throw new Error('TronLink قفل است یا هیچ حسابی انتخاب نشده است');
+                throw new Error(
+                    'TronLink قفل است یا هیچ حسابی انتخاب نشده است'
+                );
             }
 
             this.connection = {
@@ -135,13 +351,22 @@
                 account,
                 provider: tronWeb,
                 tronWeb,
-                network
+                network,
+                via: 'injected'
             };
 
             return this.connection;
         }
 
-        disconnect() {
+        async disconnect() {
+            if (this.wcProvider) {
+                try {
+                    await this.wcProvider.disconnect();
+                } catch (e) {
+                    console.warn('[WalletManager] WC disconnect:', e);
+                }
+                this.wcProvider = null;
+            }
             this.connection = null;
         }
     }
