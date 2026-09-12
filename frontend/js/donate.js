@@ -7,6 +7,44 @@ let projects = {};
 
 const networkConfig = window.ClassChainNetworkConfig || { NETWORKS: {}, getDonationNetworks: () => [] };
 function getNetworks() {return networkConfig.NETWORKS || {};}
+
+async function buildTxOptions(
+    web3Instance,
+    from,
+    gasEstimate,
+    multiplier = 1.25
+) {
+    const gas = Math.floor(
+        Number(gasEstimate) * multiplier
+    );
+
+    let gasPrice;
+
+    try {
+        gasPrice =
+            await web3Instance.eth.getGasPrice();
+
+    } catch (e) {
+        console.warn(
+            '[Donate] getGasPrice failed, using fallback',
+            e
+        );
+
+        gasPrice =
+            web3Instance.utils.toWei(
+                '30',
+                'gwei'
+            );
+    }
+
+    return {
+        from,
+        gas,
+        gasPrice,
+        type: '0x0'
+    };
+}
+
 const walletManager = new window.ClassChainWalletManager();
 const INDEXER_API =
   window.CLASSCHAIN_INDEXER_API ||
