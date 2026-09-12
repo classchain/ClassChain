@@ -446,7 +446,7 @@
         async buildEvmTxRequest(
             web3,
             { from, to, data, value = '0x0' },
-            { feeMode = 'none' } = {}
+            { feeMode = 'none', network = null } = {}
         ) {
             const tx = {
                 from,
@@ -513,8 +513,10 @@
                 }
             } else if (mode === 'legacy') {
                 try {
-                    const gasPrice = await web3.eth.getGasPrice();
-                    tx.gasPrice = this.toHex(gasPrice);
+                    tx.gasPrice = await this.fetchGasPriceWithFallbacks(
+                        web3,
+                        network
+                    );
                 } catch (e) {
                     console.warn(
                         '[WalletManager] getGasPrice failed; omitting gasPrice',
@@ -547,6 +549,67 @@
                 msg.includes('maxPriorityFeePerGas') ||
                 msg.includes('does not support EIP-1559')
             );
+        }
+
+        isRpcEndpointError(err) {
+            const msg = String(err?.message || err || '');
+            return (
+                msg.includes('RPC endpoint') ||
+                msg.includes('too many errors') ||
+                msg.includes('eth_gasPrice') ||
+                msg.includes('eth_estimateGas') ||
+                msg.includes('rate limit') ||
+                msg.includes('429') ||
+                msg.includes('timeout') ||
+                msg.includes('Failed to fetch') ||
+                msg.includes('network error')
+            );
+        }
+
+        /**
+         * گرفتن gasPrice از RPCهای شبکه با fallback
+         * وابستگی به RPC داخل MetaMask را کم می‌کند.
+         */
+        async fetchGasPriceWithFallbacks(web3, network) {
+            try {
+                const gp = await web3.eth.getGasPrice();
+                if (gp) return this.toHex(gp);
+            } catch (e) {
+                console.warn('[WalletManager] primary getGasPrice failed', e);
+            }
+
+            const urls = [];
+            if (network?.rpcUrl) urls.push(network.rpcUrl);
+            if (Array.isArray(network?.rpcFallbacks)) {
+                urls.push(...network.rpcFallbacks);
+            }
+
+            for (const url of urls) {
+                if (!url) continue;
+                try {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            jsonrpc: '2.0',
+                            id: 1,
+                            method: 'eth_gasPrice',
+                            params: []
+                        })
+                    });
+                    const json = await res.json();
+                    if (json?.result) {
+                        return json.result.startsWith('0x')
+                            ? json.result
+                            : this.toHex(json.result);
+                    }
+                } catch (e) {
+                    console.warn('[WalletManager] fallback gasPrice RPC failed', url, e);
+                }
+            }
+
+            // آخرین پناه: مقدار معقول برای testnet/mainnet
+            return this.toHex(30_000_000_000); // 30 gwei
         }
 
         /**
@@ -634,15 +697,23 @@
 
             await this.ensureEvmChain(connection);
 
-            // مسیر اصلی برای همه کیف‌پول‌های موبایل از WC: minimal
-            // injected هم با minimal سازگار است؛ fee را کیف‌پول پر می‌کند
-            const primaryMode =
-                connection.via === 'walletconnect' ? 'none' : 'auto';
-
+            /**
+             * استراتژی fee (مقیاس‌پذیر برای کیف‌پول‌های مختلف):
+             *
+             * WalletConnect + MetaMask:
+             *  - اگر fee نفرستیم، MetaMask از RPC داخلی خودش eth_gasPrice می‌زند.
+             *    روی شبکه‌های custom/testnet (مثل Amoy) آن RPC اغلب خراب/rate-limit است
+             *    → خطای "RPC endpoint returned too many errors".
+             *  - اگر EIP-1559 بفرستیم، MetaMask گاهی می‌گوید شبکه 1559 را support نمی‌کند
+             *    (تعریف ناقص شبکه داخل کیف‌پول).
+             *  - پس برای WC اول legacy gasPrice را خودمان از RPCهای network-config می‌گیریم.
+             *
+             * injected (مرورگر دسکتاپ / in-app): auto (تشخیص از زنجیره).
+             */
             const tryModes =
-                primaryMode === 'none'
-                    ? ['none']
-                    : ['auto', 'none', 'legacy'];
+                connection.via === 'walletconnect'
+                    ? ['legacy', 'none']
+                    : ['auto', 'legacy', 'none'];
 
             let lastError = null;
             let txHash = null;
@@ -651,7 +722,7 @@
                 const tx = await this.buildEvmTxRequest(
                     web3,
                     { from: account, to, data, value },
-                    { feeMode }
+                    { feeMode, network: connection.network }
                 );
 
                 console.log('[WalletManager] eth_sendTransaction attempt', {
@@ -679,26 +750,20 @@
                         throw new Error('تراکنش توسط کاربر لغو شد');
                     }
 
-                    // mismatch EIP-1559 → سراغ mode بعدی
+                    // برای هر mismatch یا RPC خراب، mode بعدی را امتحان کن
                     if (
-                        this.isEip1559MismatchError(err) &&
-                        feeMode !== 'none'
+                        this.isEip1559MismatchError(err) ||
+                        this.isRpcEndpointError(err)
                     ) {
                         continue;
                     }
 
-                    // خطای دیگر روی WC: یک بار با none retry
-                    if (
-                        connection.via === 'walletconnect' &&
-                        feeMode !== 'none'
-                    ) {
+                    // سایر خطاها هم تا آخرین mode retry
+                    if (feeMode !== tryModes[tryModes.length - 1]) {
                         continue;
                     }
 
-                    // آخرین mode یا خطای غیرقابل retry
-                    if (feeMode === tryModes[tryModes.length - 1]) {
-                        throw err;
-                    }
+                    throw err;
                 }
             }
 
