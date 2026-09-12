@@ -13,6 +13,44 @@
             );
         }
 
+        isInAppWalletBrowser() {
+            const ua = navigator.userAgent || '';
+        
+            if (/MetaMaskMobile/i.test(ua)) return true;
+            if (/Trust\//i.test(ua) || /TrustWallet/i.test(ua)) return true;
+            if (/CoinbaseWallet/i.test(ua) || /CBWallet/i.test(ua)) return true;
+            if (/imToken/i.test(ua)) return true;
+            if (/TokenPocket/i.test(ua)) return true;
+            if (/Rainbow/i.test(ua)) return true;
+        
+            try {
+                if (
+                    window.ethereum &&
+                    window.ethereum.isMetaMask &&
+                    /MetaMask/i.test(ua) &&
+                    !/Chrome|CriOS|Firefox|Safari|EdgiOS|EdgA/i.test(ua)
+                ) {
+                    return true;
+                }
+            } catch (_) {}
+        
+            return false;
+        }
+        
+        shouldUseInjectedEvm() {
+            if (typeof window.ethereum === 'undefined') {
+                return false;
+            }
+        
+            // Desktop: injected provider مجاز است
+            if (!this.isMobile()) {
+                return true;
+            }
+        
+            // Mobile: فقط داخل مرورگر خود کیف پول
+            // از injected provider استفاده کن.
+            return this.isInAppWalletBrowser();
+        }
         /**
          * همه شبکه‌های EVM فعال را از network-config می‌خواند
          * تا با اضافه شدن شبکه جدید، WalletConnect خودکار پشتیبانی کند.
@@ -168,60 +206,87 @@
             );
         }
 
-        async connectEVM(network) {
-            // مسیر ۱: provider تزریق‌شده (اکستنشن دسکتاپ یا in-app browser)
-            if (typeof window.ethereum !== 'undefined') {
-                await window.ethereum.request({
-                    method: 'eth_requestAccounts'
-                });
-
-                const web3 = new Web3(window.ethereum);
-                const accounts = await web3.eth.getAccounts();
-
-                if (!accounts || accounts.length === 0) {
-                    throw new Error('هیچ حسابی در کیف پول یافت نشد');
-                }
-
-                const currentChainId = Number(await web3.eth.getChainId());
-                if (network.chainId && currentChainId !== network.chainId) {
-                    await this.switchEVMNetwork(network, window.ethereum);
-                }
-
-                this.connection = {
-                    type: 'EVM',
-                    account: accounts[0],
-                    provider: window.ethereum,
-                    web3,
-                    network,
-                    via: 'injected'
-                };
-
-                return this.connection;
+        async connectWithInjected(network) {
+            await window.ethereum.request({
+                method: 'eth_requestAccounts'
+            });
+        
+            const web3 = new Web3(window.ethereum);
+        
+            const accounts = await web3.eth.getAccounts();
+        
+            if (!accounts || accounts.length === 0) {
+                throw new Error('هیچ حسابی در کیف پول یافت نشد');
             }
-
-            // مسیر ۲: WalletConnect (موبایل / دسکتاپ بدون اکستنشن)
+        
+            const currentChainId = Number(
+                await web3.eth.getChainId()
+            );
+        
+            if (
+                network.chainId &&
+                currentChainId !== Number(network.chainId)
+            ) {
+                await this.switchEVMNetwork(
+                    network,
+                    window.ethereum
+                );
+            }
+        
+            this.connection = {
+                type: 'EVM',
+                account: accounts[0],
+                provider: window.ethereum,
+                web3,
+                network,
+                via: 'injected'
+            };
+        
+            return this.connection;
+        }
+        
+        async connectWithWalletConnect(network) {
             try {
-                const provider = await this.initWalletConnect(network);
-
+                const provider =
+                    await this.initWalletConnect(network);
+        
                 await provider.connect();
-
-                const accounts = await provider.request({
-                    method: 'eth_requestAccounts'
-                });
-
+        
+                let accounts = [];
+        
+                try {
+                    accounts = provider.accounts || [];
+                } catch (_) {}
+        
+                if (!accounts.length) {
+                    accounts = await provider.request({
+                        method: 'eth_requestAccounts'
+                    });
+                }
+        
                 if (!accounts || accounts.length === 0) {
                     throw new Error(
                         'هیچ حسابی از طریق WalletConnect دریافت نشد'
                     );
                 }
-
+        
                 const web3 = new Web3(provider);
-
-                const currentChainId = Number(await web3.eth.getChainId());
-                if (network.chainId && currentChainId !== Number(network.chainId)) {
-                    await this.switchEVMNetwork(network, provider);
+        
+                const currentChainId = Number(
+                    provider.chainId ||
+                    await web3.eth.getChainId()
+                );
+        
+                if (
+                    network.chainId &&
+                    currentChainId !== Number(network.chainId)
+                ) {
+                    await this.switchEVMNetwork(
+                        network,
+                        provider
+                    );
                 }
-
+        
                 this.connection = {
                     type: 'EVM',
                     account: accounts[0],
@@ -230,25 +295,47 @@
                     network,
                     via: 'walletconnect'
                 };
-
+        
                 return this.connection;
+        
             } catch (err) {
-                console.error('[WalletManager] WalletConnect error:', err);
-
+                console.error(
+                    '[WalletManager] WalletConnect error:',
+                    err
+                );
+        
                 if (
                     err?.code === 4001 ||
-                    (err?.message &&
-                        (err.message.includes('User rejected') ||
+                    (
+                        err?.message &&
+                        (
+                            err.message.includes('User rejected') ||
                             err.message.includes('User denied') ||
-                            err.message.includes('rejected')))
+                            err.message.includes('rejected')
+                        )
+                    )
                 ) {
                     throw new Error('اتصال توسط کاربر لغو شد');
                 }
-
+        
                 throw new Error(
-                    err?.message || 'خطا در اتصال با WalletConnect'
+                    err?.message ||
+                    'خطا در اتصال با WalletConnect'
                 );
             }
+        }
+
+        async connectEVM(network) {
+            // Desktop یا In-App Wallet Browser:
+            // از provider تزریق‌شده استفاده کن.
+            if (this.shouldUseInjectedEvm()) {
+                return this.connectWithInjected(network);
+            }
+        
+            // Chrome/Safari/Samsung Browser موبایل:
+            // حتی اگر window.ethereum وجود داشته باشد،
+            // مستقیماً eth_requestAccounts را صدا نزن.
+            return this.connectWithWalletConnect(network);
         }
 
         async switchEVMNetwork(network, provider) {
