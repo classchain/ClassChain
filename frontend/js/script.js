@@ -10,7 +10,7 @@ const languageMenu = document.getElementById("languageMenu");
 async function loadTranslations() {
     const results = await Promise.all(
         SUPPORTED_LANGS.map(async (lang) => {
-            const res = await fetch(`i18n/${lang}.json`, { cache: "no-cache" });
+            const res = await fetch(`i18n/${lang}.json`);
             if (!res.ok) throw new Error(`Failed to load i18n/${lang}.json`);
             translations[lang] = await res.json();
             return lang;
@@ -39,6 +39,8 @@ function applyLanguage(lang) {
 
     if (languageButton) languageButton.textContent = dictionary.langName || lang.toUpperCase();
     localStorage.setItem("classchain-language", lang);
+    document.documentElement.classList.add("i18n-ready");
+    document.documentElement.setAttribute("data-lang", lang);
 
     if (languageMenu) languageMenu.classList.remove("open");
     if (languageButton) languageButton.setAttribute("aria-expanded", "false");
@@ -266,5 +268,6 @@ function initHeroNetwork() {
         applyLanguage(resolveInitialLanguage());
     } catch (err) {
         console.error("i18n load failed:", err);
+        document.documentElement.classList.add("i18n-ready");
     }
 })();
