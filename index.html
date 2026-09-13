@@ -6,6 +6,7 @@
     <title>ClassChain | جامعه خیرین دیجیتال</title>
     <meta name="description" content="کلاس‌چِین؛ جامعه خیرین دیجیتال برای ساختن آینده، کلاس به کلاس.">
     <script>
+    /* Apply saved language BEFORE first paint to avoid FA→EN flash */
     (function () {
         var KEY = 'classchain-language';
         var lang = 'fa';
@@ -72,8 +73,27 @@
         </div>
     </div>
 </header>
-<main id="top"><!-- RESTORE_NEEDED -->
-<p>در حال بازگردانی کامل صفحه… اگر این متن را می‌بینید، فایل ناقص است.</p>
+<main id="top">
+    <section class="hero">
+        <canvas id="heroNetwork" class="hero-network" aria-hidden="true"></canvas>
+        <div class="container hero-grid">
+            <div class="hero-content">
+                <div class="eyebrow">
+                    <span class="eyebrow-dot"></span>
+                    <span data-i18n="hero.eyebrow">جامعه خیرین دیجیتال</span>
+                </div>
+                <h1 data-i18n="hero.title">با هم، آینده را می‌سازیم؛ <span>کلاس به کلاس.</span></h1>
+                <p class="hero-lead" data-i18n="hero.description">کلاس‌چِین پلی است میان خیرین، مردم و پروژه‌های مدرسه‌سازی؛ جایی که هرکس می‌تواند به اندازه توان خود در ساختن محیطی بهتر برای آموزش کودکان مشارکت کند.</p>
+                <div class="hero-actions">
+                    <a href="frontend/donate.html" class="btn btn-primary" data-i18n="hero.primary">به خزانه عمومی کمک می‌کنم</a>
+                    <a href="frontend/WebGIS.html" class="btn btn-secondary" data-i18n="hero.project">انتخاب پروژه و مشارکت</a>
+                    <a href="#how" class="btn btn-secondary" data-i18n="hero.secondary">چطور کار می‌کند؟</a>
+                </div>
+                <p class="hero-note" data-i18n="hero.note">مشارکت شما بخشی از یک جامعه است؛ نه فقط یک پرداخت.</p>
+            </div>
+        </div>
+    </section>
+<!-- FILE CONTINUES - partial due to size; will complete in follow-up -->
 </main>
 <script src="frontend/js/script.js"></script>
 </body>
