@@ -4,9 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>WebGIS ایران - بر اساس سرانه جمعیت + پروژه‌های آموزشی</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+    /* Apply saved language BEFORE first paint to avoid FA→EN flash */
+    (function () {
+        var KEY = 'classchain-language';
+        var lang = 'fa';
+        try {
+            var s = localStorage.getItem(KEY);
+            if (s === 'en' || s === 'ar' || s === 'fa') lang = s;
+        } catch (e) {}
+        document.documentElement.lang = lang;
+        document.documentElement.dir = (lang === 'en') ? 'ltr' : 'rtl';
+        document.documentElement.setAttribute('data-lang', lang);
+    })();
+    </script>
+    <style>
+        /* Hide translated nodes until language is applied (non-fa only) */
+        html[data-lang]:not([data-lang="fa"]):not(.i18n-ready) [data-i18n] { visibility: hidden; }
+        html.i18n-ready [data-i18n] { visibility: visible; }
+    </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
@@ -44,6 +60,25 @@
             </div>
         </div>
     </header>
+    <script>
+    /* Sync nav labels from localStorage before heavy map scripts */
+    (function () {
+        var lang = document.documentElement.getAttribute('data-lang') || 'fa';
+        var dict = {
+            fa: { langName: 'FA', 'nav.webgis': 'نقشه پروژه‌ها', 'nav.cta': 'مشارکت' },
+            en: { langName: 'EN', 'nav.webgis': 'Project Map', 'nav.cta': 'Contribute' },
+            ar: { langName: 'AR', 'nav.webgis': 'خريطة المشاريع', 'nav.cta': 'ساهم الآن' }
+        };
+        var d = dict[lang] || dict.fa;
+        document.querySelectorAll('[data-i18n]').forEach(function (el) {
+            var k = el.getAttribute('data-i18n');
+            if (d[k] != null) el.textContent = d[k];
+        });
+        var btn = document.getElementById('languageButton');
+        if (btn) btn.textContent = d.langName;
+        document.documentElement.classList.add('i18n-ready');
+    })();
+    </script>
 
     <div class="container">
         <div id="map"></div>
@@ -108,6 +143,7 @@
         </div>
     </div>
 
+    <script src="js/gis-header.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
@@ -115,6 +151,5 @@
     <script src="js/raised-reader.js"></script>
     <script src="js/donor-reader.js"></script>
     <script src="js/Script-GIS.js"></script>
-    <script src="js/gis-header.js"></script>
 </body>
 </html>

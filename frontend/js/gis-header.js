@@ -45,6 +45,8 @@ function applyGisLanguage(lang) {
     const languageButton = document.getElementById('languageButton');
     if (languageButton) languageButton.textContent = dictionary.langName || lang.toUpperCase();
     localStorage.setItem('classchain-language', lang);
+    document.documentElement.classList.add('i18n-ready');
+    document.documentElement.setAttribute('data-lang', lang);
     const languageMenu = document.getElementById('languageMenu');
     if (languageMenu) languageMenu.classList.remove('open');
     if (languageButton) languageButton.setAttribute('aria-expanded', 'false');
@@ -64,47 +66,45 @@ function bindGisHeader() {
         languageButton.addEventListener('click', (e) => {
             e.stopPropagation();
             const open = languageMenu.classList.toggle('open');
-            languageButton.setAttribute('aria-expanded', String(open));
-        });
-        document.addEventListener('click', () => {
-            languageMenu.classList.remove('open');
-            languageButton.setAttribute('aria-expanded', 'false');
+            languageButton.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
     }
 
     if (mobileMenuButton && mobileMenu) {
-        mobileMenuButton.addEventListener('click', () => mobileMenu.classList.toggle('open'));
-        mobileMenu.querySelectorAll('a, button').forEach((el) => {
-            el.addEventListener('click', () => mobileMenu.classList.remove('open'));
+        mobileMenuButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            mobileMenu.classList.toggle('open');
         });
     }
 
-    const onMapNav = (e) => {
-        e.preventDefault();
-        if (typeof zoomToIran === 'function') zoomToIran();
-        else if (window.zoomToIran) window.zoomToIran();
-    };
-    const navMapBtn = document.getElementById('navMapBtn');
-    const navMapBtnMobile = document.getElementById('navMapBtnMobile');
-    if (navMapBtn) navMapBtn.addEventListener('click', onMapNav);
-    if (navMapBtnMobile) navMapBtnMobile.addEventListener('click', onMapNav);
+    document.addEventListener('click', () => {
+        if (languageMenu) languageMenu.classList.remove('open');
+        if (languageButton) languageButton.setAttribute('aria-expanded', 'false');
+    });
 
-    const syncDonateLinks = () => {
-        const id = window.currentProjectId || (typeof currentProjectId !== 'undefined' ? currentProjectId : null);
-        const href = id ? ('donate.html?project=' + encodeURIComponent(id)) : 'donate.html';
-        ['navDonateLink', 'navDonateLinkMobile'].forEach((nid) => {
-            const a = document.getElementById(nid);
-            if (a) a.setAttribute('href', href);
+    const zoomToIran = () => {
+        if (typeof window.zoomToIran === 'function') {
+            window.zoomToIran();
+            return;
+        }
+        // Fallback if Script-GIS not yet ready
+        if (window.map && typeof window.map.setView === 'function') {
+            window.map.setView([32.5, 53.5], 5);
+        }
+    };
+
+    const mapBtn = document.getElementById('navMapBtn');
+    const mapBtnMobile = document.getElementById('navMapBtnMobile');
+    if (mapBtn) mapBtn.addEventListener('click', zoomToIran);
+    if (mapBtnMobile) {
+        mapBtnMobile.addEventListener('click', () => {
+            zoomToIran();
+            if (mobileMenu) mobileMenu.classList.remove('open');
         });
-    };
-    syncDonateLinks();
-    setInterval(syncDonateLinks, 800);
+    }
+}
 
+(function bootGisHeader() {
     applyGisLanguage(resolveGisLanguage());
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bindGisHeader);
-} else {
     bindGisHeader();
-}
+})();
