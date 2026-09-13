@@ -1,4 +1,4 @@
-/* ========== Donate — same tokens as home (style.css) ========== */
+/* ========== Donate — same tokens as home (style.css), cream-first warmth ========== */
 :root {
     --green-950: #12372d;
     --green-900: #17483a;
@@ -10,6 +10,7 @@
     --white: #ffffff;
     --gold: #c89b3c;
     --gold-light: #ead9a8;
+    --coral: #d9785d;
     --text: #18342b;
     --text-soft: #5c6d65;
     --border: rgba(24, 52, 43, 0.11);
@@ -18,7 +19,6 @@
     --radius-sm: 12px;
     --radius-md: 20px;
     --container: 1180px;
-    --success: #10b981;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -40,7 +40,7 @@ a { color: inherit; text-decoration: none; }
 button, input, select { font-family: inherit; }
 img { max-width: 100%; display: block; }
 
-/* ========== Site header (mirror WebGIS / home) ========== */
+/* ========== Header — same metrics/colors as home + WebGIS ========== */
 .donate-site-header {
     position: sticky;
     top: 0;
@@ -201,7 +201,7 @@ img { max-width: 100%; display: block; }
 .donate-mobile-only { display: none; }
 .donate-desktop-only { display: none; }
 
-/* ========== Main layout ========== */
+/* ========== Main layout — cream surfaces instead of pure white ========== */
 .main-container {
     width: min(var(--container), calc(100% - 32px));
     margin-inline: auto;
@@ -211,9 +211,9 @@ img { max-width: 100%; display: block; }
     align-items: center;
 }
 
-/* Card: cream surface (not pure white) — same idea as home sections */
+/* Like home info-card, but on cream so page feels warmer as a whole */
 .card {
-    background: var(--cream);
+    background: var(--cream-dark);
     border-radius: var(--radius-md);
     padding: 1.75rem;
     width: 100%;
@@ -225,13 +225,19 @@ img { max-width: 100%; display: block; }
     gap: 1.75rem;
 }
 
-.main-content { flex: 2; min-width: 0; }
+.main-content {
+    flex: 2;
+    min-width: 0;
+    background: var(--cream);
+    border-radius: var(--radius-sm);
+    padding: 1.35rem 1.4rem;
+    border: 1px solid var(--border);
+}
 
-/* Sidebar: cream-dark like community section on home */
 .sidebar {
     flex: 1;
     min-width: 0;
-    background: var(--cream-dark);
+    background: var(--cream);
     padding: 1.25rem;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border);
@@ -289,7 +295,7 @@ img { max-width: 100%; display: block; }
     padding: 1rem 1.1rem;
     border-radius: 14px;
     border: 1px solid var(--border);
-    background: var(--white);
+    background: var(--cream-dark);
     color: var(--text);
     font-size: 1.15rem;
     text-align: center;
@@ -306,7 +312,7 @@ img { max-width: 100%; display: block; }
     width: 100%;
     padding: 0.9rem 1rem;
     border-radius: 12px;
-    background: var(--white);
+    background: var(--cream-dark);
     color: var(--text);
     border: 1px solid var(--border);
     font-size: 0.95rem;
@@ -354,14 +360,14 @@ img { max-width: 100%; display: block; }
     flex-shrink: 0;
 }
 
-/* Same primary CTA language as home .btn-primary */
+/* Same spirit as home .btn-primary */
 .connect-btn {
     width: 100%;
     padding: 1.05rem 1.25rem;
     background: var(--green-900);
     color: #fff;
     border: none;
-    border-radius: 14px;
+    border-radius: 13px;
     font-size: 1.05rem;
     font-weight: 700;
     cursor: pointer;
@@ -385,8 +391,8 @@ img { max-width: 100%; display: block; }
 .success-message {
     margin-top: 1.5rem;
     padding: 1.25rem;
-    background: rgba(16, 185, 129, 0.12);
-    border: 1px solid rgba(16, 185, 129, 0.35);
+    background: rgba(75, 150, 117, 0.12);
+    border: 1px solid rgba(40, 115, 91, 0.25);
     border-radius: 12px;
     text-align: center;
     color: var(--green-950);
@@ -412,7 +418,7 @@ img { max-width: 100%; display: block; }
     border: 1px solid var(--border);
 }
 
-/* Sidebar pieces */
+/* Sidebar */
 .project-image img {
     width: 100%;
     border-radius: 12px;
@@ -466,7 +472,11 @@ img { max-width: 100%; display: block; }
     color: var(--green-800);
 }
 
-.email-subscribe { margin-top: 1.5rem; }
+.email-subscribe {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px dashed var(--border);
+}
 
 .email-subscribe h3 {
     font-size: 0.95rem;
@@ -480,9 +490,15 @@ img { max-width: 100%; display: block; }
     margin: 0.4rem 0;
     border-radius: 10px;
     border: 1px solid var(--border);
-    background: var(--white);
+    background: var(--cream-dark);
     color: var(--text);
     font-size: 0.9rem;
+}
+
+.email-subscribe input[type="email"]:focus {
+    outline: none;
+    border-color: var(--green-700);
+    box-shadow: 0 0 0 3px rgba(40, 115, 91, 0.12);
 }
 
 .email-subscribe label {
@@ -513,6 +529,7 @@ img { max-width: 100%; display: block; }
     font-weight: 600;
     cursor: pointer;
     font-size: 0.9rem;
+    box-shadow: 0 8px 20px rgba(23, 72, 58, 0.14);
 }
 
 .email-subscribe button:hover { background: var(--green-800); }
@@ -521,8 +538,12 @@ img { max-width: 100%; display: block; }
 @media (max-width: 768px) {
     .card {
         flex-direction: column;
-        padding: 1.25rem;
-        gap: 1.25rem;
+        padding: 1.15rem;
+        gap: 1rem;
+    }
+
+    .main-content {
+        padding: 1.1rem;
     }
 
     .sidebar {
