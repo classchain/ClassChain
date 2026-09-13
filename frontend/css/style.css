@@ -41,17 +41,52 @@ img { max-width: 100%; display: block; }
     backdrop-filter: blur(14px);
     border-bottom: 1px solid rgba(24, 52, 43, .07);
 }
-.nav { min-height: 72px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--green-900); white-space: nowrap; }
+.nav {
+    min-height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+/* سمت راست در RTL / چپ در LTR: برند + منوهای داخل‌صفحه‌ای */
+.nav-start {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; color: var(--green-900); white-space: nowrap; flex-shrink: 0; }
 .brand-mark {
     width: 38px; height: 38px; border-radius: 12px; background: var(--green-900); color: white;
     display: grid; place-items: center; position: relative;
 }
 .brand-text { font-size: 1.05rem; }
-.desktop-nav { display: none; align-items: center; gap: 18px; flex-wrap: wrap; }
-.desktop-nav a { font-size: .88rem; color: var(--text-soft); transition: color .2s ease; }
+.desktop-nav { display: none; align-items: center; gap: 16px; flex-wrap: wrap; }
+.desktop-nav a { font-size: .88rem; color: var(--text-soft); transition: color .2s ease; white-space: nowrap; }
 .desktop-nav a:hover { color: var(--green-800); }
-.nav-actions { display: flex; align-items: center; gap: 8px; }
+.desktop-nav-sections { justify-content: flex-start; }
+.desktop-nav-external { gap: 12px; }
+.desktop-nav-external .nav-external-link {
+    font-size: .88rem;
+    color: var(--text-soft);
+    font-weight: 600;
+    white-space: nowrap;
+}
+.desktop-nav-external .nav-external-link:hover { color: var(--green-800); }
+.desktop-nav-external .btn {
+    min-height: 42px;
+    padding: 0 16px;
+    font-size: .88rem;
+}
+/* سمت چپ در RTL / راست در LTR: لینک صفحات دیگر + زبان + همبرگر */
+.nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    margin-inline-start: auto;
+}
 .language-switcher { position: relative; }
 .language-button {
     border: 1px solid var(--border); background: transparent; color: var(--green-900);
@@ -60,7 +95,7 @@ img { max-width: 100%; display: block; }
 .language-menu {
     position: absolute; top: calc(100% + 8px); inset-inline-end: 0; width: 130px;
     background: white; border: 1px solid var(--border); border-radius: 14px;
-    box-shadow: var(--shadow-md); padding: 6px; display: none;
+    box-shadow: var(--shadow-md); padding: 6px; display: none; z-index: 20;
 }
 .language-menu.open { display: block; }
 .language-menu button {
@@ -73,9 +108,28 @@ img { max-width: 100%; display: block; }
     border-radius: 10px; cursor: pointer; display: grid; place-items: center;
     color: var(--green-900); font-size: 1.2rem;
 }
-.mobile-menu { display: none; padding: 10px 0 18px; border-top: 1px solid var(--border); }
+.mobile-menu { display: none; padding: 6px 0 12px; border-top: 1px solid var(--border); }
 .mobile-menu.open { display: block; }
-.mobile-menu a { display: block; padding: 10px 0; color: var(--text-soft); }
+.mobile-menu a {
+    display: block;
+    padding: 7px 0;
+    color: var(--text-soft);
+    font-size: .92rem;
+    line-height: 1.35;
+}
+.mobile-menu-divider {
+    height: 1px;
+    margin: 8px 0;
+    background: var(--border);
+    border: 0;
+}
+.mobile-menu-action {
+    font-weight: 700;
+    color: var(--green-900) !important;
+}
+.mobile-menu-cta {
+    color: var(--green-800) !important;
+}
 .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     min-height: 48px; padding: 0 20px; border-radius: 13px; border: 1px solid transparent;
@@ -282,6 +336,7 @@ html[dir="ltr"] .process-item::before { right: 18px; left: auto; }
     .container { width: min(var(--container), calc(100% - 64px)); }
     .desktop-nav { display: flex; }
     .mobile-menu-button { display: none; }
+    .mobile-menu { display: none !important; }
     .hero { min-height: 75vh; padding: 120px 0 130px; }
     .hero-actions { gap: 14px; }
     section { padding: 100px 0; }
