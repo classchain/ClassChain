@@ -1,7 +1,6 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
 body {
-    /* Map-native stack (original WebGIS) — avoids Google Fonts weight + FOIT */
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     height: 100vh;
     overflow: hidden;
@@ -16,7 +15,20 @@ body {
     width: 100%;
     height: 100%;
     z-index: 1;
+    background: #dfe8e4;
 }
+#map .leaflet-container,
+.leaflet-container {
+    width: 100%;
+    height: 100%;
+    background: #dfe8e4;
+}
+/* Keep basemap tiles under vector overlays */
+.leaflet-tile-pane { z-index: 200 !important; }
+.leaflet-overlay-pane { z-index: 400 !important; }
+.leaflet-marker-pane { z-index: 600 !important; }
+.leaflet-tooltip-pane { z-index: 650 !important; }
+.leaflet-popup-pane { z-index: 700 !important; }
 
 .info-panel {
     position: absolute;
@@ -326,15 +338,17 @@ body {
     }
 }
 
-/* ========== Site header — aligned with landing (desktop size & gaps from home) ========== */
+/* ========== Site header — match landing (Vazirmatn + blur + metrics) ========== */
 .gis-site-header {
     flex-shrink: 0;
     z-index: 2000;
-    background: rgba(247, 243, 233, 0.96);
-    /* lighter than landing blur for faster first paint on map */
+    background: rgba(247, 243, 233, 0.92);
+    backdrop-filter: blur(14px);
     border-bottom: 1px solid rgba(24, 52, 43, 0.07);
     position: relative;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    /* Match landing page header type */
+    font-family: "Vazirmatn", sans-serif;
+    color: #18342b;
 }
 /* Same content width as landing .container so L/R menus don't jump */
 .gis-header-inner {
