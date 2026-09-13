@@ -325,6 +325,17 @@ html[dir="ltr"] .process-item::before { right: 18px; left: auto; }
     .footer-grid { grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr; }
     .footer-bottom { flex-direction: row; justify-content: space-between; }
 }
+
+/* Mobile header sizing aligned with map page baseline */
+@media (max-width: 899px) {
+    .nav { min-height: 56px; gap: 12px; }
+    .brand-mark { width: 32px; height: 32px; border-radius: 10px; }
+    .brand-mark svg { width: 18px; height: 18px; }
+    .brand-text { font-size: 0.98rem; }
+    .language-button { min-width: 40px; height: 36px; font-size: 0.85rem; }
+    .mobile-menu-button { width: 40px; height: 36px; font-size: 1.15rem; }
+}
+
 @media (min-width: 900px) {
     .container { width: min(var(--container), calc(100% - 64px)); }
     .desktop-nav { display: flex; }
