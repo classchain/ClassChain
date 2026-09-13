@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مشارکت در پروژه - کلاس‌چین</title>
     <script>
-    /* Apply saved language BEFORE first paint to avoid FA→EN flash */
     (function () {
         var KEY = 'classchain-language';
         var lang = 'fa';
@@ -26,12 +25,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/donate.css">
-
-    <!-- QR Code -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <!-- Web3 -->
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
-    <!-- WalletConnect v2 (EVM) -->
     <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.21.1/dist/index.umd.js"></script>
 </head>
 <body>
@@ -40,7 +35,7 @@
         <div class="donate-header-inner">
             <nav class="donate-nav">
                 <div class="donate-nav-start">
-                    <a href="../index.html" class="donate-brand" aria-label="خانه / ClassChain">
+                    <a href="../index.html" class="donate-brand" aria-label="ClassChain">
                         <span class="donate-brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 3.2 3 11h2.5v8.5h4.2V14h4.6v5.5h4.2V11H21L12 3.2z"/></svg></span>
                         <span class="donate-brand-text">کلاس‌چِین</span>
                     </a>
@@ -68,121 +63,310 @@
         </div>
     </header>
 
-    <script>
-    /* Sync nav labels from localStorage before heavy scripts */
-    (function () {
-        var lang = document.documentElement.getAttribute('data-lang') || 'fa';
-        var dict = {
-            fa: { langName: 'FA', 'nav.webgis': 'نقشه پروژه‌ها', 'nav.cta': 'مشارکت' },
-            en: { langName: 'EN', 'nav.webgis': 'Project Map', 'nav.cta': 'Contribute' },
-            ar: { langName: 'AR', 'nav.webgis': 'خريطة المشاريع', 'nav.cta': 'ساهم الآن' }
-        };
-        var d = dict[lang] || dict.fa;
-        document.querySelectorAll('[data-i18n]').forEach(function (el) {
-            var k = el.getAttribute('data-i18n');
-            if (d[k] != null) el.textContent = d[k];
-        });
-        var btn = document.getElementById('languageButton');
-        if (btn) btn.textContent = d.langName;
-        document.documentElement.classList.add('i18n-ready');
-    })();
-    </script>
-
     <div class="main-container">
         <div class="card">
             <div class="main-content">
-                <h1 id="projectTitle">در حال بارگذاری پروژه...</h1>
+                <h1 id="projectTitle" data-i18n="project.loading">در حال بارگذاری پروژه...</h1>
                 <p id="projectDesc"></p>
 
                 <div class="progress-container">
                     <div class="progress-bar">
                         <div class="progress-fill" id="progressFill"></div>
                     </div>
-                    <p class="progress-text" id="progressText">در حال بارگذاری...</p>
+                    <p class="progress-text" id="progressText" data-i18n="progress.loading">در حال بارگذاری...</p>
                 </div>
 
                 <div class="donation-section">
-                    <h2>مبلغ مشارکت (USDT)</h2>
-                    <input type="number" id="customAmount" placeholder="مبلغ دلخواه" min="1" inputmode="decimal">
+                    <h2 data-i18n="amount.title">مبلغ مشارکت (USDT)</h2>
+                    <input type="number" id="customAmount" data-i18n-placeholder="amount.placeholder" placeholder="مبلغ دلخواه" min="1" inputmode="decimal">
                 </div>
 
                 <div class="network-selector">
-                    <h2>انتخاب شبکه</h2>
+                    <h2 data-i18n="network.title">انتخاب شبکه</h2>
                     <select id="networkSelect" onchange="selectNetwork(this.value)"></select>
                 </div>
 
                 <div class="wallet-info" id="walletInfo" style="display:none;">
-                    <p>آدرس کیف پول شما: <span id="userAddress"></span></p>
+                    <p><span data-i18n="wallet.yourAddress">آدرس کیف پول شما:</span> <span id="userAddress"></span></p>
                 </div>
 
                 <div class="qr-section" id="qrSection" style="display:none;">
-                    <h3>اسکن QR برای پرداخت (TRON)</h3>
+                    <h3 data-i18n="qr.title">اسکن QR برای پرداخت (TRON)</h3>
                     <div id="qrcode"></div>
                 </div>
 
                 <div class="terms">
                     <label>
                         <input type="checkbox" id="termsConsent">
-                        با شرایط و ضوابط موافقم
+                        <span data-i18n="terms.label">با شرایط و ضوابط موافقم</span>
                     </label>
                 </div>
 
-                <button class="connect-btn" id="connectBtn" disabled>اتصال کیف پول و پرداخت</button>
+                <button class="connect-btn" id="connectBtn" data-i18n="btn.connectPay" disabled>اتصال کیف پول و پرداخت</button>
 
                 <div class="success-message" id="successMessage" style="display:none;">
-                    <h3 id="paymentStatusTitle">در حال انجام پرداخت...</h3>
+                    <h3 id="paymentStatusTitle" data-i18n="status.processing">در حال انجام پرداخت...</h3>
                     <p id="txHash"></p>
                 </div>
             </div>
 
             <div class="sidebar">
                 <div class="project-image" id="projectImage">
-                    <img src="https://via.placeholder.com/400x300?text=تصویر+پروژه" alt="تصویر پروژه">
+                    <img src="https://via.placeholder.com/400x300?text=Project" alt="project">
                 </div>
                 <div class="donors-list" id="donorsList">
-                    <p>در حال بارگذاری کمک‌کنندگان...</p>
+                    <p data-i18n="donors.loading">در حال بارگذاری کمک‌کنندگان...</p>
                 </div>
                 <div class="email-subscribe">
-                    <h3>دریافت آپدیت پروژه</h3>
-                    <input type="email" id="donorEmail" placeholder="ایمیل شما">
-                    <label><input type="checkbox" id="consent">موافقم آپدیت دریافت کنم</label>
-                    <button type="button" onclick="saveEmail()">ثبت ایمیل</button>
+                    <h3 data-i18n="email.title">دریافت آپدیت پروژه</h3>
+                    <input type="email" id="donorEmail" data-i18n-placeholder="email.placeholder" placeholder="ایمیل شما">
+                    <label><input type="checkbox" id="consent"> <span data-i18n="email.consent">موافقم آپدیت دریافت کنم</span></label>
+                    <button type="button" onclick="saveEmail()" data-i18n="email.submit">ثبت ایمیل</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-    /* Header language + mobile menu (aligned with gis-header.js) */
     (function () {
-        var SUPPORTED = ['fa', 'en', 'ar'];
-        var I18N = {
-            fa: { dir: 'rtl', langName: 'FA', 'nav.webgis': 'نقشه پروژه‌ها', 'nav.cta': 'مشارکت' },
-            en: { dir: 'ltr', langName: 'EN', 'nav.webgis': 'Project Map', 'nav.cta': 'Contribute' },
-            ar: { dir: 'rtl', langName: 'AR', 'nav.webgis': 'خريطة المشاريع', 'nav.cta': 'ساهم الآن' }
+        var DICT = {
+            fa: {
+                dir: 'rtl', langName: 'FA',
+                'nav.webgis': 'نقشه پروژه‌ها', 'nav.cta': 'مشارکت',
+                'project.loading': 'در حال بارگذاری پروژه...',
+                'project.notFound': 'پروژه یافت نشد',
+                'project.unnamed': 'پروژه بدون نام',
+                'project.loadError': 'خطا در بارگذاری پروژه',
+                'project.meta': '{province} - {district} | {classes} کلاس',
+                'progress.loading': 'در حال بارگذاری...',
+                'progress.reading': 'در حال خواندن موجودی از زنجیره...',
+                'progress.readFailed': 'خواندن موجودی خزانه امکان‌پذیر نیست.',
+                'progress.raised': '{raised} USDT از {target} USDT جمع شده ({percent}%)',
+                'amount.title': 'مبلغ مشارکت (USDT)',
+                'amount.placeholder': 'مبلغ دلخواه',
+                'network.title': 'انتخاب شبکه',
+                'network.wallet': 'کیف پول',
+                'network.inactiveSuffix': ' (غیرفعال)',
+                'wallet.yourAddress': 'آدرس کیف پول شما:',
+                'qr.title': 'اسکن QR برای پرداخت (TRON)',
+                'terms.label': 'با شرایط و ضوابط موافقم',
+                'btn.connectPay': 'اتصال کیف پول و پرداخت',
+                'btn.selectNetworkFirst': 'ابتدا شبکه را انتخاب کنید',
+                'btn.networkInactive': '{name} هنوز فعال نیست',
+                'btn.treasuryNotReady': 'خزانه {name} هنوز راه‌اندازی نشده',
+                'status.processing': 'در حال انجام پرداخت...',
+                'status.connecting': 'در حال اتصال به {name}...',
+                'status.awaitingApproval': 'در انتظار تأیید شما',
+                'status.approved': 'اجازه انتقال صادر شد',
+                'status.awaitingDeposit': 'در انتظار تأیید تراکنش واریز...',
+                'status.success': 'پرداخت با موفقیت ثبت شد',
+                'status.step1Title': 'مرحله ۱ از ۲ — اجازه انتقال کمک',
+                'status.step2Title': 'مرحله ۲ از ۲ — ثبت کمک',
+                'donors.loading': 'در حال بارگذاری مشارکت‌کنندگان...',
+                'donors.empty': 'هنوز مشارکتی ثبت نشده — شما می‌توانید اولین نفر باشید.',
+                'donors.noProjectId': 'شناسه پروژه مشخص نیست.',
+                'donors.title': 'مشارکت‌کنندگان ({count})',
+                'donors.more': 'و {n} مورد دیگر…',
+                'donors.error': 'خطا در خواندن مشارکت‌کنندگان',
+                'email.title': 'دریافت آپدیت پروژه',
+                'email.placeholder': 'ایمیل شما',
+                'email.consent': 'موافقم آپدیت دریافت کنم',
+                'email.submit': 'ثبت ایمیل',
+                'email.invalid': 'لطفاً ایمیل معتبر وارد کنید و تأیید را بزنید',
+                'email.saved': 'ایمیل شما ثبت شد! آپدیت‌های پروژه برایتان ارسال خواهد شد.',
+                'alert.selectNetwork': 'لطفاً ابتدا یک شبکه از منو انتخاب کنید',
+                'alert.treasuryMissing': 'خزانه هوشمند برای این شبکه هنوز راه‌اندازی نشده',
+                'alert.invalidAmount': 'لطفاً مقدار معتبر وارد کنید',
+                'alert.invalidNetwork': 'شبکه انتخاب شده معتبر نیست',
+                'err.txPrefix': 'خطا در ارسال تراکنش:',
+                'err.tronPrefix': 'خطا در تراکنش TRON:',
+                'err.userDenied': 'تراکنش توسط شما لغو شد.',
+                'err.insufficientFunds': 'موجودی کیف پول (گس یا توکن) کافی نیست.',
+                'err.reverted': 'تراکنش برگشت خورد. ممکن است قرارداد هنوز فعال نشده یا توکن مجاز نباشد.',
+                'err.unknown': 'خطای نامشخص',
+                'err.walletConnect': 'خطا در اتصال کیف پول',
+                'err.lowBalance': 'موجودی کافی نیست!\n\nموجودی شما: {balance} USDT\nمبلغ درخواستی: {amount} USDT',
+                'err.approveOkDepositFail': 'Approve موفق بود:\n{url}\nاما مرحله واریز (Deposit) شکست خورد.',
+                'err.depositNotDone': 'اما مرحله Deposit انجام نشد.',
+                'err.depositFailed': 'Deposit در شبکه ناموفق بود.',
+                'err.depositReverted': 'تراکنش Deposit در شبکه ناموفق شد و قرارداد آن را Revert کرد.'
+            },
+            en: {
+                dir: 'ltr', langName: 'EN',
+                'nav.webgis': 'Project Map', 'nav.cta': 'Contribute',
+                'project.loading': 'Loading project...',
+                'project.notFound': 'Project not found',
+                'project.unnamed': 'Unnamed project',
+                'project.loadError': 'Failed to load project',
+                'project.meta': '{province} - {district} | {classes} classrooms',
+                'progress.loading': 'Loading...',
+                'progress.reading': 'Reading on-chain balances...',
+                'progress.readFailed': 'Could not read treasury balances.',
+                'progress.raised': '{raised} USDT of {target} USDT raised ({percent}%)',
+                'amount.title': 'Contribution amount (USDT)',
+                'amount.placeholder': 'Custom amount',
+                'network.title': 'Select network',
+                'network.wallet': 'Wallet',
+                'network.inactiveSuffix': ' (inactive)',
+                'wallet.yourAddress': 'Your wallet address:',
+                'qr.title': 'Scan QR to pay (TRON)',
+                'terms.label': 'I agree to the terms and conditions',
+                'btn.connectPay': 'Connect wallet & pay',
+                'btn.selectNetworkFirst': 'Select a network first',
+                'btn.networkInactive': '{name} is not active yet',
+                'btn.treasuryNotReady': '{name} treasury is not ready yet',
+                'status.processing': 'Processing payment...',
+                'status.connecting': 'Connecting to {name}...',
+                'status.awaitingApproval': 'Waiting for your approval',
+                'status.approved': 'Allowance approved',
+                'status.awaitingDeposit': 'Waiting for deposit confirmation...',
+                'status.success': 'Payment recorded successfully',
+                'status.step1Title': 'Step 1 of 2 — Approve transfer',
+                'status.step2Title': 'Step 2 of 2 — Record contribution',
+                'donors.loading': 'Loading contributors...',
+                'donors.empty': 'No contributions yet — you can be the first.',
+                'donors.noProjectId': 'Project ID is missing.',
+                'donors.title': 'Contributors ({count})',
+                'donors.more': 'and {n} more…',
+                'donors.error': 'Failed to load contributors',
+                'email.title': 'Get project updates',
+                'email.placeholder': 'Your email',
+                'email.consent': 'I agree to receive updates',
+                'email.submit': 'Save email',
+                'email.invalid': 'Please enter a valid email and confirm consent',
+                'email.saved': 'Email saved! Project updates will be sent to you.',
+                'alert.selectNetwork': 'Please select a network first',
+                'alert.treasuryMissing': 'Smart treasury for this network is not set up yet',
+                'alert.invalidAmount': 'Please enter a valid amount',
+                'alert.invalidNetwork': 'Selected network is not valid',
+                'err.txPrefix': 'Transaction error:',
+                'err.tronPrefix': 'TRON transaction error:',
+                'err.userDenied': 'You rejected the transaction.',
+                'err.insufficientFunds': 'Insufficient wallet balance (gas or token).',
+                'err.reverted': 'Transaction reverted. The contract may be inactive or the token not allowed.',
+                'err.unknown': 'Unknown error',
+                'err.walletConnect': 'Wallet connection failed',
+                'err.lowBalance': 'Insufficient balance!\n\nYour balance: {balance} USDT\nRequested: {amount} USDT',
+                'err.approveOkDepositFail': 'Approve succeeded:\n{url}\nBut the deposit step failed.',
+                'err.depositNotDone': 'But the deposit step was not completed.',
+                'err.depositFailed': 'Deposit failed on the network.',
+                'err.depositReverted': 'Deposit was reverted by the contract.'
+            },
+            ar: {
+                dir: 'rtl', langName: 'AR',
+                'nav.webgis': 'خريطة المشاريع', 'nav.cta': 'ساهم الآن',
+                'project.loading': 'جاري تحميل المشروع...',
+                'project.notFound': 'المشروع غير موجود',
+                'project.unnamed': 'مشروع بدون اسم',
+                'project.loadError': 'فشل تحميل المشروع',
+                'project.meta': '{province} - {district} | {classes} فصول',
+                'progress.loading': 'جاري التحميل...',
+                'progress.reading': 'جاري قراءة الأرصدة من السلسلة...',
+                'progress.readFailed': 'تعذّر قراءة أرصدة الخزائن.',
+                'progress.raised': '{raised} USDT من أصل {target} USDT ({percent}%)',
+                'amount.title': 'مبلغ المساهمة (USDT)',
+                'amount.placeholder': 'مبلغ مخصص',
+                'network.title': 'اختر الشبكة',
+                'network.wallet': 'محفظة',
+                'network.inactiveSuffix': ' (غير نشط)',
+                'wallet.yourAddress': 'عنوان محفظتك:',
+                'qr.title': 'امسح رمز QR للدفع (TRON)',
+                'terms.label': 'أوافق على الشروط والأحكام',
+                'btn.connectPay': 'ربط المحفظة والدفع',
+                'btn.selectNetworkFirst': 'اختر شبكة أولاً',
+                'btn.networkInactive': '{name} غير مفعّل بعد',
+                'btn.treasuryNotReady': 'خزينة {name} غير جاهزة بعد',
+                'status.processing': 'جاري تنفيذ الدفع...',
+                'status.connecting': 'جاري الاتصال بـ {name}...',
+                'status.awaitingApproval': 'بانتظار موافقتك',
+                'status.approved': 'تم منح الإذن',
+                'status.awaitingDeposit': 'بانتظار تأكيد الإيداع...',
+                'status.success': 'تم تسجيل الدفع بنجاح',
+                'status.step1Title': 'الخطوة 1 من 2 — السماح بالتحويل',
+                'status.step2Title': 'الخطوة 2 من 2 — تسجيل المساهمة',
+                'donors.loading': 'جاري تحميل المساهمين...',
+                'donors.empty': 'لا مساهمات بعد — يمكنك أن تكون الأول.',
+                'donors.noProjectId': 'معرّف المشروع غير محدد.',
+                'donors.title': 'المساهمون ({count})',
+                'donors.more': 'و {n} آخرين…',
+                'donors.error': 'فشل تحميل المساهمين',
+                'email.title': 'تلقي تحديثات المشروع',
+                'email.placeholder': 'بريدك الإلكتروني',
+                'email.consent': 'أوافق على تلقي التحديثات',
+                'email.submit': 'حفظ البريد',
+                'email.invalid': 'يرجى إدخال بريد صالح وتأكيد الموافقة',
+                'email.saved': 'تم حفظ البريد! ستصلك تحديثات المشروع.',
+                'alert.selectNetwork': 'يرجى اختيار شبكة أولاً',
+                'alert.treasuryMissing': 'الخزينة الذكية لهذه الشبكة غير مُعدّة بعد',
+                'alert.invalidAmount': 'يرجى إدخال مبلغ صالح',
+                'alert.invalidNetwork': 'الشبكة المختارة غير صالحة',
+                'err.txPrefix': 'خطأ في المعاملة:',
+                'err.tronPrefix': 'خطأ معاملة TRON:',
+                'err.userDenied': 'لقد ألغيت المعاملة.',
+                'err.insufficientFunds': 'رصيد المحفظة غير كافٍ (غاز أو توكن).',
+                'err.reverted': 'رُفضت المعاملة. قد يكون العقد غير نشط أو التوكن غير مسموح.',
+                'err.unknown': 'خطأ غير معروف',
+                'err.walletConnect': 'فشل ربط المحفظة',
+                'err.lowBalance': 'الرصيد غير كافٍ!\n\nرصيدك: {balance} USDT\nالمطلوب: {amount} USDT',
+                'err.approveOkDepositFail': 'نجح Approve:\n{url}\nلكن خطوة الإيداع فشلت.',
+                'err.depositNotDone': 'لكن خطوة الإيداع لم تكتمل.',
+                'err.depositFailed': 'فشل الإيداع على الشبكة.',
+                'err.depositReverted': 'رُفضت معاملة الإيداع من العقد.'
+            }
         };
 
-        function applyLang(lang) {
-            if (!I18N[lang]) lang = 'fa';
-            var d = I18N[lang];
+        function interpolate(str, vars) {
+            if (!vars) return str;
+            return String(str).replace(/\{(\w+)\}/g, function (_, k) {
+                return vars[k] != null ? vars[k] : '{' + k + '}';
+            });
+        }
+
+        function t(key, vars) {
+            var lang = document.documentElement.getAttribute('data-lang') || 'fa';
+            var d = DICT[lang] || DICT.fa;
+            var val = d[key];
+            if (val == null) val = (DICT.fa && DICT.fa[key]) || key;
+            return interpolate(val, vars);
+        }
+
+        function applyLanguage(lang) {
+            if (!DICT[lang]) lang = 'fa';
+            var d = DICT[lang];
             document.documentElement.lang = lang;
-            document.documentElement.dir = d.dir;
+            document.documentElement.dir = d.dir || 'rtl';
             document.documentElement.setAttribute('data-lang', lang);
+            try { localStorage.setItem('classchain-language', lang); } catch (e) {}
+
             document.querySelectorAll('[data-i18n]').forEach(function (el) {
                 var k = el.getAttribute('data-i18n');
                 if (d[k] != null) el.textContent = d[k];
             });
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
+                var k = el.getAttribute('data-i18n-placeholder');
+                if (d[k] != null) el.setAttribute('placeholder', d[k]);
+            });
+
             var btn = document.getElementById('languageButton');
-            if (btn) btn.textContent = d.langName;
-            try { localStorage.setItem('classchain-language', lang); } catch (e) {}
+            if (btn) btn.textContent = d.langName || lang.toUpperCase();
+
             document.documentElement.classList.add('i18n-ready');
             var menu = document.getElementById('languageMenu');
             if (menu) menu.classList.remove('open');
             if (btn) btn.setAttribute('aria-expanded', 'false');
+
+            if (typeof updateButtonState === 'function') {
+                try { updateButtonState(); } catch (e) {}
+            }
         }
 
+        window.DonateI18n = { t: t, apply: applyLanguage, DICT: DICT };
+
+        var initial = document.documentElement.getAttribute('data-lang') || 'fa';
+        applyLanguage(initial);
+
         document.querySelectorAll('[data-lang]').forEach(function (b) {
-            b.addEventListener('click', function () { applyLang(b.getAttribute('data-lang')); });
+            b.addEventListener('click', function () { applyLanguage(b.getAttribute('data-lang')); });
         });
 
         var languageButton = document.getElementById('languageButton');
@@ -194,7 +378,6 @@
                 languageButton.setAttribute('aria-expanded', open ? 'true' : 'false');
             });
         }
-
         var mobileMenuButton = document.getElementById('mobileMenuButton');
         var mobileMenu = document.getElementById('mobileMenu');
         if (mobileMenuButton && mobileMenu) {
@@ -203,7 +386,6 @@
                 mobileMenu.classList.toggle('open');
             });
         }
-
         document.addEventListener('click', function () {
             if (languageMenu) languageMenu.classList.remove('open');
             if (languageButton) languageButton.setAttribute('aria-expanded', 'false');
@@ -211,7 +393,6 @@
     })();
     </script>
 
-    <!-- اسکریپت‌های پرداخت و کیف پول -->
     <script src="js/network-config.js"></script>
     <script src="js/wallet-manager.js"></script>
     <script src="js/raised-reader.js"></script>
