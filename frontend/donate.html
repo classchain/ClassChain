@@ -4,46 +4,89 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مشارکت در پروژه - کلاس‌چین</title>
-
-    <!-- فونت‌ها -->
-    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-
-    <!-- استایل اصلی -->
+    <script>
+    /* Apply saved language BEFORE first paint to avoid FA→EN flash */
+    (function () {
+        var KEY = 'classchain-language';
+        var lang = 'fa';
+        try {
+            var s = localStorage.getItem(KEY);
+            if (s === 'en' || s === 'ar' || s === 'fa') lang = s;
+        } catch (e) {}
+        document.documentElement.lang = lang;
+        document.documentElement.dir = (lang === 'en') ? 'ltr' : 'rtl';
+        document.documentElement.setAttribute('data-lang', lang);
+    })();
+    </script>
+    <style>
+        html[data-lang]:not([data-lang="fa"]):not(.i18n-ready) [data-i18n] { visibility: hidden; }
+        html.i18n-ready [data-i18n] { visibility: visible; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/donate.css">
-
-    <!-- Particles.js -->
-    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
 
     <!-- QR Code -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-
     <!-- Web3 -->
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
-
     <!-- WalletConnect v2 (EVM) -->
     <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.21.1/dist/index.umd.js"></script>
 </head>
 <body>
 
-    <div id="particles-js"></div>
-    <div class="hexagon-grid"></div>
-
-    <!-- سوئیچ زبان -->
-    <div class="lang-switch">
-        <button class="active" onclick="setLang('fa')">فارسی</button>
-        <button onclick="setLang('en')">English</button>
-    </div>
-
-    <!-- نوار ناوبری -->
-    <nav class="navbar">
-        <div class="navbar-brand">کلاس‌چین</div>
-        <div class="nav-links">
-            <a href="../index.html">خانه</a>
-            <a href="../WebGIS.html">نقشه پروژه‌ها</a>
-            <a href="#">درباره ما</a>
-            <a href="#">ارتباط با ما</a>
+    <header class="donate-site-header" id="donateSiteHeader">
+        <div class="donate-header-inner">
+            <nav class="donate-nav">
+                <div class="donate-nav-start">
+                    <a href="../index.html" class="donate-brand" aria-label="خانه / ClassChain">
+                        <span class="donate-brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 3.2 3 11h2.5v8.5h4.2V14h4.6v5.5h4.2V11H21L12 3.2z"/></svg></span>
+                        <span class="donate-brand-text">کلاس‌چِین</span>
+                    </a>
+                </div>
+                <div class="donate-nav-end">
+                    <div class="donate-desktop-links donate-desktop-only">
+                        <a href="WebGIS.html" class="donate-nav-link" data-i18n="nav.webgis">نقشه پروژه‌ها</a>
+                        <a href="donate.html" class="donate-nav-link is-active" data-i18n="nav.cta">مشارکت</a>
+                    </div>
+                    <div class="donate-language-switcher">
+                        <button class="donate-language-button" id="languageButton" type="button" aria-label="Language" aria-expanded="false">FA</button>
+                        <div class="donate-language-menu" id="languageMenu">
+                            <button type="button" data-lang="fa">فارسی</button>
+                            <button type="button" data-lang="en">English</button>
+                            <button type="button" data-lang="ar">العربية</button>
+                        </div>
+                    </div>
+                    <button class="donate-mobile-menu-button donate-mobile-only" id="mobileMenuButton" type="button" aria-label="Menu">☰</button>
+                </div>
+            </nav>
+            <div class="donate-mobile-menu" id="mobileMenu">
+                <a href="WebGIS.html" class="donate-mobile-menu-item" data-i18n="nav.webgis">نقشه پروژه‌ها</a>
+                <a href="donate.html" class="donate-mobile-menu-item is-active" data-i18n="nav.cta">مشارکت</a>
+            </div>
         </div>
-    </nav>
+    </header>
+
+    <script>
+    /* Sync nav labels from localStorage before heavy scripts */
+    (function () {
+        var lang = document.documentElement.getAttribute('data-lang') || 'fa';
+        var dict = {
+            fa: { langName: 'FA', 'nav.webgis': 'نقشه پروژه‌ها', 'nav.cta': 'مشارکت' },
+            en: { langName: 'EN', 'nav.webgis': 'Project Map', 'nav.cta': 'Contribute' },
+            ar: { langName: 'AR', 'nav.webgis': 'خريطة المشاريع', 'nav.cta': 'ساهم الآن' }
+        };
+        var d = dict[lang] || dict.fa;
+        document.querySelectorAll('[data-i18n]').forEach(function (el) {
+            var k = el.getAttribute('data-i18n');
+            if (d[k] != null) el.textContent = d[k];
+        });
+        var btn = document.getElementById('languageButton');
+        if (btn) btn.textContent = d.langName;
+        document.documentElement.classList.add('i18n-ready');
+    })();
+    </script>
 
     <div class="main-container">
         <div class="card">
@@ -60,7 +103,7 @@
 
                 <div class="donation-section">
                     <h2>مبلغ مشارکت (USDT)</h2>
-                    <input type="number" id="customAmount" placeholder="مبلغ دلخواه" min="1">
+                    <input type="number" id="customAmount" placeholder="مبلغ دلخواه" min="1" inputmode="decimal">
                 </div>
 
                 <div class="network-selector">
@@ -89,7 +132,7 @@
                 <div class="success-message" id="successMessage" style="display:none;">
                     <h3 id="paymentStatusTitle">در حال انجام پرداخت...</h3>
                     <p id="txHash"></p>
-            </div>
+                </div>
             </div>
 
             <div class="sidebar">
@@ -103,11 +146,70 @@
                     <h3>دریافت آپدیت پروژه</h3>
                     <input type="email" id="donorEmail" placeholder="ایمیل شما">
                     <label><input type="checkbox" id="consent">موافقم آپدیت دریافت کنم</label>
-                    <button onclick="saveEmail()">ثبت ایمیل</button>
+                    <button type="button" onclick="saveEmail()">ثبت ایمیل</button>
                 </div>
             </div>
         </div>
     </div>
+
+    <script>
+    /* Header language + mobile menu (aligned with gis-header.js) */
+    (function () {
+        var SUPPORTED = ['fa', 'en', 'ar'];
+        var I18N = {
+            fa: { dir: 'rtl', langName: 'FA', 'nav.webgis': 'نقشه پروژه‌ها', 'nav.cta': 'مشارکت' },
+            en: { dir: 'ltr', langName: 'EN', 'nav.webgis': 'Project Map', 'nav.cta': 'Contribute' },
+            ar: { dir: 'rtl', langName: 'AR', 'nav.webgis': 'خريطة المشاريع', 'nav.cta': 'ساهم الآن' }
+        };
+
+        function applyLang(lang) {
+            if (!I18N[lang]) lang = 'fa';
+            var d = I18N[lang];
+            document.documentElement.lang = lang;
+            document.documentElement.dir = d.dir;
+            document.documentElement.setAttribute('data-lang', lang);
+            document.querySelectorAll('[data-i18n]').forEach(function (el) {
+                var k = el.getAttribute('data-i18n');
+                if (d[k] != null) el.textContent = d[k];
+            });
+            var btn = document.getElementById('languageButton');
+            if (btn) btn.textContent = d.langName;
+            try { localStorage.setItem('classchain-language', lang); } catch (e) {}
+            document.documentElement.classList.add('i18n-ready');
+            var menu = document.getElementById('languageMenu');
+            if (menu) menu.classList.remove('open');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+        }
+
+        document.querySelectorAll('[data-lang]').forEach(function (b) {
+            b.addEventListener('click', function () { applyLang(b.getAttribute('data-lang')); });
+        });
+
+        var languageButton = document.getElementById('languageButton');
+        var languageMenu = document.getElementById('languageMenu');
+        if (languageButton && languageMenu) {
+            languageButton.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var open = languageMenu.classList.toggle('open');
+                languageButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+        }
+
+        var mobileMenuButton = document.getElementById('mobileMenuButton');
+        var mobileMenu = document.getElementById('mobileMenu');
+        if (mobileMenuButton && mobileMenu) {
+            mobileMenuButton.addEventListener('click', function (e) {
+                e.stopPropagation();
+                mobileMenu.classList.toggle('open');
+            });
+        }
+
+        document.addEventListener('click', function () {
+            if (languageMenu) languageMenu.classList.remove('open');
+            if (languageButton) languageButton.setAttribute('aria-expanded', 'false');
+        });
+    })();
+    </script>
 
     <!-- اسکریپت‌های پرداخت و کیف پول -->
     <script src="js/network-config.js"></script>
