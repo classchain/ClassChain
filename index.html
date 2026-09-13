@@ -1,8 +1,80 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<title>temp restore marker</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ClassChain | جامعه خیرین دیجیتال</title>
+    <meta name="description" content="کلاس‌چِین؛ جامعه خیرین دیجیتال برای ساختن آینده، کلاس به کلاس.">
+    <script>
+    (function () {
+        var KEY = 'classchain-language';
+        var lang = 'fa';
+        try {
+            var s = localStorage.getItem(KEY);
+            if (s === 'en' || s === 'ar' || s === 'fa') lang = s;
+        } catch (e) {}
+        document.documentElement.lang = lang;
+        document.documentElement.dir = (lang === 'en') ? 'ltr' : 'rtl';
+        document.documentElement.setAttribute('data-lang', lang);
+    })();
+    </script>
+    <style>
+        html[data-lang]:not([data-lang="fa"]):not(.i18n-ready) [data-i18n] { visibility: hidden; }
+        html.i18n-ready [data-i18n] { visibility: visible; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="frontend/css/style.css">
 </head>
-<body>restore in progress</body>
+<body>
+<header class="site-header">
+    <div class="container">
+        <nav class="nav">
+            <div class="nav-start">
+                <a href="#top" class="brand" aria-label="ClassChain">
+                    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 3.2 3 11h2.5v8.5h4.2V14h4.6v5.5h4.2V11H21L12 3.2z"/></svg></span>
+                    <span class="brand-text">کلاس‌چِین</span>
+                </a>
+                <div class="desktop-nav desktop-nav-sections">
+                    <a href="#why" data-i18n="nav.why">چرا کلاس‌چِین؟</a>
+                    <a href="#how" data-i18n="nav.how">چطور کار می‌کند؟</a>
+                    <a href="#community" data-i18n="nav.community">جامعه خیرین</a>
+                    <a href="#participate" data-i18n="nav.participation">راه مشارکت</a>
+                    <a href="#transparency" data-i18n="nav.transparency">شفافیت</a>
+                </div>
+            </div>
+            <div class="nav-actions">
+                <div class="desktop-nav desktop-nav-external">
+                    <a href="frontend/WebGIS.html" class="nav-external-link" data-i18n="nav.webgis">نقشه پروژه‌ها</a>
+                    <a href="frontend/donate.html" class="nav-external-link" data-i18n="nav.cta">مشارکت</a>
+                </div>
+                <div class="language-switcher">
+                    <button class="language-button" id="languageButton" aria-label="Language" aria-expanded="false">FA</button>
+                    <div class="language-menu" id="languageMenu">
+                        <button data-lang="fa">فارسی</button>
+                        <button data-lang="en">English</button>
+                        <button data-lang="ar">العربية</button>
+                    </div>
+                </div>
+                <button class="mobile-menu-button" id="mobileMenuButton" aria-label="Menu">☰</button>
+            </div>
+        </nav>
+        <div class="mobile-menu" id="mobileMenu">
+            <a href="#why" data-i18n="nav.why">چرا کلاس‌چِین؟</a>
+            <a href="#how" data-i18n="nav.how">چطور کار می‌کند؟</a>
+            <a href="#community" data-i18n="nav.community">جامعه خیرین</a>
+            <a href="#participate" data-i18n="nav.participation">راه مشارکت</a>
+            <a href="#transparency" data-i18n="nav.transparency">شفافیت</a>
+            <div class="mobile-menu-divider" role="separator" aria-hidden="true"></div>
+            <a href="frontend/WebGIS.html" class="mobile-menu-action" data-i18n="nav.webgis">نقشه پروژه‌ها</a>
+            <a href="frontend/donate.html" class="mobile-menu-action mobile-menu-cta" data-i18n="nav.cta">مشارکت</a>
+        </div>
+    </div>
+</header>
+<main id="top"><!-- RESTORE_NEEDED -->
+<p>در حال بازگردانی کامل صفحه… اگر این متن را می‌بینید، فایل ناقص است.</p>
+</main>
+<script src="frontend/js/script.js"></script>
+</body>
 </html>
