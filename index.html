@@ -14,18 +14,24 @@
 <header class="site-header">
     <div class="container">
         <nav class="nav">
-            <a href="#top" class="brand" aria-label="ClassChain">
-                <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 3.2 3 11h2.5v8.5h4.2V14h4.6v5.5h4.2V11H21L12 3.2z"/></svg></span>
-                <span class="brand-text">کلاس‌چِین</span>
-            </a>
-            <div class="desktop-nav">
-                <a href="#why" data-i18n="nav.why">چرا کلاس‌چِین؟</a>
-                <a href="#how" data-i18n="nav.how">چطور کار می‌کند؟</a>
-                <a href="#community" data-i18n="nav.community">جامعه خیرین</a>
-                <a href="#participate" data-i18n="nav.participation">راه مشارکت</a>
-                <a href="#transparency" data-i18n="nav.transparency">شفافیت</a>
+            <div class="nav-start">
+                <a href="#top" class="brand" aria-label="ClassChain">
+                    <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 3.2 3 11h2.5v8.5h4.2V14h4.6v5.5h4.2V11H21L12 3.2z"/></svg></span>
+                    <span class="brand-text">کلاس‌چِین</span>
+                </a>
+                <div class="desktop-nav desktop-nav-sections">
+                    <a href="#why" data-i18n="nav.why">چرا کلاس‌چِین؟</a>
+                    <a href="#how" data-i18n="nav.how">چطور کار می‌کند؟</a>
+                    <a href="#community" data-i18n="nav.community">جامعه خیرین</a>
+                    <a href="#participate" data-i18n="nav.participation">راه مشارکت</a>
+                    <a href="#transparency" data-i18n="nav.transparency">شفافیت</a>
+                </div>
             </div>
             <div class="nav-actions">
+                <div class="desktop-nav desktop-nav-external">
+                    <a href="frontend/WebGIS.html" class="nav-external-link" data-i18n="nav.webgis">نقشه پروژه‌ها</a>
+                    <a href="frontend/donate.html" class="btn btn-primary" data-i18n="nav.cta">مشارکت</a>
+                </div>
                 <div class="language-switcher">
                     <button class="language-button" id="languageButton" aria-label="Language" aria-expanded="false">FA</button>
                     <div class="language-menu" id="languageMenu">
@@ -34,7 +40,6 @@
                         <button data-lang="ar">العربية</button>
                     </div>
                 </div>
-                <a href="frontend/donate.html" class="btn btn-primary" data-i18n="nav.cta">مشارکت</a>
                 <button class="mobile-menu-button" id="mobileMenuButton" aria-label="Menu">☰</button>
             </div>
         </nav>
@@ -44,7 +49,9 @@
             <a href="#community" data-i18n="nav.community">جامعه خیرین</a>
             <a href="#participate" data-i18n="nav.participation">راه مشارکت</a>
             <a href="#transparency" data-i18n="nav.transparency">شفافیت</a>
-            <a href="frontend/WebGIS.html" data-i18n="nav.webgis">نقشه پروژه‌ها</a>
+            <div class="mobile-menu-divider" role="separator" aria-hidden="true"></div>
+            <a href="frontend/WebGIS.html" class="mobile-menu-action" data-i18n="nav.webgis">نقشه پروژه‌ها</a>
+            <a href="frontend/donate.html" class="mobile-menu-action mobile-menu-cta" data-i18n="nav.cta">مشارکت</a>
         </div>
     </div>
 </header>
@@ -208,15 +215,15 @@
             </div>
             <div class="dashboard-card">
                 <div class="dashboard-card-row"><span class="dashboard-dot"></span><span data-i18n="dashboard.row1">مشارکت شما</span><span data-i18n="dashboard.status">ثبت شده</span></div>
-                <div class="dashboard-card-row"><span class="dashboard-dot"></span><span data-i18n="dashboard.row2">پروژه انتخابی</span><span data-i18n="dashboard.follow">در حال پیگیری</span></div>
-                <div class="dashboard-card-row"><span class="dashboard-dot"></span><span data-i18n="dashboard.row3">جامعه خیرین</span><span data-i18n="dashboard.follow">همراه</span></div>
+                <div class="dashboard-card-row"><span class="dashboard-dot"></span><span data-i18n="dashboard.row2">گواهی دیجیتال</span><span data-i18n="dashboard.status">آماده</span></div>
+                <div class="dashboard-card-row"><span class="dashboard-dot"></span><span data-i18n="dashboard.row3">پیشرفت پروژه</span><span data-i18n="dashboard.status">قابل مشاهده</span></div>
             </div>
         </div>
     </section>
     <section class="final-cta">
         <div class="container final-cta-inner">
-            <h2 data-i18n="final.title">اگر آینده کودکان برایتان مهم است، جای شما در این جامعه خالی است.</h2>
-            <p data-i18n="final.description">لازم نیست کار بزرگی را به تنهایی انجام دهید. کافی است سهم خودتان را به یک حرکت جمعی اضافه کنید.</p>
+            <h2 data-i18n="final.title">اگر می‌خواهید بخشی از ساختن باشید، همین‌جا شروع کنید.</h2>
+            <p data-i18n="final.description">هر مشارکت، کوچک یا بزرگ، بخشی از مسیر ساختن کلاس‌های امن‌تر برای کودکان است.</p>
             <a href="frontend/donate.html" class="btn btn-light" data-i18n="final.button">من چطور می‌توانم کمک کنم؟</a>
         </div>
     </section>
