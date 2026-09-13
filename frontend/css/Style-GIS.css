@@ -1,7 +1,8 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
 body {
-    font-family: 'Vazirmatn', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    /* Map-native stack (original WebGIS) — avoids Google Fonts weight + FOIT */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     height: 100vh;
     overflow: hidden;
     display: flex;
@@ -329,10 +330,11 @@ body {
 .gis-site-header {
     flex-shrink: 0;
     z-index: 2000;
-    background: rgba(247, 243, 233, 0.92);
-    backdrop-filter: blur(14px);
+    background: rgba(247, 243, 233, 0.96);
+    /* lighter than landing blur for faster first paint on map */
     border-bottom: 1px solid rgba(24, 52, 43, 0.07);
     position: relative;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 /* Same content width as landing .container so L/R menus don't jump */
 .gis-header-inner {
