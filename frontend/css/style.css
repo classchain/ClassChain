@@ -48,7 +48,6 @@ img { max-width: 100%; display: block; }
     justify-content: space-between;
     gap: 16px;
 }
-/* سمت راست در RTL / چپ در LTR: برند + منوهای داخل‌صفحه‌ای */
 .nav-start {
     display: flex;
     align-items: center;
@@ -66,7 +65,7 @@ img { max-width: 100%; display: block; }
 .desktop-nav a { font-size: .88rem; color: var(--text-soft); transition: color .2s ease; white-space: nowrap; }
 .desktop-nav a:hover { color: var(--green-800); }
 .desktop-nav-sections { justify-content: flex-start; }
-.desktop-nav-external { gap: 12px; }
+.desktop-nav-external { gap: 14px; }
 .desktop-nav-external .nav-external-link {
     font-size: .88rem;
     color: var(--text-soft);
@@ -74,12 +73,6 @@ img { max-width: 100%; display: block; }
     white-space: nowrap;
 }
 .desktop-nav-external .nav-external-link:hover { color: var(--green-800); }
-.desktop-nav-external .btn {
-    min-height: 42px;
-    padding: 0 16px;
-    font-size: .88rem;
-}
-/* سمت چپ در RTL / راست در LTR: لینک صفحات دیگر + زبان + همبرگر */
 .nav-actions {
     display: flex;
     align-items: center;
