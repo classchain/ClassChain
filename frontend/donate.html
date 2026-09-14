@@ -110,42 +110,10 @@
         </div>
     </div>
 
-    <script>
-    (function () {
-        var SUPPORTED = ['fa', 'en', 'ar'];
-        var I18N = {
-            fa: { dir:'rtl', langName:'FA', 'nav.webgis':'نقشه پروژه‌ها', 'nav.cta':'مشارکت', 'project.loading':'در حال بارگذاری پروژه...', 'project.notFound':'پروژه یافت نشد', 'project.error':'خطا در بارگذاری پروژه', 'project.noName':'پروژه بدون نام', 'progress.loading':'در حال بارگذاری...', 'progress.reading':'در حال خواندن موجودی از زنجیره...', 'progress.unavailable':'خواندن موجودی خزانه امکان‌پذیر نیست.', 'donation.amountTitle':'مبلغ مشارکت (USDT)', 'donation.amountPlaceholder':'مبلغ دلخواه', 'network.title':'انتخاب شبکه', 'network.wallet':'کیف پول', 'network.inactive':'غیرفعال', 'wallet.address':'آدرس کیف پول شما:', 'qr.title':'اسکن QR برای پرداخت (TRON)', 'terms.consent':'با شرایط و ضوابط موافقم', 'payment.connect':'اتصال کیف پول و پرداخت', 'payment.selectNetwork':'ابتدا شبکه را انتخاب کنید', 'payment.inactive':'هنوز فعال نیست', 'payment.notReady':'هنوز راه‌اندازی نشده', 'payment.processing':'در حال انجام پرداخت...', 'donors.loading':'در حال بارگذاری کمک‌کنندگان...', 'subscribe.title':'دریافت آپدیت پروژه', 'subscribe.emailPlaceholder':'ایمیل شما', 'subscribe.consent':'موافقم آپدیت دریافت کنم', 'subscribe.submit':'ثبت ایمیل', 'project.imageAlt':'تصویر پروژه', 'errors.title':'خطا در ارسال تراکنش:', 'errors.cancelled':'تراکنش توسط شما لغو شد.', 'errors.insufficient':'موجودی کیف پول (گس یا توکن) کافی نیست.', 'errors.reverted':'تراکنش برگشت خورد. ممکن است قرارداد هنوز فعال نشده یا توکن مجاز نباشد.', 'errors.unknown':'خطای نامشخص', 'errors.approved':'Approve موفق بود:', 'errors.depositFailed':'اما مرحله واریز (Deposit) شکست خورد.', 'email.invalid':'لطفاً ایمیل معتبر وارد کنید و تأیید را بزنید', 'email.saved':'ایمیل شما ثبت شد! آپدیت‌های پروژه برایتان ارسال خواهد شد ❤️', 'progress.collected':'جمع شده'},
-            en: { dir:'ltr', langName:'EN', 'nav.webgis':'Project Map', 'nav.cta':'Contribute', 'project.loading':'Loading project...', 'project.notFound':'Project not found', 'project.error':'Error loading project', 'project.noName':'Unnamed project', 'progress.loading':'Loading...', 'progress.reading':'Reading balance from chain...', 'progress.unavailable':'Unable to read treasury balance.', 'donation.amountTitle':'Contribution amount (USDT)', 'donation.amountPlaceholder':'Custom amount', 'network.title':'Select network', 'network.wallet':'Wallet', 'network.inactive':'inactive', 'wallet.address':'Your wallet address:', 'qr.title':'Scan QR to pay (TRON)', 'terms.consent':'I agree to the terms and conditions', 'payment.connect':'Connect wallet & pay', 'payment.selectNetwork':'Select a network first', 'payment.inactive':'is not active yet', 'payment.notReady':'treasury is not initialized yet', 'payment.processing':'Processing payment...', 'donors.loading':'Loading donors...', 'subscribe.title':'Get project updates', 'subscribe.emailPlaceholder':'Your email', 'subscribe.consent':'I agree to receive updates', 'subscribe.submit':'Save email', 'project.imageAlt':'Project image', 'errors.title':'Transaction error:', 'errors.cancelled':'Transaction was cancelled.', 'errors.insufficient':'Insufficient wallet balance (gas or token).', 'errors.reverted':'Transaction reverted. The contract may not be active or the token may not be allowed.', 'errors.unknown':'Unknown error', 'errors.approved':'Approve succeeded:', 'errors.depositFailed':'but the deposit step failed.', 'email.invalid':'Please enter a valid email and confirm consent.', 'email.saved':'Your email was saved! Project updates will be sent to you ❤️', 'progress.collected':'collected'},
-            ar: { dir:'rtl', langName:'AR', 'nav.webgis':'خريطة المشاريع', 'nav.cta':'ساهم الآن', 'project.loading':'جارٍ تحميل المشروع...', 'project.notFound':'المشروع غير موجود', 'project.error':'خطأ في تحميل المشروع', 'project.noName':'مشروع بلا اسم', 'progress.loading':'جارٍ التحميل...', 'progress.reading':'جارٍ قراءة الرصيد من الشبكة...', 'progress.unavailable':'تعذر قراءة رصيد الخزينة.', 'donation.amountTitle':'مبلغ المساهمة (USDT)', 'donation.amountPlaceholder':'مبلغ مخصص', 'network.title':'اختر الشبكة', 'network.wallet':'المحفظة', 'network.inactive':'غير نشطة', 'wallet.address':'عنوان محفظتك:', 'qr.title':'امسح QR للدفع (TRON)', 'terms.consent':'أوافق على الشروط والأحكام', 'payment.connect':'اتصال المحفظة والدفع', 'payment.selectNetwork':'اختر الشبكة أولاً', 'payment.inactive':'غير نشطة بعد', 'payment.notReady':'الخزينة غير مهيأة بعد', 'payment.processing':'جارٍ تنفيذ الدفع...', 'donors.loading':'جارٍ تحميل المساهمين...', 'subscribe.title':'احصل على تحديثات المشروع', 'subscribe.emailPlaceholder':'بريدك الإلكتروني', 'subscribe.consent':'أوافق على تلقي التحديثات', 'subscribe.submit':'حفظ البريد', 'project.imageAlt':'صورة المشروع', 'errors.title':'خطأ في إرسال المعاملة:', 'errors.cancelled':'تم إلغاء المعاملة.', 'errors.insufficient':'رصيد المحفظة غير كافٍ (الغاز أو الرمز).', 'errors.reverted':'تم رفض المعاملة. قد لا يكون العقد مفعلاً أو قد لا يكون الرمز مسموحاً.', 'errors.unknown':'خطأ غير معروف', 'errors.approved':'نجحت الموافقة:', 'errors.depositFailed':'لكن فشلت خطوة الإيداع.', 'email.invalid':'يرجى إدخال بريد إلكتروني صالح وتأكيد الموافقة.', 'email.saved':'تم حفظ بريدك الإلكتروني! ستصلك تحديثات المشروع ❤️', 'progress.collected':'تم جمعه'}
-        };
-        window.ClassChainI18n = {
-            getLang: function(){ return document.documentElement.getAttribute('data-lang') || 'fa'; },
-            t: function(key){ var d=I18N[this.getLang()] || I18N.fa; return d[key] != null ? d[key] : (I18N.fa[key] != null ? I18N.fa[key] : key); },
-            apply: function(lang){
-                if (SUPPORTED.indexOf(lang) === -1) lang='fa';
-                var d=I18N[lang];
-                document.documentElement.lang=lang; document.documentElement.dir=d.dir; document.documentElement.setAttribute('data-lang',lang);
-                document.querySelectorAll('[data-i18n]').forEach(function(el){ var k=el.getAttribute('data-i18n'); if(d[k]!=null) el.textContent=d[k]; });
-                document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el){ var k=el.getAttribute('data-i18n-placeholder'); if(d[k]!=null) el.setAttribute('placeholder',d[k]); });
-                document.querySelectorAll('[data-i18n-alt]').forEach(function(el){ var k=el.getAttribute('data-i18n-alt'); if(d[k]!=null) el.setAttribute('alt',d[k]); });
-                var btn=document.getElementById('languageButton'); if(btn) btn.textContent=d.langName;
-                try { localStorage.setItem('classchain-language',lang); } catch(e) {}
-                document.documentElement.classList.add('i18n-ready');
-            }
-        };
-        ClassChainI18n.apply(document.documentElement.getAttribute('data-lang') || 'fa');
-        document.querySelectorAll('[data-language]').forEach(function(b){ b.addEventListener('click',function(){ ClassChainI18n.apply(b.getAttribute('data-language')); }); });
-        var languageButton=document.getElementById('languageButton'), languageMenu=document.getElementById('languageMenu');
-        if(languageButton && languageMenu) languageButton.addEventListener('click',function(e){ e.stopPropagation(); var open=languageMenu.classList.toggle('open'); languageButton.setAttribute('aria-expanded',open?'true':'false'); });
-        var mobileMenuButton=document.getElementById('mobileMenuButton'), mobileMenu=document.getElementById('mobileMenu');
-        if(mobileMenuButton && mobileMenu) mobileMenuButton.addEventListener('click',function(e){ e.stopPropagation(); mobileMenu.classList.toggle('open'); });
-        document.addEventListener('click',function(){ if(languageMenu) languageMenu.classList.remove('open'); if(languageButton) languageButton.setAttribute('aria-expanded','false'); });
-    })();
-    </script>
-
     <script src="js/network-config.js"></script>
     <script src="js/wallet-manager.js"></script>
     <script src="js/raised-reader.js"></script>
+    <script src="js/donate-i18n.js"></script>
     <script src="js/donate.js"></script>
 </body>
 </html>
