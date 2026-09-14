@@ -64,11 +64,13 @@
     <div class="main-container">
         <div class="card">
             <div class="main-content">
-                <h1 id="projectTitle" data-i18n="project.loading">در حال بارگذاری پروژه...</h1>
+                <!-- Dynamic: filled by donate.js — do NOT use data-i18n (would overwrite loaded project name) -->
+                <h1 id="projectTitle">در حال بارگذاری پروژه...</h1>
                 <p id="projectDesc"></p>
                 <div class="progress-container">
                     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-                    <p class="progress-text" id="progressText" data-i18n="progress.loading">در حال بارگذاری...</p>
+                    <!-- Dynamic: filled by donate.js -->
+                    <p class="progress-text" id="progressText">در حال بارگذاری...</p>
                 </div>
                 <div class="donation-section">
                     <h2 data-i18n="donation.amountTitle">مبلغ مشارکت (USDT)</h2>
@@ -88,9 +90,10 @@
                 <div class="terms">
                     <label><input type="checkbox" id="termsConsent"> <span data-i18n="terms.consent">با شرایط و ضوابط موافقم</span></label>
                 </div>
-                <button class="connect-btn" id="connectBtn" disabled data-i18n="payment.connect">اتصال کیف پول و پرداخت</button>
+                <!-- Dynamic label via updateButtonState — no data-i18n -->
+                <button class="connect-btn" id="connectBtn" disabled>اتصال کیف پول و پرداخت</button>
                 <div class="success-message" id="successMessage" style="display:none;">
-                    <h3 id="paymentStatusTitle" data-i18n="payment.processing">در حال انجام پرداخت...</h3>
+                    <h3 id="paymentStatusTitle">در حال انجام پرداخت...</h3>
                     <p id="txHash"></p>
                 </div>
             </div>
@@ -98,8 +101,9 @@
                 <div class="project-image" id="projectImage">
                     <img src="https://via.placeholder.com/400x300?text=تصویر+پروژه" data-i18n-alt="project.imageAlt" alt="تصویر پروژه">
                 </div>
+                <!-- Dynamic: replaced by donate.js -->
                 <div class="donors-list" id="donorsList">
-                    <p data-i18n="donors.loading">در حال بارگذاری کمک‌کنندگان...</p>
+                    <p>در حال بارگذاری کمک‌کنندگان...</p>
                 </div>
                 <div class="email-subscribe">
                     <h3 data-i18n="subscribe.title">دریافت آپدیت پروژه</h3>
