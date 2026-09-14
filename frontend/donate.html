@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>مشارکت در پروژه - کلاس‌چین</title>
     <script>
-    /* Apply saved language BEFORE first paint — same contract as Home (index.html) */
     (function () {
         var KEY = 'classchain-language';
         var lang = 'fa';
@@ -26,16 +25,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/donate.css">
-
-    <!-- QR Code -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <!-- Web3 -->
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
-    <!-- WalletConnect v2 (EVM) -->
     <script src="https://cdn.jsdelivr.net/npm/@walletconnect/ethereum-provider@2.21.1/dist/index.umd.js"></script>
 </head>
 <body>
-
     <header class="donate-site-header" id="donateSiteHeader">
         <div class="donate-header-inner">
             <nav class="donate-nav">
@@ -67,54 +61,39 @@
             </div>
         </div>
     </header>
-
     <div class="main-container">
         <div class="card">
             <div class="main-content">
                 <h1 id="projectTitle" data-i18n="project.loading">در حال بارگذاری پروژه...</h1>
                 <p id="projectDesc"></p>
-
                 <div class="progress-container">
-                    <div class="progress-bar">
-                        <div class="progress-fill" id="progressFill"></div>
-                    </div>
+                    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
                     <p class="progress-text" id="progressText" data-i18n="progress.loading">در حال بارگذاری...</p>
                 </div>
-
                 <div class="donation-section">
                     <h2 data-i18n="donation.amountTitle">مبلغ مشارکت (USDT)</h2>
                     <input type="number" id="customAmount" data-i18n-placeholder="donation.amountPlaceholder" placeholder="مبلغ دلخواه" min="1" inputmode="decimal">
                 </div>
-
                 <div class="network-selector">
                     <h2 data-i18n="network.title">انتخاب شبکه</h2>
                     <select id="networkSelect" onchange="selectNetwork(this.value)"></select>
                 </div>
-
                 <div class="wallet-info" id="walletInfo" style="display:none;">
                     <p><span data-i18n="wallet.address">آدرس کیف پول شما:</span> <span id="userAddress"></span></p>
                 </div>
-
                 <div class="qr-section" id="qrSection" style="display:none;">
                     <h3 data-i18n="qr.title">اسکن QR برای پرداخت (TRON)</h3>
                     <div id="qrcode"></div>
                 </div>
-
                 <div class="terms">
-                    <label>
-                        <input type="checkbox" id="termsConsent">
-                        <span data-i18n="terms.consent">با شرایط و ضوابط موافقم</span>
-                    </label>
+                    <label><input type="checkbox" id="termsConsent"> <span data-i18n="terms.consent">با شرایط و ضوابط موافقم</span></label>
                 </div>
-
                 <button class="connect-btn" id="connectBtn" disabled data-i18n="payment.connect">اتصال کیف پول و پرداخت</button>
-
                 <div class="success-message" id="successMessage" style="display:none;">
                     <h3 id="paymentStatusTitle" data-i18n="payment.processing">در حال انجام پرداخت...</h3>
                     <p id="txHash"></p>
                 </div>
             </div>
-
             <div class="sidebar">
                 <div class="project-image" id="projectImage">
                     <img src="https://via.placeholder.com/400x300?text=تصویر+پروژه" data-i18n-alt="project.imageAlt" alt="تصویر پروژه">
@@ -125,21 +104,16 @@
                 <div class="email-subscribe">
                     <h3 data-i18n="subscribe.title">دریافت آپدیت پروژه</h3>
                     <input type="email" id="donorEmail" data-i18n-placeholder="subscribe.emailPlaceholder" placeholder="ایمیل شما">
-                    <label>
-                        <input type="checkbox" id="consent">
-                        <span data-i18n="subscribe.consent">موافقم آپدیت دریافت کنم</span>
-                    </label>
+                    <label><input type="checkbox" id="consent"> <span data-i18n="subscribe.consent">موافقم آپدیت دریافت کنم</span></label>
                     <button type="button" onclick="saveEmail()" data-i18n="subscribe.submit">ثبت ایمیل</button>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- i18n (Home-aligned) then payment scripts -->
     <script src="js/donate-i18n.js"></script>
     <script src="js/network-config.js"></script>
     <script src="js/wallet-manager.js"></script>
     <script src="js/raised-reader.js"></script>
-    <script src="js/donate.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/classchain/ClassChain@1da7275881bb584bba347dd930923e504f8332d7/frontend/js/donate.js"></script>
 </body>
 </html>
