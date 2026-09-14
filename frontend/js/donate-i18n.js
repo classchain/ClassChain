@@ -7,13 +7,8 @@
     const originalAlert = window.alert.bind(window);
     let translating = false;
 
-    function normalizeLang(lang) {
-        return SUPPORTED.includes(lang) ? lang : 'fa';
-    }
-
-    function getLang() {
-        return normalizeLang(currentLang);
-    }
+    const normalizeLang = lang => SUPPORTED.includes(lang) ? lang : 'fa';
+    const getLang = () => normalizeLang(currentLang);
 
     function interpolate(value, vars) {
         if (!vars) return value;
@@ -36,10 +31,8 @@
             langButton.textContent = dict.langName || getLang().toUpperCase();
             langButton.setAttribute('aria-label', dict['language.aria'] || 'Language');
         }
-        const menuButton = document.getElementById('mobileMenuButton');
-        if (menuButton) menuButton.setAttribute('aria-label', dict['menu.aria'] || 'Menu');
-        const brand = document.querySelector('.donate-brand');
-        if (brand) brand.setAttribute('aria-label', dict['nav.homeAria'] || 'Home / ClassChain');
+        document.getElementById('mobileMenuButton')?.setAttribute('aria-label', dict['menu.aria'] || 'Menu');
+        document.querySelector('.donate-brand')?.setAttribute('aria-label', dict['nav.homeAria'] || 'Home / ClassChain');
         document.title = dict.pageTitle || document.title;
     }
 
@@ -70,7 +63,6 @@
 
     function dynamicText(value) {
         if (!value || typeof value !== 'string') return value;
-        let s = value;
         const exact = {
             'پروژه یافت نشد': 'project.notFound',
             'خطا در بارگذاری پروژه': 'project.error',
@@ -84,8 +76,8 @@
             'شناسه پروژه در URL وجود ندارد': 'dynamic.projectNoId',
             'فایل Projects.json پیدا نشد': 'dynamic.projectsMissing'
         };
-        if (exact[s]) return t(exact[s]);
-        return s
+        if (exact[value]) return t(exact[value]);
+        return value
             .replace(/\(غیرفعال\)/g, `(${t('network.inactive')})`)
             .replace(/هنوز فعال نیست/g, t('payment.inactive'))
             .replace(/خزانه .*? هنوز راه‌اندازی نشده/g, t('payment.notReady'))
@@ -93,7 +85,8 @@
     }
 
     function formatNumber(value) {
-        const n = Number(String(value).replace(/,/g, ''));
+        const normalized = String(value).replace(/,/g, '');
+        const n = Number(normalized);
         if (!Number.isFinite(n)) return value;
         return n.toLocaleString(getLang() === 'en' ? 'en-US' : getLang() === 'ar' ? 'ar-EG' : 'fa-IR', { maximumFractionDigits: 2 });
     }
@@ -103,21 +96,20 @@
         translating = true;
         try {
             const desc = document.getElementById('projectDesc');
-            if (desc && desc.textContent) {
-                const m = desc.textContent.match(/^(.+?)\s*-\s*(.+?)\s*\|\s*([\d٠-٩۰-۹,.]+)\s*(?:کلاس|classes|فصول|فصل)$/i);
+            if (desc?.textContent) {
+                const m = desc.textContent.match(/^(.+?)\s*-\s*(.+?)\s*\|\s*([\d٠-٩۰-۹,.]+)\s*(?:کلاس|classes|فصل|فصول)$/i);
                 if (m) desc.textContent = t('project.meta', { province: m[1], region: m[2], classes: m[3] });
             }
 
             const progress = document.getElementById('progressText');
-            if (progress && progress.textContent) {
-                const m = progress.textContent.match(/([\d٠-٩۰-۹,.]+)\s*USDT.*?([\d٠-٩۰-۹,.]+)\s*USDT.*?([\d٠-٩۰-۹,.]+)\s*%?/);
+            if (progress?.textContent) {
+                const m = progress.textContent.match(/([\d٠-٩۰-۹,.]+)\s*USDT.*?([\d٠-٩۰-۹,.]+)\s*USDT.*?([\d٠-٩۰-۹,.]+)\s*(?:%|٪)?/);
                 if (m) progress.textContent = t('progress.template', {
                     raised: formatNumber(m[1]), target: formatNumber(m[2]), percent: formatNumber(m[3])
                 });
                 else progress.textContent = dynamicText(progress.textContent);
             }
 
-            const button = document.getElementById('connectBtn');
             const select = document.getElementById('networkSelect');
             if (select) {
                 Array.from(select.options).forEach(option => {
@@ -127,11 +119,14 @@
                     option.textContent = `${isTron ? 'TRON' : 'Polygon'} — ${wallet}${inactive}`;
                 });
             }
+
+            const button = document.getElementById('connectBtn');
             if (button && !button.disabled) {
                 const selected = select?.value || '';
                 const isTron = selected.toLowerCase().includes('tron');
-                button.textContent = isTron ? (getLang() === 'fa' ? 'اتصال TronLink و پرداخت' : getLang() === 'ar' ? 'اتصال TronLink والدفع' : 'Connect TronLink & pay')
-                    : (getLang() === 'fa' ? 'اتصال MetaMask و پرداخت' : getLang() === 'ar' ? 'اتصال MetaMask والدفع' : 'Connect MetaMask & pay');
+                if (getLang() === 'fa') button.textContent = isTron ? 'اتصال TronLink و پرداخت' : 'اتصال MetaMask و پرداخت';
+                else if (getLang() === 'ar') button.textContent = isTron ? 'اتصال TronLink والدفع' : 'اتصال MetaMask والدفع';
+                else button.textContent = isTron ? 'Connect TronLink & pay' : 'Connect MetaMask & pay';
             }
 
             document.querySelectorAll('#projectTitle, #paymentStatusTitle, #donorsList, #txHash').forEach(el => {
