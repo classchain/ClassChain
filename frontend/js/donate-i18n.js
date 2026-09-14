@@ -6,6 +6,21 @@
   const translations = {};
   let currentLang = 'fa';
 
+  // Elements filled by donate.js — must not be reset by applyLanguage
+  const DYNAMIC_IDS = new Set([
+    'projectTitle',
+    'projectDesc',
+    'progressText',
+    'progressFill',
+    'userAddress',
+    'paymentStatusTitle',
+    'txHash',
+    'donorsList',
+    'connectBtn',
+    'networkSelect',
+    'qrcode',
+  ]);
+
   const languageButton = document.getElementById('languageButton');
   const languageMenu = document.getElementById('languageMenu');
 
@@ -20,6 +35,15 @@
     const dict = translations[currentLang] || translations.fa || {};
     const value = dict[key] !== undefined ? dict[key] : (translations.fa && translations.fa[key]) || key;
     return interpolate(value, vars);
+  }
+
+  function isDynamic(el) {
+    if (!el) return false;
+    if (el.hasAttribute('data-i18n-dynamic')) return true;
+    if (el.id && DYNAMIC_IDS.has(el.id)) return true;
+    // Inside a dynamic container
+    if (el.closest && el.closest('#donorsList, #projectDesc, #txHash')) return true;
+    return false;
   }
 
   async function loadTranslations() {
@@ -42,6 +66,7 @@
     document.documentElement.setAttribute('data-lang', lang);
 
     document.querySelectorAll('[data-i18n]').forEach((el) => {
+      if (isDynamic(el)) return;
       const key = el.getAttribute('data-i18n');
       if (dictionary[key] === undefined) return;
       if (el.hasAttribute('data-i18n-html')) {
@@ -52,6 +77,7 @@
     });
 
     document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+      if (isDynamic(el)) return;
       const key = el.getAttribute('data-i18n-placeholder');
       if (dictionary[key] !== undefined) el.placeholder = dictionary[key];
     });
