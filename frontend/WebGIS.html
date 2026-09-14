@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>WebGIS ایران - بر اساس سرانه جمعیت + پروژه‌های آموزشی</title>
     <script>
-    /* Apply saved language BEFORE first paint to avoid FA→EN flash */
     (function () {
         var KEY = 'classchain-language';
         var lang = 'fa';
@@ -19,7 +18,6 @@
     })();
     </script>
     <style>
-        /* Hide translated nodes until language is applied (non-fa only) */
         html[data-lang]:not([data-lang="fa"]):not(.i18n-ready) [data-i18n] { visibility: hidden; }
         html.i18n-ready [data-i18n] { visibility: visible; }
     </style>
@@ -64,7 +62,6 @@
         </div>
     </header>
     <script>
-    /* Sync nav labels from localStorage before heavy map scripts */
     (function () {
         var lang = document.documentElement.getAttribute('data-lang') || 'fa';
         var dict = {
@@ -152,8 +149,80 @@
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
     <script src="js/network-config.js"></script>
     <script src="js/raised-reader.js"></script>
-    <script src="js/donor-reader.js"></script>
+    <!-- donor-reader.js intentionally omitted (not on Mobile); Script-GIS has loadDonors via Indexer API -->
     <script src="https://cdn.jsdelivr.net/gh/classchain/ClassChain@5c6c67a6f58ae48d5c8eae42b389751d82d87771/frontend/js/Script-GIS.js"></script>
     <script src="js/gis-basemap-fix.js"></script>
+    <script>
+    /* Harden donors list: resilient fetch + soft error (overrides Script-GIS loadDonors) */
+    (function () {
+        var INDEXER_API = window.CLASSCHAIN_INDEXER_API || 'https://classchain-indexer.classchain.workers.dev';
+
+        function shortDonorAddr(addr) {
+            if (!addr || typeof addr !== 'string') return '—';
+            if (addr.length < 12) return addr;
+            return addr.slice(0, 6) + '…' + addr.slice(-4);
+        }
+
+        function aggregateIndexerDonors(rows) {
+            var map = new Map();
+            (rows || []).forEach(function (row) {
+                var key = String(row.donor || '').toLowerCase();
+                if (!key) return;
+                var amount = Number(row.amount) || 0;
+                var prev = map.get(key);
+                if (!prev) map.set(key, { donor: row.donor, total: amount, count: 1 });
+                else { prev.total += amount; prev.count += 1; }
+            });
+            return Array.from(map.values()).sort(function (a, b) { return b.total - a.total; });
+        }
+
+        window.loadDonors = async function loadDonors(projectAttributes) {
+            var el = document.getElementById('donorsList');
+            if (!el) return;
+            var projectId = String((projectAttributes && (projectAttributes.ProjectID || projectAttributes.projectId)) || '').trim();
+            if (!projectId) { el.innerHTML = ''; return; }
+
+            el.innerHTML = '<span class="info-label">در حال بارگذاری مشارکت‌کنندگان...</span>';
+
+            try {
+                var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                var timer = controller ? setTimeout(function () { controller.abort(); }, 20000) : null;
+                var res = await fetch(
+                    INDEXER_API + '/api/donors?projectId=' + encodeURIComponent(projectId),
+                    {
+                        headers: { Accept: 'application/json' },
+                        mode: 'cors',
+                        credentials: 'omit',
+                        cache: 'no-store',
+                        signal: controller ? controller.signal : undefined
+                    }
+                );
+                if (timer) clearTimeout(timer);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+
+                var data = await res.json();
+                var list = aggregateIndexerDonors(data.donors || []);
+
+                if (!list.length) {
+                    el.innerHTML = '<span class="info-label">هنوز مشارکتی ثبت نشده — شما می‌توانید اولین نفر باشید.</span>';
+                    return;
+                }
+
+                var rows = list.slice(0, 12).map(function (d) {
+                    return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:0.92em;padding:3px 0;">' +
+                        '<span title="' + d.donor + '">' + shortDonorAddr(d.donor) + '</span>' +
+                        '<span><strong>' + Number(d.total).toFixed(2) + '</strong> USDT</span></div>';
+                }).join('');
+                var more = list.length > 12
+                    ? '<div style="opacity:.75;margin-top:4px;">و ' + (list.length - 12) + ' مورد دیگر…</div>'
+                    : '';
+                el.innerHTML = '<div class="info-label" style="margin-bottom:6px;">مشارکت‌کنندگان (' + list.length + ')</div>' + rows + more;
+            } catch (e) {
+                console.error('[WebGIS] Indexer donors failed:', e);
+                el.innerHTML = '<span class="info-label">لیست مشارکت‌کنندگان موقتاً در دسترس نیست.</span>';
+            }
+        };
+    })();
+    </script>
 </body>
 </html>
