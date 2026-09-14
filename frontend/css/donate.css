@@ -1,4 +1,4 @@
-/* ========== Donate — same tokens as home (style.css), cream-first warmth ========== */
+/* ========== Donate page — aligned with home + WebGIS header ========== */
 :root {
     --green-950: #12372d;
     --green-900: #17483a;
@@ -10,7 +10,6 @@
     --white: #ffffff;
     --gold: #c89b3c;
     --gold-light: #ead9a8;
-    --coral: #d9785d;
     --text: #18342b;
     --text-soft: #5c6d65;
     --border: rgba(24, 52, 43, 0.11);
@@ -19,6 +18,7 @@
     --radius-sm: 12px;
     --radius-md: 20px;
     --container: 1180px;
+    --success: #10b981;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -33,14 +33,13 @@ body {
     background: var(--cream);
     color: var(--text);
     line-height: 1.7;
-    min-height: 100vh;
 }
 
 a { color: inherit; text-decoration: none; }
 button, input, select { font-family: inherit; }
 img { max-width: 100%; display: block; }
 
-/* ========== Header — same metrics/colors as home + WebGIS ========== */
+/* ========== Site header (mirror WebGIS / home) ========== */
 .donate-site-header {
     position: sticky;
     top: 0;
@@ -115,11 +114,8 @@ img { max-width: 100%; display: block; }
     white-space: nowrap;
 }
 
-.donate-nav-link:hover { color: var(--green-800); }
-.donate-nav-link.is-active {
-    color: var(--green-900);
-    font-weight: 700;
-}
+.donate-nav-link:hover { color: var(--green-900); }
+.donate-nav-link.is-active { color: var(--green-900); font-weight: 700; }
 
 .donate-language-switcher { position: relative; }
 
@@ -180,7 +176,7 @@ img { max-width: 100%; display: block; }
 .donate-mobile-menu {
     display: none;
     padding: 6px 0 12px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid rgba(24, 52, 43, 0.08);
 }
 
 .donate-mobile-menu.open { display: block; }
@@ -201,7 +197,7 @@ img { max-width: 100%; display: block; }
 .donate-mobile-only { display: none; }
 .donate-desktop-only { display: none; }
 
-/* ========== Main layout — cream surfaces instead of pure white ========== */
+/* ========== Main layout ========== */
 .main-container {
     width: min(var(--container), calc(100% - 32px));
     margin-inline: auto;
@@ -211,9 +207,8 @@ img { max-width: 100%; display: block; }
     align-items: center;
 }
 
-/* Like home info-card, but on cream so page feels warmer as a whole */
 .card {
-    background: var(--cream-dark);
+    background: var(--white);
     border-radius: var(--radius-md);
     padding: 1.75rem;
     width: 100%;
@@ -225,14 +220,7 @@ img { max-width: 100%; display: block; }
     gap: 1.75rem;
 }
 
-.main-content {
-    flex: 2;
-    min-width: 0;
-    background: var(--cream);
-    border-radius: var(--radius-sm);
-    padding: 1.35rem 1.4rem;
-    border: 1px solid var(--border);
-}
+.main-content { flex: 2; min-width: 0; }
 
 .sidebar {
     flex: 1;
@@ -295,7 +283,7 @@ img { max-width: 100%; display: block; }
     padding: 1rem 1.1rem;
     border-radius: 14px;
     border: 1px solid var(--border);
-    background: var(--cream-dark);
+    background: var(--cream);
     color: var(--text);
     font-size: 1.15rem;
     text-align: center;
@@ -312,7 +300,7 @@ img { max-width: 100%; display: block; }
     width: 100%;
     padding: 0.9rem 1rem;
     border-radius: 12px;
-    background: var(--cream-dark);
+    background: var(--cream);
     color: var(--text);
     border: 1px solid var(--border);
     font-size: 0.95rem;
@@ -326,7 +314,7 @@ img { max-width: 100%; display: block; }
 .wallet-info {
     margin: 1rem 0;
     padding: 0.85rem 1rem;
-    background: var(--cream-dark);
+    background: var(--cream);
     border-radius: 12px;
     border: 1px solid var(--border);
     font-size: 0.88rem;
@@ -360,14 +348,13 @@ img { max-width: 100%; display: block; }
     flex-shrink: 0;
 }
 
-/* Same spirit as home .btn-primary */
 .connect-btn {
     width: 100%;
     padding: 1.05rem 1.25rem;
     background: var(--green-900);
     color: #fff;
     border: none;
-    border-radius: 13px;
+    border-radius: 14px;
     font-size: 1.05rem;
     font-weight: 700;
     cursor: pointer;
@@ -378,21 +365,20 @@ img { max-width: 100%; display: block; }
 
 .connect-btn:hover:not(:disabled) {
     background: var(--green-800);
-    transform: translateY(-2px);
+    transform: translateY(-1px);
 }
 
 .connect-btn:disabled {
     background: #9ca3af;
     cursor: not-allowed;
     box-shadow: none;
-    transform: none;
 }
 
 .success-message {
     margin-top: 1.5rem;
     padding: 1.25rem;
-    background: rgba(75, 150, 117, 0.12);
-    border: 1px solid rgba(40, 115, 91, 0.25);
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.35);
     border-radius: 12px;
     text-align: center;
     color: var(--green-950);
@@ -413,12 +399,12 @@ img { max-width: 100%; display: block; }
     margin: 0.75rem auto;
     display: inline-block;
     padding: 10px;
-    background: var(--white);
+    background: #fff;
     border-radius: 12px;
     border: 1px solid var(--border);
 }
 
-/* Sidebar */
+/* Sidebar pieces */
 .project-image img {
     width: 100%;
     border-radius: 12px;
@@ -472,11 +458,7 @@ img { max-width: 100%; display: block; }
     color: var(--green-800);
 }
 
-.email-subscribe {
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px dashed var(--border);
-}
+.email-subscribe { margin-top: 1.5rem; }
 
 .email-subscribe h3 {
     font-size: 0.95rem;
@@ -490,15 +472,9 @@ img { max-width: 100%; display: block; }
     margin: 0.4rem 0;
     border-radius: 10px;
     border: 1px solid var(--border);
-    background: var(--cream-dark);
+    background: var(--white);
     color: var(--text);
     font-size: 0.9rem;
-}
-
-.email-subscribe input[type="email"]:focus {
-    outline: none;
-    border-color: var(--green-700);
-    box-shadow: 0 0 0 3px rgba(40, 115, 91, 0.12);
 }
 
 .email-subscribe label {
@@ -529,7 +505,6 @@ img { max-width: 100%; display: block; }
     font-weight: 600;
     cursor: pointer;
     font-size: 0.9rem;
-    box-shadow: 0 8px 20px rgba(23, 72, 58, 0.14);
 }
 
 .email-subscribe button:hover { background: var(--green-800); }
@@ -538,12 +513,8 @@ img { max-width: 100%; display: block; }
 @media (max-width: 768px) {
     .card {
         flex-direction: column;
-        padding: 1.15rem;
-        gap: 1rem;
-    }
-
-    .main-content {
-        padding: 1.1rem;
+        padding: 1.25rem;
+        gap: 1.25rem;
     }
 
     .sidebar {
