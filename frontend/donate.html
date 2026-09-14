@@ -64,12 +64,10 @@
     <div class="main-container">
         <div class="card">
             <div class="main-content">
-                <!-- Dynamic: filled by donate.js — do NOT use data-i18n (would overwrite loaded project name) -->
                 <h1 id="projectTitle">در حال بارگذاری پروژه...</h1>
                 <p id="projectDesc"></p>
                 <div class="progress-container">
                     <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-                    <!-- Dynamic: filled by donate.js -->
                     <p class="progress-text" id="progressText">در حال بارگذاری...</p>
                 </div>
                 <div class="donation-section">
@@ -90,7 +88,6 @@
                 <div class="terms">
                     <label><input type="checkbox" id="termsConsent"> <span data-i18n="terms.consent">با شرایط و ضوابط موافقم</span></label>
                 </div>
-                <!-- Dynamic label via updateButtonState — no data-i18n -->
                 <button class="connect-btn" id="connectBtn" disabled>اتصال کیف پول و پرداخت</button>
                 <div class="success-message" id="successMessage" style="display:none;">
                     <h3 id="paymentStatusTitle">در حال انجام پرداخت...</h3>
@@ -101,7 +98,6 @@
                 <div class="project-image" id="projectImage">
                     <img src="https://via.placeholder.com/400x300?text=تصویر+پروژه" data-i18n-alt="project.imageAlt" alt="تصویر پروژه">
                 </div>
-                <!-- Dynamic: replaced by donate.js -->
                 <div class="donors-list" id="donorsList">
                     <p>در حال بارگذاری کمک‌کنندگان...</p>
                 </div>
@@ -119,5 +115,81 @@
     <script src="js/wallet-manager.js"></script>
     <script src="js/raised-reader.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/classchain/ClassChain@1da7275881bb584bba347dd930923e504f8332d7/frontend/js/donate.js"></script>
+    <script>
+    /* Override donors loader: resilient fetch + soft error */
+    (function () {
+        var INDEXER_API = window.CLASSCHAIN_INDEXER_API || 'https://classchain-indexer.classchain.workers.dev';
+
+        function shortDonorAddr(addr) {
+            if (!addr || typeof addr !== 'string') return '—';
+            if (addr.length < 12) return addr;
+            return addr.slice(0, 6) + '…' + addr.slice(-4);
+        }
+
+        function aggregateIndexerDonors(rows) {
+            var map = new Map();
+            (rows || []).forEach(function (row) {
+                var key = String(row.donor || '').toLowerCase();
+                if (!key) return;
+                var amount = Number(row.amount) || 0;
+                var prev = map.get(key);
+                if (!prev) map.set(key, { donor: row.donor, total: amount, count: 1 });
+                else { prev.total += amount; prev.count += 1; }
+            });
+            return Array.from(map.values()).sort(function (a, b) { return b.total - a.total; });
+        }
+
+        window.loadDonorsFromIndexer = async function loadDonorsFromIndexer(projectId) {
+            var el = document.getElementById('donorsList');
+            if (!el) return;
+
+            var id = String(projectId || (window.projects && window.projects.ProjectID) || '').trim();
+            if (!id) {
+                el.innerHTML = '<p>شناسه پروژه مشخص نیست.</p>';
+                return;
+            }
+
+            el.innerHTML = '<p>در حال بارگذاری مشارکت‌کنندگان...</p>';
+
+            try {
+                var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+                var timer = controller ? setTimeout(function () { controller.abort(); }, 20000) : null;
+                var res = await fetch(
+                    INDEXER_API + '/api/donors?projectId=' + encodeURIComponent(id),
+                    {
+                        headers: { Accept: 'application/json' },
+                        mode: 'cors',
+                        credentials: 'omit',
+                        cache: 'no-store',
+                        signal: controller ? controller.signal : undefined
+                    }
+                );
+                if (timer) clearTimeout(timer);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+
+                var data = await res.json();
+                var list = aggregateIndexerDonors(data.donors || []);
+
+                if (!list.length) {
+                    el.innerHTML = '<p>هنوز مشارکتی ثبت نشده — شما می‌توانید اولین نفر باشید.</p>';
+                    return;
+                }
+
+                var rows = list.slice(0, 15).map(function (d) {
+                    return '<div class="donor-row" style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid rgba(0,0,0,0.06);font-size:0.92em;">' +
+                        '<span title="' + d.donor + '">' + shortDonorAddr(d.donor) + '</span>' +
+                        '<span><strong>' + Number(d.total).toFixed(2) + '</strong> USDT</span></div>';
+                }).join('');
+                var more = list.length > 15
+                    ? '<p style="opacity:.75;margin-top:8px;">و ' + (list.length - 15) + ' مورد دیگر…</p>'
+                    : '';
+                el.innerHTML = '<h3 style="margin:0 0 10px;">مشارکت‌کنندگان (' + list.length + ')</h3>' + rows + more;
+            } catch (e) {
+                console.error('[Donate] Indexer donors failed:', e);
+                el.innerHTML = '<p>لیست مشارکت‌کنندگان موقتاً در دسترس نیست.</p>';
+            }
+        };
+    })();
+    </script>
 </body>
 </html>
