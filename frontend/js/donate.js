@@ -336,9 +336,11 @@ async function loadProjectData() {
                     _t('pool.desc', null, 'Contribute to the general pool — after community voting, funds are allocated to selected projects');
             } else {
                 descEl.innerText =
-                    `${foundProject.استان || ''} - ` +
-                    `${foundProject.منطقه || ''} | ` +
-                    `${foundProject['تعداد کلاس'] || 0} کلاس`;
+                    _t('project.meta', {
+                        province: foundProject.استان || '',
+                        region: foundProject.منطقه || '',
+                        classes: foundProject['تعداد کلاس'] || 0
+                    }, (foundProject.استان || '') + ' - ' + (foundProject.منطقه || '') + ' | ' + (foundProject['تعداد کلاس'] || 0) + ' classes');
             }
         }
 
