@@ -5,6 +5,15 @@ let userAddress = null;
 let web3 = null;
 let projects = {};
 
+function _t(key, vars, fallback) {
+    try {
+        if (window.DonateI18n && typeof window.DonateI18n.t === 'function') {
+            const v = window.DonateI18n.t(key, vars);
+            if (v && v !== key) return v;
+        }
+    } catch (e) {}
+    return fallback != null ? fallback : key;
+}
 const networkConfig = window.ClassChainNetworkConfig || { NETWORKS: {}, getDonationNetworks: () => [] };
 function getNetworks() {return networkConfig.NETWORKS || {};}
 
@@ -111,7 +120,7 @@ function optimisticProgressUpdate(donatedAmount) {
             fill.style.opacity = '0.35';
         }
         progressTextEl.innerText =
-            `${currentRaised.toFixed(2)} USDT تاکنون در خزانه عمومی جمع شده`;
+            _t('progress.openPool', { raised: currentRaised.toFixed(2) }, currentRaised.toFixed(2) + ' USDT raised in the general pool');
         return;
     }
 
@@ -157,19 +166,19 @@ function updateButtonState() {
     if (!connectBtn) return;
 
     if (!net) {
-        connectBtn.textContent = 'ابتدا شبکه را انتخاب کنید';
-        connectBtn.disabled = true;
+        connectBtn.textContent = _t('connectBtn.selectNetwork', null, 'Select a network first');
+		connectBtn.disabled = true;
         return;
     }
 
     const isActive = net.status === 'active' && net.enabled;
-    connectBtn.textContent = net.buttonLabel || 'اتصال کیف پول و پرداخت';
+    connectBtn.textContent = net.buttonLabel || _t('connectBtn.default', null, 'Connect wallet and pay');
     connectBtn.disabled = !termsConsent?.checked || !isActive || !currentContract;
 
     if (!isActive) {
-        connectBtn.textContent = `${net.walletName || net.name} هنوز فعال نیست`;
+        connectBtn.textContent = _t('connectBtn.inactive', { wallet: net.walletName || net.name }, (net.walletName || net.name) + ' not active yet');		
     } else if (!currentContract) {
-        connectBtn.textContent = `خزانه ${net.name} هنوز راه‌اندازی نشده`;
+        connectBtn.textContent = _t('connectBtn.notReady', { network: net.name }, net.name + ' treasury not set up yet');
     }
 }
 
@@ -221,8 +230,8 @@ async function loadProjectData() {
 
         if (title) {
             title.innerText =
-                'پروژه یافت نشد';
-        }
+                _t('project.notFound', null, 'Project not found');
+		}
 
         throw new Error(
             'شناسه پروژه در URL وجود ندارد'
@@ -279,8 +288,8 @@ async function loadProjectData() {
 
             if (title) {
                 title.innerText =
-                    'پروژه یافت نشد';
-            }
+                	_t('project.notFound', null, 'Project not found');
+			}
 
             throw new Error(
                 `پروژه ${projectId} پیدا نشد`
@@ -302,11 +311,11 @@ async function loadProjectData() {
             if (isGeneralPool) {
                 titleEl.innerText =
                     foundProject['نام پروژه'] ||
-                    'خزانه عمومی مشارکت';
+                    _t('pool.title', null, 'General Contribution Pool');
             } else {
                 titleEl.innerText =
                     foundProject['نام پروژه'] ||
-                    'پروژه بدون نام';
+                    _t('project.noName', null, 'Unnamed project');
             }
         }
 
@@ -318,7 +327,7 @@ async function loadProjectData() {
         if (descEl) {
             if (isGeneralPool) {
                 descEl.innerText =
-                    'مشارکت در استخر عمومی — پس از رأی‌گیری جامعه، بودجه به پروژه‌های منتخب اختصاص می‌یابد';
+                    _t('pool.desc', null, 'Contribute to the general pool — after community voting, funds are allocated to selected projects');
             } else {
                 descEl.innerText =
                     `${foundProject.استان || ''} - ` +
@@ -370,11 +379,11 @@ async function loadProjectData() {
 
                     opt.textContent =
                         `${net.name} — ` +
-                        `${net.walletName || 'کیف پول'}` +
+                        `${net.walletName || _t('network.wallet', null, 'Wallet')}` +
                         `${
                             isActive && hasFund
                                 ? ''
-                                : ' (غیرفعال)'
+                                : _t('network.inactiveSuffix', null, ' (inactive)')
                         }`;
 
                     opt.disabled =
@@ -466,8 +475,8 @@ async function loadProjectData() {
         if (title) {
 
             title.innerText =
-                'خطا در بارگذاری پروژه';
-        }
+                _t('project.error', null, 'Error loading project');
+		}
 
         throw error;
     }
@@ -492,8 +501,8 @@ async function loadProjectFinancials(
     if (text) {
 
         text.innerText =
-            'در حال خواندن موجودی از زنجیره...';
-    }
+            _t('progress.reading', null, 'Reading balance from chain...');
+	}
 
     let totalRaised = 0;
 
@@ -532,8 +541,8 @@ async function loadProjectFinancials(
         if (text) {
 
             text.innerText =
-                'خواندن موجودی خزانه امکان‌پذیر نیست.';
-        }
+                _t('progress.unavailable', null, 'Unable to read treasury balance.');
+		}
 
         return;
     }
@@ -575,8 +584,7 @@ async function loadProjectFinancials(
     if (text) {
         if (isOpenPool) {
             text.innerText =
-                `${totalRaised.toFixed(2)} USDT ` +
-                `تاکنون در خزانه عمومی جمع شده`;
+                _t('progress.openPool', { raised: totalRaised.toFixed(2) }, totalRaised.toFixed(2) + ' USDT raised in the general pool');
         } else {
             text.innerText =
                 `${totalRaised.toFixed(2)} USDT ` +
@@ -594,10 +602,10 @@ function saveEmail() {
     const consent = document.getElementById('consent')?.checked;
 
     if (!email || !consent) {
-        alert("لطفاً ایمیل معتبر وارد کنید و تأیید را بزنید");
+        alert(_t('email.invalid', null, 'Please enter a valid email and confirm consent'));
         return;
     }
-    alert("✅ ایمیل شما ثبت شد! آپدیت‌های پروژه برایتان ارسال خواهد شد ❤️");
+    alert(_t('email.saved', null, 'Your email was saved!'));
 }
 
 // ==================== مشارکت‌کنندگان از Indexer API ====================
@@ -630,11 +638,11 @@ async function loadDonorsFromIndexer(projectId) {
 
     const id = String(projectId || projects?.ProjectID || '').trim();
     if (!id) {
-        el.innerHTML = '<p>شناسه پروژه مشخص نیست.</p>';
+        el.innerHTML = '<p>' + _t('donors.noId', null, 'Project ID is not specified.') + '</p>';
         return;
     }
 
-    el.innerHTML = '<p>در حال بارگذاری مشارکت‌کنندگان...</p>';
+    el.innerHTML = '<p>' + _t('donors.loading', null, 'Loading contributors...') + '</p>';
 
     try {
         const res = await fetch(
@@ -648,7 +656,7 @@ async function loadDonorsFromIndexer(projectId) {
 
         if (!list.length) {
             el.innerHTML =
-                '<p>هنوز مشارکتی ثبت نشده — شما می‌توانید اولین نفر باشید.</p>';
+                '<p>' + _t('donors.empty', null, 'No contributions yet — you can be the first.') + '</p>';
             return;
         }
 
@@ -669,14 +677,14 @@ async function loadDonorsFromIndexer(projectId) {
                 : '';
 
         el.innerHTML = `
-            <h3 style="margin:0 0 10px;">مشارکت‌کنندگان (${list.length})</h3>
+            <h3 style="margin:0 0 10px;">${_t('donors.title', { count: list.length }, 'Contributors (' + list.length + ')')}</h3>
             ${rows}
             ${more}
         `;
     } catch (e) {
         console.error('[Donate] Indexer donors failed:', e);
         el.innerHTML =
-            '<p style="color:#e74c3c;">خطا در خواندن مشارکت‌کنندگان</p>';
+            '<p style="color:#e74c3c;">' + _t('donors.error', null, 'Failed to load contributors') + '</p>';
     }
 }
 
@@ -740,21 +748,21 @@ document.addEventListener('DOMContentLoaded', function() {
     if (connectBtn) {
         connectBtn.onclick = async () => {
             if (!selectedNetwork) {
-                alert("لطفاً ابتدا یک شبکه از منو انتخاب کنید");
+                alert(_t('payment.selectNetworkAlert', null, 'Please select a network first'));
                 return;
             }
             if (!currentContract) {
-                alert("خزانه هوشمند برای این شبکه هنوز راه‌اندازی نشده");
+                alert(_t('payment.noTreasuryAlert', null, 'Smart treasury is not set up for this network yet'));
                 return;
             }
             if (selectedAmount <= 0) {
-                alert("لطفاً مقدار معتبر وارد کنید");
+                alert(_t('payment.invalidAmount', null, 'Please enter a valid amount'));
                 return;
             }
 
             const net = getNetworks()[selectedNetwork];
             if (!net) {
-                alert("شبکه انتخاب شده معتبر نیست");
+                alert(_t('payment.invalidNetwork', null, 'Selected network is not valid'));
                 return;
             }
 
@@ -784,7 +792,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateWalletInfo(connection);
             } catch (err) {
                 if (successMsg) successMsg.style.display = 'none';
-                alert(err.message || 'خطا در اتصال کیف پول');
+                alert(err.message || _t('payment.walletError', null, 'Wallet connection error'));
                 return;
             }
 
@@ -1242,6 +1250,29 @@ async function initializeDonatePage() {
 }
 initializeDonatePage();
 updateButtonState();
+});
+
+document.addEventListener('classchain:langchange', function () {
+    try {
+        if (!projects || !projects.ProjectID) return;
+        const isPool = String(projects.ProjectID) === 'GENERAL_POOL';
+        const titleEl = document.getElementById('projectTitle');
+        const descEl = document.getElementById('projectDesc');
+        if (titleEl) {
+            titleEl.innerText = isPool
+                ? (projects['نام پروژه'] || _t('pool.title', null, 'General Pool'))
+                : (projects['نام پروژه'] || _t('project.noName', null, 'Unnamed project'));
+        }
+        if (descEl && isPool) {
+            descEl.innerText = _t('pool.desc', null, '');
+        }
+        if (typeof loadProjectFinancials === 'function') {
+            loadProjectFinancials(Number(projects['targetAmount(USDT)']) || 0);
+        }
+        if (typeof updateButtonState === 'function') updateButtonState();
+    } catch (e) {
+        console.warn('[Donate] langchange refresh failed', e);
+    }
 });
 
 // ==================== فعال‌سازی particles ====================
