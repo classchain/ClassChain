@@ -149,7 +149,7 @@
                 return;
             }
 
-            el.innerHTML = '<p>در حال بارگذاری مشارکت‌کنندگان...</p>';
+            el.innerHTML = '<p>' + (window.DonateI18n && DonateI18n.t ? DonateI18n.t('donors.loading') : 'Loading contributors...') + '</p>';
 
             try {
                 var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -171,7 +171,7 @@
                 var list = aggregateIndexerDonors(data.donors || []);
 
                 if (!list.length) {
-                    el.innerHTML = '<p>هنوز مشارکتی ثبت نشده — شما می‌توانید اولین نفر باشید.</p>';
+                    el.innerHTML = '<p>' + (window.DonateI18n && DonateI18n.t ? DonateI18n.t('donors.empty') : 'No contributions yet — you can be the first.') + '</p>';
                     return;
                 }
 
@@ -183,10 +183,10 @@
                 var more = list.length > 15
                     ? '<p style="opacity:.75;margin-top:8px;">و ' + (list.length - 15) + ' مورد دیگر…</p>'
                     : '';
-                el.innerHTML = '<h3 style="margin:0 0 10px;">مشارکت‌کنندگان (' + list.length + ')</h3>' + rows + more;
+                el.innerHTML = '<h3 style="margin:0 0 10px;">' + (window.DonateI18n && DonateI18n.t ? DonateI18n.t('donors.title', { count: list.length }) : ('Contributors (' + list.length + ')')) + '</h3>' + rows + more;
             } catch (e) {
                 console.error('[Donate] Indexer donors failed:', e);
-                el.innerHTML = '<p>لیست مشارکت‌کنندگان موقتاً در دسترس نیست.</p>';
+                el.innerHTML = '<p>' + (window.DonateI18n && DonateI18n.t ? DonateI18n.t('donors.unavailable') : 'Contributors list is temporarily unavailable.') + '</p>';
             }
         };
     })();
