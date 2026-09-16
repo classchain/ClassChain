@@ -61,64 +61,42 @@
             </div>
         </div>
     </header>
-    <script>
-    (function () {
-        var lang = document.documentElement.getAttribute('data-lang') || 'fa';
-        var dict = {
-            fa: { langName: 'FA', 'nav.webgis': 'نقشه پروژه‌ها', 'nav.cta': 'مشارکت' },
-            en: { langName: 'EN', 'nav.webgis': 'Project Map', 'nav.cta': 'Contribute' },
-            ar: { langName: 'AR', 'nav.webgis': 'خريطة المشاريع', 'nav.cta': 'ساهم الآن' }
-        };
-        var d = dict[lang] || dict.fa;
-        document.querySelectorAll('[data-i18n]').forEach(function (el) {
-            var k = el.getAttribute('data-i18n');
-            if (d[k] != null) el.textContent = d[k];
-        });
-        var btn = document.getElementById('languageButton');
-        if (btn) btn.textContent = d.langName;
-        document.documentElement.classList.add('i18n-ready');
-    })();
-    </script>
 
     <div class="container">
         <div id="map"></div>
 
         <div class="left-map-controls" id="leftMapControls">
-            <button class="map-ctrl-btn" type="button" id="homeBtn" title="بازگشت به ایران" aria-label="بازگشت به ایران">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-                </svg>
-            </button>
-            <button class="map-ctrl-btn" type="button" id="zoomInBtn" title="بزرگ‌نمایی" aria-label="بزرگ‌نمایی">+</button>
-            <button class="map-ctrl-btn" type="button" id="zoomOutBtn" title="کوچک‌نمایی" aria-label="کوچک‌نمایی">−</button>
+            <button type="button" id="zoomInBtn" class="map-ctrl-btn" aria-label="Zoom in">+</button>
+            <button type="button" id="zoomOutBtn" class="map-ctrl-btn" aria-label="Zoom out">−</button>
+            <button type="button" id="homeBtn" class="map-ctrl-btn" aria-label="Home">⌂</button>
         </div>
 
         <div class="map-controls">
-            <button class="layers-btn" id="layersBtn" type="button" title="تغییر نوع نقشه" aria-label="انتخاب نوع نقشه" aria-expanded="false">
+            <button class="layers-btn" id="layersBtn" type="button" data-i18n-title="basemap.layersTitle" data-i18n-aria="basemap.layersAria" title="تغییر نوع نقشه" aria-label="انتخاب نوع نقشه" aria-expanded="false">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-                    <path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16zm0-11.47L17.74 9 12 13.47 6.26 9 12 4.53z"/>
+                    <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l-10-5v10l10 5 10-5V6l-10 5z"/>
                 </svg>
             </button>
             <div class="basemap-popup" id="basemapPopup" role="menu" hidden>
                 <button type="button" class="basemap-option active" data-value="carto" role="menuitem">
                     <span class="basemap-swatch carto"></span>
-                    <span>رنگارنگ (پیش‌فرض)</span>
+                    <span data-i18n="basemap.carto">رنگارنگ (پیش‌فرض)</span>
                 </button>
                 <button type="button" class="basemap-option" data-value="persiangis" role="menuitem">
                     <span class="basemap-swatch persiangis"></span>
-                    <span>نقشه فارسی</span>
+                    <span data-i18n="basemap.persiangis">نقشه فارسی</span>
                 </button>
                 <button type="button" class="basemap-option" data-value="satellite" role="menuitem">
                     <span class="basemap-swatch satellite"></span>
-                    <span>ماهواره‌ای</span>
+                    <span data-i18n="basemap.satellite">ماهواره‌ای</span>
                 </button>
                 <button type="button" class="basemap-option" data-value="light" role="menuitem">
                     <span class="basemap-swatch light"></span>
-                    <span>خاکستری روشن</span>
+                    <span data-i18n="basemap.light">خاکستری روشن</span>
                 </button>
                 <button type="button" class="basemap-option" data-value="osm" role="menuitem">
                     <span class="basemap-swatch osm"></span>
-                    <span>استاندارد (OSM)</span>
+                    <span data-i18n="basemap.osm">استاندارد (OSM)</span>
                 </button>
             </div>
         </div>
@@ -126,24 +104,24 @@
         <div class="info-panel panel-peek" id="infoPanelWrapper">
             <div class="panel-header" id="panelHeader">
                 <div class="drag-handle" id="dragHandle" aria-hidden="true"></div>
-                <h1>WebGIS ایران</h1>
-                <p>رنگ بر اساس سرانه جمعیت + پروژه‌های آموزشی</p>
+                <h1 data-i18n="header.title">WebGIS ایران</h1>
+                <p data-i18n="header.subtitle">رنگ بر اساس سرانه جمعیت + پروژه‌های آموزشی</p>
             </div>
             <div class="panel-content" id="infoPanel">
                 <div class="no-selection">
                     <div class="icon">🗺️</div>
-                    <h3>یک مورد را انتخاب کنید</h3>
-                    <p>روی استان، شهرستان یا پروژه کلیک کنید</p>
+                    <h3 data-i18n="empty.title">یک مورد را انتخاب کنید</h3>
+                    <p data-i18n="empty.hint">روی استان، شهرستان یا پروژه کلیک کنید</p>
                 </div>
             </div>
             <div class="fixed-contribute-button" id="fixedContributeBtn">
-                <button type="button" id="contributeActionBtn">مشارکت در ساخت</button>
-                <p>(انتخاب شبکه و پرداخت با کیف پول)</p>
+                <button type="button" id="contributeActionBtn" data-i18n="contribute.btn">مشارکت در ساخت</button>
+                <p data-i18n="contribute.hint">(انتخاب شبکه و پرداخت با کیف پول)</p>
             </div>
         </div>
     </div>
 
-    <script src="js/gis-header.js"></script>
+    <script src="js/gis-i18n.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
@@ -182,7 +160,7 @@
             var projectId = String((projectAttributes && (projectAttributes.ProjectID || projectAttributes.projectId)) || '').trim();
             if (!projectId) { el.innerHTML = ''; return; }
 
-            el.innerHTML = '<span class="info-label">در حال بارگذاری مشارکت‌کنندگان...</span>';
+            el.innerHTML = '<span class="info-label">' + (window.GisI18n && GisI18n.t ? GisI18n.t('donors.loading') : 'Loading contributors...') + '</span>';
 
             try {
                 var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -204,7 +182,7 @@
                 var list = aggregateIndexerDonors(data.donors || []);
 
                 if (!list.length) {
-                    el.innerHTML = '<span class="info-label">هنوز مشارکتی ثبت نشده — شما می‌توانید اولین نفر باشید.</span>';
+                    el.innerHTML = '<span class="info-label">' + (window.GisI18n && GisI18n.t ? GisI18n.t('donors.empty') : 'No contributions yet — you can be the first.') + '</span>';
                     return;
                 }
 
@@ -214,12 +192,12 @@
                         '<span><strong>' + Number(d.total).toFixed(2) + '</strong> USDT</span></div>';
                 }).join('');
                 var more = list.length > 12
-                    ? '<div style="opacity:.75;margin-top:4px;">و ' + (list.length - 12) + ' مورد دیگر…</div>'
+                    ? '<div style="opacity:.75;margin-top:4px;">' + (window.GisI18n && GisI18n.t ? GisI18n.t('donors.more', { count: list.length - 12 }) : ('and ' + (list.length - 12) + ' more…')) + '</div>'
                     : '';
-                el.innerHTML = '<div class="info-label" style="margin-bottom:6px;">مشارکت‌کنندگان (' + list.length + ')</div>' + rows + more;
+                el.innerHTML = '<div class="info-label" style="margin-bottom:6px;">' + (window.GisI18n && GisI18n.t ? GisI18n.t('donors.title', { count: list.length }) : ('Contributors (' + list.length + ')')) + '</div>' + rows + more;
             } catch (e) {
                 console.error('[WebGIS] Indexer donors failed:', e);
-                el.innerHTML = '<span class="info-label">لیست مشارکت‌کنندگان موقتاً در دسترس نیست.</span>';
+                el.innerHTML = '<span class="info-label">' + (window.GisI18n && GisI18n.t ? GisI18n.t('donors.unavailable') : 'Contributors list is temporarily unavailable.') + '</span>';
             }
         };
     })();
