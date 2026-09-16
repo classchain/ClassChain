@@ -66,15 +66,19 @@
         <div id="map"></div>
 
         <div class="left-map-controls" id="leftMapControls">
-            <button type="button" id="zoomInBtn" class="map-ctrl-btn" aria-label="Zoom in">+</button>
-            <button type="button" id="zoomOutBtn" class="map-ctrl-btn" aria-label="Zoom out">−</button>
-            <button type="button" id="homeBtn" class="map-ctrl-btn" aria-label="Home">⌂</button>
+            <button class="map-ctrl-btn" type="button" id="homeBtn" title="بازگشت به ایران" aria-label="بازگشت به ایران">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+                </svg>
+            </button>
+            <button class="map-ctrl-btn" type="button" id="zoomInBtn" title="بزرگ‌نمایی" aria-label="بزرگ‌نمایی">+</button>
+            <button class="map-ctrl-btn" type="button" id="zoomOutBtn" title="کوچک‌نمایی" aria-label="کوچک‌نمایی">−</button>
         </div>
 
         <div class="map-controls">
             <button class="layers-btn" id="layersBtn" type="button" data-i18n-title="basemap.layersTitle" data-i18n-aria="basemap.layersAria" title="تغییر نوع نقشه" aria-label="انتخاب نوع نقشه" aria-expanded="false">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-                    <path d="M12 2L2 7l10 5 10-5-10-5zm0 9l-10-5v10l10 5 10-5V6l-10 5z"/>
+                    <path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16zm0-11.47L17.74 9 12 13.47 6.26 9 12 4.53z"/>
                 </svg>
             </button>
             <div class="basemap-popup" id="basemapPopup" role="menu" hidden>
