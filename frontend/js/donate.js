@@ -313,9 +313,8 @@ async function loadProjectData() {
 
         if (titleEl) {
             if (isGeneralPool) {
-                titleEl.innerText =
-                    foundProject['نام پروژه'] ||
-                    _t('pool.title', null, 'General Contribution Pool');
+                // Always use i18n for pool title — Projects.json has Persian-only name
+                titleEl.innerText = _t('pool.title', null, 'General Contribution Pool');
             } else {
                 titleEl.innerText =
                     foundProject['نام پروژه'] ||
@@ -1240,7 +1239,7 @@ document.addEventListener('classchain:langchange', function () {
         const descEl = document.getElementById('projectDesc');
         if (titleEl) {
             titleEl.innerText = isPool
-                ? (projects['نام پروژه'] || _t('pool.title', null, 'General Contribution Pool'))
+                ? _t('pool.title', null, 'General Contribution Pool')
                 : (projects['نام پروژه'] || _t('project.noName', null, 'Unnamed project'));
         }
         if (descEl) {
