@@ -2,6 +2,18 @@ let currentContractAddress = null;
 let currentProjectId = null;
 /** نوع انتخاب فعلی روی نقشه: none | province | county | project */
 let selectionKind = 'none';
+/** آخرین context پنل برای re-render روی تغییر زبان */
+let lastPanelContext = { kind: 'none', data: null };
+
+function _t(key, vars, fallback) {
+    try {
+        if (window.GisI18n && typeof window.GisI18n.t === 'function') {
+            const v = window.GisI18n.t(key, vars);
+            if (v && v !== key) return v;
+        }
+    } catch (e) {}
+    return fallback != null ? fallback : key;
+}
 
 const map = L.map('map', {
     renderer: L.canvas(),
@@ -465,13 +477,14 @@ fetch('data/ir-new.json').then(r => r.json()).then(data => {
                 selectedLayer = layer;
                 layer.bringToFront();
 
+                lastPanelContext = { kind: 'province', data: p };
                 showInPanel(`
                     <div class="province-info">
-                        <h3>استان ${p.Name || 'نامشخص'}</h3>
-                        ${p.pcenter ? `<div class="info-item"><span class="info-label">مرکز استان:</span><span class="info-value">${p.pcenter}</span></div>` : ''}
-                        ${p.population > 0 ? `<div class="info-item"><span class="info-label">جمعیت (۱۳۹۵):</span><span class="info-value">${Number(p.population).toLocaleString('fa-IR')}</span></div>` : ''}
-                        ${p.P_capita ? `<div class="info-item"><span class="info-label">سرانه استانی:</span><span class="info-value">${Number(p.P_capita).toFixed(2)}</span></div>` : ''}
-                        <div class="info-item"><span class="info-label">شهرستان‌ها:</span><span class="info-value">در حال بارگذاری...</span></div>
+                        <h3>${_t('province.prefix', { name: p.Name || _t('label.unknown', null, 'Unknown') }, 'Province ' + (p.Name || 'Unknown'))}</h3>
+                        ${p.pcenter ? `<div class="info-item"><span class="info-label">${_t('label.provinceCenter', null, 'Province center:')}</span><span class="info-value">${p.pcenter}</span></div>` : ''}
+                        ${p.population > 0 ? `<div class="info-item"><span class="info-label">${_t('label.population', null, 'Population:')}</span><span class="info-value">${Number(p.population).toLocaleString()}</span></div>` : ''}
+                        ${p.P_capita ? `<div class="info-item"><span class="info-label">${_t('label.provinceCapita', null, 'Province capita:')}</span><span class="info-value">${Number(p.P_capita).toFixed(2)}</span></div>` : ''}
+                        <div class="info-item"><span class="info-label">${_t('label.counties', null, 'Counties:')}</span><span class="info-value">${_t('label.countiesLoading', null, 'Loading...')}</span></div>
                     </div>`);
                 fitLayerToVisibleMap(layer, { duration: 1.1 });
                 showCountiesOfProvince(p.Name);
@@ -501,45 +514,47 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
 
             const { html: fundsCards, hasTreasury, primaryAddress } = buildFundsHtml(a);
 
+            lastPanelContext = { kind: 'project', data: a };
+
             let financialInfo = '';
             if (hasTreasury) {
                 financialInfo = `
                     <div style="margin-top:4px;">
-                        <span class="info-label" style="font-weight:bold; display:block; margin-bottom:4px;">خزانه‌های هوشمند پروژه</span>
+                        <span class="info-label" style="font-weight:bold; display:block; margin-bottom:4px;">${_t('project.treasuries', null, 'Project smart treasuries')}</span>
                         ${fundsCards}
                     </div>
                     <div class="info-item" style="margin-top:15px;">
-                        <span class="info-label">برآورد هزینه ساخت:</span>
-                        <span class="info-value">${a['targetAmount(USDT)'] ? Number(a['targetAmount(USDT)']).toLocaleString('fa-IR') + ' USDT' : 'نامشخص'}</span>
+                        <span class="info-label">${_t('project.costEstimate', null, 'Estimated construction cost:')}</span>
+                        <span class="info-value">${a['targetAmount(USDT)'] ? Number(a['targetAmount(USDT)']).toLocaleString() + ' USDT' : _t('label.unknown', null, 'Unknown')}</span>
                     </div>
-                    <div id="raisedSummary" style="margin-top:15px;"><span class="info-label">در حال خواندن مجموع واریزی ها...</span></div>
+                    <div id="raisedSummary" style="margin-top:15px;"><span class="info-label">${_t('project.raisedLoading', null, 'Reading total contributions...')}</span></div>
                     <div id="donorsList" style="margin-top:15px;"></div>`;
             } else {
-                financialInfo = '<div class="info-item" style="color:#e67e22; margin-top:15px;">خزانه هوشمند هنوز راه‌اندازی نشده</div>';
+                financialInfo = `<div class="info-item" style="color:#e67e22; margin-top:15px;">${_t('project.noTreasury', null, 'Smart treasury not set up yet')}</div>`;
             }
 
             const accCls = isMobile() ? ' collapsed' : '';
 
             showInPanel(`
-                <div class="accordion-section"><div class="accordion-title${accCls}" onclick="toggleAccordion(this)">اطلاعات عمومی پروژه</div>
+                <div class="accordion-section"><div class="accordion-title${accCls}" onclick="toggleAccordion(this)">${_t('project.sectionGeneral', null, 'Project general info')}</div>
                 <div class="accordion-content${accCls}">
-                    <div class="info-item"><span class="info-label">نام پروژه:</span><span class="info-value">${a['نام پروژه'] || 'بدون نام'}</span></div>
-                    <div class="info-item"><span class="info-label">کد پروژه:</span><span class="info-value">${a['ProjectID']}</span></div>
-                    <div class="info-item"><span class="info-label">استان:</span><span class="info-value">${a['استان']}</span></div>
-                    <div class="info-item"><span class="info-label">منطقه:</span><span class="info-value">${a['منطقه']}</span></div>
-                    <div class="info-item"><span class="info-label">تعداد کلاس:</span><span class="info-value">${a['تعداد کلاس'] || '—'}</span></div>
-                    <div class="info-item"><span class="info-label">زیربنا:</span><span class="info-value">${a['زیربنا'] || '—'}</span></div>
-                    <div class="info-item"><span class="info-label">ماهیت:</span><span class="info-value">${a['ماهیت پروژه'] || '—'}</span></div>
-                    <div class="info-item"><span class="info-label">وضعیت:</span><span class="info-value">${a['وضعیت راهبری پروژه'] || '—'}</span></div>
-                    <div class="info-item"><span class="info-label">مسئول:</span><span class="info-value">${a['مسئول پروژه'] || '—'}</span></div>
-                    <div class="info-item"><span class="info-label">تلفن:</span><span class="info-value">${a['شماره تلفن مسئول پروژه'] || '—'}</span></div>
-                    ${a['آدرس پروژه'] ? `<div class="info-item"><span class="info-label">آدرس:</span><span class="info-value">${a['آدرس پروژه']}</span></div>` : ''}
+                    <div class="info-item"><span class="info-label">${_t('project.name', null, 'Project name:')}</span><span class="info-value">${a['نام پروژه'] || _t('label.unnamed', null, 'Unnamed')}</span></div>
+                    <div class="info-item"><span class="info-label">${_t('project.id', null, 'Project ID:')}</span><span class="info-value">${a['ProjectID']}</span></div>
+                    <div class="info-item"><span class="info-label">${_t('project.province', null, 'Province:')}</span><span class="info-value">${a['استان']}</span></div>
+                    <div class="info-item"><span class="info-label">${_t('project.region', null, 'Region:')}</span><span class="info-value">${a['منطقه']}</span></div>
+                    <div class="info-item"><span class="info-label">${_t('project.classes', null, 'Classrooms:')}</span><span class="info-value">${a['تعداد کلاس'] || '—'}</span></div>
+                    <div class="info-item"><span class="info-label">${_t('project.areaBuilt', null, 'Built area:')}</span><span class="info-value">${a['زیربنا'] || '—'}</span></div>
+                    <div class="info-item"><span class="info-label">${_t('project.nature', null, 'Nature:')}</span><span class="info-value">${a['ماهیت پروژه'] || '—'}</span></div>
+                    <div class="info-item"><span class="info-label">${_t('project.status', null, 'Status:')}</span><span class="info-value">${a['وضعیت راهبری پروژه'] || '—'}</span></div>
+                    <div class="info-item"><span class="info-label">${_t('project.manager', null, 'Manager:')}</span><span class="info-value">${a['مسئول پروژه'] || '—'}</span></div>
+                    <div class="info-item"><span class="info-label">${_t('project.phone', null, 'Phone:')}</span><span class="info-value">${a['شماره تلفن مسئول پروژه'] || '—'}</span></div>
+                    ${a['آدرس پروژه'] ? `<div class="info-item"><span class="info-label">${_t('project.address', null, 'Address:')}</span><span class="info-value">${a['آدرس پروژه']}</span></div>` : ''}
                 </div></div>
-                <div class="accordion-section"><div class="accordion-title${accCls}" onclick="toggleAccordion(this)">اطلاعات مالی</div><div class="accordion-content${accCls}">${financialInfo}</div></div>
-                <div class="accordion-section"><div class="accordion-title${accCls}" onclick="toggleAccordion(this)">گزارشات پروژه</div>
+                <div class="accordion-section"><div class="accordion-title${accCls}" onclick="toggleAccordion(this)">${_t('project.sectionFinancial', null, 'Financial info')}</div><div class="accordion-content${accCls}">${financialInfo}</div></div>
+                <div class="accordion-section"><div class="accordion-title${accCls}" onclick="toggleAccordion(this)">${_t('project.sectionReports', null, 'Project reports')}</div>
                 <div class="accordion-content${accCls}">
-                    <a href="project-images.html?project=${a['ProjectID']}" class="report-link" target="_blank">تصاویر</a>
-                    <a href="financial-docs.html?project=${a['ProjectID']}" class="report-link" target="_blank">مستندات مالی</a>
+                    <a href="project-images.html?project=${a['ProjectID']}" class="report-link" target="_blank">${_t('project.reportImages', null, 'Images')}</a>
+                    <a href="financial-docs.html?project=${a['ProjectID']}" class="report-link" target="_blank">${_t('project.reportFinancial', null, 'Financial documents')}</a>
                 </div></div>`, isMobile() ? 'full' : null);
 
             if (isMobile()) {
@@ -595,12 +610,13 @@ function showCountiesOfProvince(provinceName) {
                         selectedCountyLayer = layer;
                         layer.bringToFront();
 
+                        lastPanelContext = { kind: 'county', data: { ...c, _provinceName: provinceName } };
                         showInPanel(`<div class="province-info">
-                            <h3>${c.Name || c.name || 'نامشخص'}</h3>
-                            <div class="info-item"><span class="info-label">استان:</span><span class="info-value">${c.pname || c.Pname || provinceName}</span></div>
-                            ${c.ccenter_na ? `<div class="info-item"><span class="info-label">مرکز شهرستان:</span><span class="info-value">${c.ccenter_na}</span></div>` : ''}
-                            ${c.area ? `<div class="info-item"><span class="info-label">مساحت:</span><span class="info-value">${Number(c.area).toLocaleString('fa-IR')} هکتار</span></div>` : ''}
-                            ${c.C_capita !== undefined ? `<div class="info-item"><span class="info-label">سرانه شهرستانی:</span><span class="info-value">${c.C_capita === 0 ? 'صفر' : Number(c.C_capita).toFixed(2)}</span></div>` : ''}
+                            <h3>${c.Name || c.name || _t('label.unknown', null, 'Unknown')}</h3>
+                            <div class="info-item"><span class="info-label">${_t('label.province', null, 'Province:')}</span><span class="info-value">${c.pname || c.Pname || provinceName}</span></div>
+                            ${c.ccenter_na ? `<div class="info-item"><span class="info-label">${_t('label.countyCenter', null, 'County center:')}</span><span class="info-value">${c.ccenter_na}</span></div>` : ''}
+                            ${c.area ? `<div class="info-item"><span class="info-label">${_t('label.area', null, 'Area:')}</span><span class="info-value">${_t('label.areaValue', { area: Number(c.area).toLocaleString() }, Number(c.area).toLocaleString() + ' hectares')}</span></div>` : ''}
+                            ${c.C_capita !== undefined ? `<div class="info-item"><span class="info-label">${_t('label.countyCapita', null, 'County capita:')}</span><span class="info-value">${c.C_capita === 0 ? _t('label.zero', null, 'Zero') : Number(c.C_capita).toFixed(2)}</span></div>` : ''}
                         </div>`);
                         fitLayerToVisibleMap(layer, { duration: 1 });
                     });
@@ -622,8 +638,8 @@ function showCountiesOfProvince(provinceName) {
         } else map.removeLayer(l);
     });
     const panel = document.querySelector('.info-item:last-child');
-    if (panel && panel.querySelector('.info-label')?.textContent.includes('شهرستان')) {
-        panel.innerHTML = `<span class="info-label">تعداد شهرستان:</span><span class="info-value">${count} شهرستان</span>`;
+    if (panel && (panel.querySelector('.info-label')?.textContent.includes('شهرستان') || panel.querySelector('.info-label')?.textContent.includes('Count') || panel.querySelector('.info-label')?.textContent.includes('أقض'))) {
+        panel.innerHTML = `<span class="info-label">${_t('label.countyCount', null, 'County count:')}</span><span class="info-value">${_t('label.countyCountValue', { count }, count + ' counties')}</span>`;
     }
 }
 
@@ -652,32 +668,32 @@ async function loadDonors(projectAttributes) {
     if (!el) return;
     const projectId = String(projectAttributes?.ProjectID || projectAttributes?.projectId || '');
     if (!projectId) { el.innerHTML = ''; return; }
-    el.innerHTML = '<span class="info-label">در حال بارگذاری مشارکت‌کنندگان...</span>';
+    el.innerHTML = '<span class="info-label">' + _t('donors.loading', null, 'Loading contributors...') + '</span>';
     try {
         const res = await fetch(`${INDEXER_API}/api/donors?projectId=${encodeURIComponent(projectId)}`, { headers: { Accept: 'application/json' } });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         const list = aggregateIndexerDonors(data.donors || []);
         if (!list.length) {
-            el.innerHTML = '<span class="info-label">هنوز مشارکتی ثبت نشده — شما می‌توانید اولین نفر باشید.</span>';
+            el.innerHTML = '<span class="info-label">' + _t('donors.empty', null, 'No contributions yet — you can be the first.') + '</span>';
             return;
         }
         const rows = list.slice(0, 12).map(d => `<div style="display:flex;justify-content:space-between;gap:8px;font-size:0.92em;padding:3px 0;"><span title="${d.donor}">${shortDonorAddr(d.donor)}</span><span><strong>${d.total.toFixed(2)}</strong> USDT</span></div>`).join('');
         const more = list.length > 12 ? `<div style="opacity:.75;margin-top:4px;">و ${list.length - 12} مورد دیگر…</div>` : '';
-        el.innerHTML = `<div class="info-label" style="margin-bottom:6px;">مشارکت‌کنندگان (${list.length})</div>${rows}${more}`;
+        el.innerHTML = `<div class="info-label" style="margin-bottom:6px;">${_t('donors.title', { count: list.length }, 'Contributors (' + list.length + ')')}</div>${rows}${more}`;
     } catch (e) {
         console.error('[WebGIS] Indexer donors failed:', e);
-        el.innerHTML = '<span class="info-label" style="color:#e74c3c;">خطا در خواندن مشارکت‌کنندگان</span>';
+        el.innerHTML = '<span class="info-label" style="color:#e74c3c;">' + _t('donors.error', null, 'Failed to load contributors') + '</span>';
     }
 }
 
 async function loadRaisedSummary(projectAttributes) {
     const el = document.getElementById('raisedSummary');
     if (!el) return;
-    el.innerHTML = '<span class="info-label">در حال خواندن مجموع واریزیها از زنجیره...</span>';
+    el.innerHTML = '<span class="info-label">' + _t('project.raisedReading', null, 'Reading total contributions from chain...') + '</span>';
     try {
         if (!window.ClassChainRaisedReader) {
-            el.innerHTML = '<span class="info-label" style="color:#e67e22;">ماژول خواندن موجودی لود نشده</span>';
+            el.innerHTML = '<span class="info-label" style="color:#e67e22;">' + _t('project.raisedModuleMissing', null, 'Balance reader module not loaded') + '</span>';
             return;
         }
         const { total, breakdown } = await window.ClassChainRaisedReader.getProjectRaisedUSDT(projectAttributes);
@@ -690,7 +706,7 @@ async function loadRaisedSummary(projectAttributes) {
             }
         });
         el.innerHTML = `<div class="info-item" style="background:rgba(46,204,113,0.15);padding:12px;border-radius:8px;">
-            <div style="margin-bottom:4px;"><span class="info-label" style="display:block;margin-bottom:6px;">تمام واریزی ها (همه شبکه‌ها)</span>
+            <div style="margin-bottom:4px;"><span class="info-label" style="display:block;margin-bottom:6px;">${_t('project.raisedTotal', null, 'All contributions (all networks)')}</span>
             <span class="info-value" style="font-weight:bold;color:#2ecc71;font-size:1.15em;display:block;">${total.toFixed(2)} USDT</span></div>
             ${detailRows ? `<div style="margin-top:10px;border-top:1px solid rgba(255,255,255,0.1);padding-top:4px;">${detailRows}</div>` : ''}</div>`;
         const donorsEl = document.getElementById('donorsList');
@@ -700,7 +716,7 @@ async function loadRaisedSummary(projectAttributes) {
         }
     } catch (e) {
         console.error(e);
-        el.innerHTML = '<span class="info-label" style="color:#e74c3c;">خطا در خواندن موجودی</span>';
+        el.innerHTML = '<span class="info-label" style="color:#e74c3c;">' + _t('project.raisedError', null, 'Error reading balance') + '</span>';
     }
 }
 
@@ -715,7 +731,8 @@ function zoomToIran() {
         selectionKind = 'none';
         clearDonateContext();
 
-        showInPanel(`<div class="no-selection"><div class="icon">🗺️</div><h3>یک مورد را انتخاب کنید</h3><p>روی استان، شهرستان یا پروژه کلیک کنید</p></div>`, 'peek');
+        lastPanelContext = { kind: 'none', data: null };
+        showInPanel(`<div class="no-selection"><div class="icon">🗺️</div><h3>${_t('empty.title', null, 'Select an item')}</h3><p>${_t('empty.hint', null, 'Click a province, county, or project')}</p></div>`, 'peek');
     } catch (err) {
         console.error('zoomToIran error:', err);
         map.setView([32.4279, 53.6880], 6);
@@ -724,7 +741,7 @@ function zoomToIran() {
 
 function redirectToDonate(projectId) {
     if (selectionKind !== 'project' || !projectId) {
-        alert('پروژه انتخاب نشده است');
+        alert(_t('alert.noProject', null, 'No project selected'));
         return;
     }
     window.location.href = 'donate.html?project=' + projectId;
@@ -747,3 +764,25 @@ bindMapControl(contributeActionBtn, () => redirectToDonate(currentProjectId));
 window.zoomToIran = zoomToIran;
 window.redirectToDonate = redirectToDonate;
 window.toggleAccordion = toggleAccordion;
+
+document.addEventListener('classchain:langchange', function () {
+    try {
+        // Re-apply static panel chrome
+        const headerH1 = document.querySelector('#panelHeader h1');
+        const headerP = document.querySelector('#panelHeader p');
+        if (headerH1) headerH1.textContent = _t('header.title', null, 'Iran WebGIS');
+        if (headerP) headerP.textContent = _t('header.subtitle', null, 'Colored by population capita + education projects');
+        const contribBtn = document.getElementById('contributeActionBtn');
+        if (contribBtn) contribBtn.textContent = _t('contribute.btn', null, 'Contribute to construction');
+        const contribHint = document.querySelector('#fixedContributeBtn p');
+        if (contribHint) contribHint.textContent = _t('contribute.hint', null, '(Select network and pay with wallet)');
+
+        // Empty state re-render
+        if (!lastPanelContext || lastPanelContext.kind === 'none') {
+            showInPanel(`<div class="no-selection"><div class="icon">🗺️</div><h3>${_t('empty.title', null, 'Select an item')}</h3><p>${_t('empty.hint', null, 'Click a province, county, or project')}</p></div>`, 'peek');
+        }
+        // Note: province/county/project panels re-render on next click with new language
+    } catch (e) {
+        console.warn('[WebGIS] langchange refresh failed', e);
+    }
+});
