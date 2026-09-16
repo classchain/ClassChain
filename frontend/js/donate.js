@@ -124,10 +124,8 @@ function optimisticProgressUpdate(donatedAmount) {
         return;
     }
 
-    const targetMatch = (progressTextEl.innerText || '').match(/از ([\d,]+)/);
-    const target = targetMatch
-        ? parseFloat(targetMatch[1].replace(/,/g, ''))
-        : (Number(projects?.['targetAmount(USDT)']) || 100000);
+    // Prefer project data over parsing localized progress text
+    const target = Number(projects?.['targetAmount(USDT)']) || 100000;
     const percent = Math.min((currentRaised / target) * 100, 100);
     if (fill) {
         fill.style.width = percent + '%';
@@ -595,11 +593,11 @@ async function loadProjectFinancials(
                 _t('progress.openPool', { raised: totalRaised.toFixed(2) }, totalRaised.toFixed(2) + ' USDT raised in the general pool');
         } else {
             text.innerText =
-                `${totalRaised.toFixed(2)} USDT ` +
-                `از ` +
-                `${projectTarget.toLocaleString('fa-IR')} USDT ` +
-                `جمع شده ` +
-                `(${percent.toFixed(1)}%)`;
+                _t('progress.template', {
+                    raised: totalRaised.toFixed(2),
+                    target: projectTarget.toLocaleString('en-US'),
+                    percent: percent.toFixed(1)
+                }, totalRaised.toFixed(2) + ' USDT of ' + projectTarget.toLocaleString('en-US') + ' USDT (' + percent.toFixed(1) + '%)');
         }
     }
 }
@@ -833,12 +831,8 @@ _t('payment.connecting', { wallet: net.walletName || 'wallet' }, 'Connecting to 
 			        if (txHashEl) {
 			            txHashEl.innerHTML = `
 			                <p><strong>${_t('payment.step1Title', null, 'Step 1 of 2 — Approve transfer')}</strong></p>
-			                <p>
-			                    ${_t('payment.step1Body', { amount: selectedAmount }, 'To continue, your wallet must approve transferring ' + selectedAmount + ' USDT.')}
-			                    <strong></strong>
-								را صادر کند.
-			                </p>
-			                <p>لطفاً درخواست را در ${walletLabel} تأیید کنید.</p>
+			                <p>${_t('payment.step1Body', { amount: selectedAmount }, 'To continue, your wallet must approve transferring ' + selectedAmount + ' USDT.')}</p>
+			                <p>${_t('payment.confirmInWallet', { wallet: walletLabel }, 'Please confirm the request in ' + walletLabel + '.')}</p>
 			            `;
 			        }
 
@@ -861,24 +855,19 @@ _t('payment.connecting', { wallet: net.walletName || 'wallet' }, 'Connecting to 
 			        if (txHashEl) {
 			            txHashEl.innerHTML = `
 			                <p style="color: green;">
-			                    ✓ اجازه انتقال ${selectedAmount} USDT
-			                    با موفقیت در شبکه تأیید شد.
+			                    ${_t('payment.approveSuccess', { amount: selectedAmount }, '✓ Transfer of ' + selectedAmount + ' USDT approved successfully on the network.')}
 			                </p>
 			                <p>
-			                    <strong>مرحله ۲ از ۲ — ثبت کمک</strong>
+			                    <strong>${_t('payment.step2Title', null, 'Step 2 of 2 — Record contribution')}</strong>
 			                </p>
 			                <p>
-			                    اکنون مبلغ ${selectedAmount} USDT
-			                    به خزانه پروژه منتقل می‌شود.
+			                    ${_t('payment.step2Body', { amount: selectedAmount }, 'Now ' + selectedAmount + ' USDT will be transferred to the project treasury.')}
 			                </p>
 			                <p>
-			                    لطفاً تراکنش دوم را در ${walletLabel} تأیید کنید.
+			                    ${_t('payment.confirmSecond', { wallet: walletLabel }, 'Please confirm the second transaction in ' + walletLabel + '.')}
 			                </p>
 			                <p>
-			                    <a
-			                        href="${net.explorer}/transaction/${approveTxHash}"
-			                        target="_blank"
-			                    >
+			                    <a href="${net.explorer}/transaction/${approveTxHash}" target="_blank">
 			                        ${_t('payment.viewApprove', null, 'View Approve')}
 			                    </a>
 			                </p>
@@ -912,21 +901,15 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
 								${_t('payment.successBody', null, '🎉 Your contribution was recorded successfully!')}
 			                </p>
 			                <p>
-			                    ${_t('payment.amountLabel', { amount: selectedAmount }, 'Amount: ' + selectedAmount + ' USDT')}	
+			                    ${_t('payment.amountLabel', { amount: selectedAmount }, 'Amount: ' + selectedAmount + ' USDT')}
 			                </p>
 			                <p>
-			                    <a
-			                        href="${net.explorer}/transaction/${approveTxHash}"
-			                        target="_blank"
-			                    >
-			                        مشاهده Approve
+			                    <a href="${net.explorer}/transaction/${approveTxHash}" target="_blank">
+			                        ${_t('payment.viewApprove', null, 'View Approve')}
 			                    </a>
 			                    |
-			                    <a
-			                        href="${net.explorer}/transaction/${depositTxHash}"
-			                        target="_blank"
-			                    >
-			                        مشاهده${_t('payment.viewDeposit', null, 'View Deposit')}
+			                    <a href="${net.explorer}/transaction/${depositTxHash}" target="_blank">
+			                        ${_t('payment.viewDeposit', null, 'View Deposit')}
 			                    </a>
 			                </p>
 			                <p>
@@ -948,9 +931,9 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
 			        }, 8000);
 
 			    } catch (err) {
-			        console.error('خطا در تراکنش TRON:', err);
+			        console.error('[Donate] TRON transaction error:', err);
 
-			        let userMessage = 'خطا در تراکنش:\n';
+			        let userMessage = _t('errors.title', null, 'Transaction error:') + '\n';
 			        if (
 			            err.code === 4001 ||
 			            (err.message &&
@@ -958,32 +941,27 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
 			                    err.message.includes('denied') ||
 			                    err.message.includes('rejected')))
 			        ) {
-			            userMessage += '❌ شما تراکنش را لغو کردید.';
+			            userMessage += _t('errors.cancelled', null, 'You cancelled the transaction.');
 			        } else if (
 			            err.message &&
 			            err.message.includes('insufficient')
 			        ) {
-			            userMessage += '❌ موجودی کیف پول کافی نیست.';
+			            userMessage += _t('errors.insufficient', null, 'Insufficient wallet balance (gas or token).');
 			        } else {
-			            userMessage +=
-			                `❌ ${err.message || 'خطای نامشخص'}`;
+			            userMessage += '❌ ' + (err.message || _t('errors.unknown', null, 'Unknown error'));
 			        }
 
 			        if (approveTxHash && !depositTxHash) {
 			            userMessage +=
-			                `\n\n` +
-			                `✅ Approve موفق بود:\n` +
-			                `${net.explorer}/transaction/${approveTxHash}` +
-			                `\n❌ اما مرحله Deposit انجام نشد.`;
+			                '\n\n✅ ' + _t('errors.approved', null, 'Approve succeeded:') +
+			                '\n' + net.explorer + '/transaction/' + approveTxHash +
+			                '\n❌ ' + _t('errors.depositFailed', null, 'but the deposit step failed.');
 			        }
 			        if (approveTxHash && depositTxHash) {
 			            userMessage +=
-			                `\n\n` +
-			                `Approve:\n` +
-			                `${net.explorer}/transaction/${approveTxHash}` +
-			                `\n\nDeposit:\n` +
-			                `${net.explorer}/transaction/${depositTxHash}` +
-			                `\n\n❌ Deposit در شبکه ناموفق بود.`;
+			                '\n\nApprove:\n' + net.explorer + '/transaction/' + approveTxHash +
+			                '\n\nDeposit:\n' + net.explorer + '/transaction/' + depositTxHash +
+			                '\n\n❌ ' + _t('errors.depositFailedOnChain', null, 'Deposit failed on the network.');
 			        }
 
 			        if (successMsg) {
@@ -1023,7 +1001,7 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
 
                 if (web3.utils.toBN(userBalance).lt(amount)) {
                     const balanceMain = (Number(userBalance) / (10 ** decimals)).toFixed(2);
-                    alert(`_t('payment.insufficientBalance', { balance: balanceMain, amount: selectedAmount }, '⚠️ Insufficient balance!\n\nYour balance: ' + balanceMain + ' USDT\nRequested: ' + selectedAmount + ' USDT')`);
+                    alert(_t('payment.insufficientBalance', { balance: balanceMain, amount: selectedAmount }, '⚠️ Insufficient balance!\n\nYour balance: ' + balanceMain + ' USDT\nRequested: ' + selectedAmount + ' USDT'));
                     return;
                 }
 
@@ -1062,20 +1040,16 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
 
                 const approveAmount = amount;
                 const txHashEl = document.getElementById('txHash');
-                const walletLabel = net.walletName || 'کیف پول';
+                const walletLabel = net.walletName || _t('network.wallet', null, 'Wallet');
 
                 if (paymentStatusTitle) {
-                    paymentStatusTitle.textContent = 'در انتظار تأیید شما';
+                    paymentStatusTitle.textContent = _t('payment.waitingConfirm', null, 'Waiting for your confirmation');
                 }
                 if (txHashEl) {
                     txHashEl.innerHTML = `
-			                <p><strong>${_t('payment.step1Title', null, 'Step 1 of 2 — Approve transfer')}</strong></p>
-			                <p>
-			                    ${_t('payment.step1Body', { amount: selectedAmount }, 'To continue, your wallet must approve transferring ' + selectedAmount + ' USDT.')}
-			                    <strong></strong>
-								برای این کمک را صادر کند.
-                        </p>
-                        <p>لطفاً درخواست را در ${walletLabel} تأیید کنید.</p>
+                        <p><strong>${_t('payment.step1Title', null, 'Step 1 of 2 — Approve transfer')}</strong></p>
+                        <p>${_t('payment.step1Body', { amount: selectedAmount }, 'To continue, your wallet must approve transferring ' + selectedAmount + ' USDT.')}</p>
+                        <p>${_t('payment.confirmInWallet', { wallet: walletLabel }, 'Please confirm the request in ' + walletLabel + '.')}</p>
                     `;
                 }
 
@@ -1094,41 +1068,41 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
                 approveTxHash = approveResult.transactionHash;
                 
                 if (paymentStatusTitle) {
-                    paymentStatusTitle.textContent = 'اجازه انتقال صادر شد';
+                    paymentStatusTitle.textContent = _t('payment.approved', null, 'Transfer approved');
                 }
                 if (txHashEl) {
                     txHashEl.innerHTML = `
                         <p style="color: green;">
-                            ✓ اجازه انتقال ${selectedAmount} USDT صادر شد.
+                            ${_t('payment.approveSuccess', { amount: selectedAmount }, '✓ Transfer of ' + selectedAmount + ' USDT approved successfully.')}
                         </p>
                         <p>
-                            <strong>مرحله ۲ از ۲ — ثبت کمک</strong>
+                            <strong>${_t('payment.step2Title', null, 'Step 2 of 2 — Record contribution')}</strong>
                         </p>
                         <p>
-                            اکنون مبلغ ${selectedAmount} USDT به خزانه پروژه منتقل می‌شود.
+                            ${_t('payment.step2Body', { amount: selectedAmount }, 'Now ' + selectedAmount + ' USDT will be transferred to the project treasury.')}
                         </p>
                         <p>
-                            لطفاً تراکنش دوم را در کیف پول تأیید کنید.
+                            ${_t('payment.confirmSecond', { wallet: walletLabel }, 'Please confirm the second transaction in ' + walletLabel + '.')}
                         </p>
                         <p>
                             <a href="${net.explorer}/tx/${approveTxHash}" target="_blank">
-                                مشاهده تراکنش اجازه انتقال
+                                ${_t('payment.viewApprove', null, 'View Approve')}
                             </a>
                         </p>
                     `;
                 }
                 
                 if (paymentStatusTitle) {
-                    paymentStatusTitle.textContent = 'در انتظار تأیید تراکنش واریز...';
+                    paymentStatusTitle.textContent = _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
                 }
 
                 if (txHashEl) {
                     txHashEl.innerHTML = `
                         <p>
-                            <strong>مرحله ۲ از ۲ — ثبت کمک</strong>
+                            <strong>${_t('payment.step2Title', null, 'Step 2 of 2 — Record contribution')}</strong>
                         </p>
                         <p>
-                            لطفاً تراکنش واریز را در کیف پول تأیید کنید.
+                            ${_t('payment.confirmDeposit', null, 'Please confirm the deposit transaction in your wallet.')}
                         </p>
                     `;
                 }
@@ -1148,33 +1122,32 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
 
                 if (!depositResult.status) {
                     const error = new Error(
-                        'تراکنش Deposit در شبکه ناموفق شد و قرارداد آن را Revert کرد.'
+                        _t('errors.depositReverted', null, 'Deposit transaction failed on the network and was reverted by the contract.')
                     );
                     error.txHash = depositTxHash;
                     throw error;
                 }
                 if (paymentStatusTitle) {
-                    paymentStatusTitle.textContent = 'پرداخت با موفقیت ثبت شد';
+                    paymentStatusTitle.textContent = _t('payment.success', null, 'Payment recorded successfully');
                 }
                 if (txHashEl) {
                     txHashEl.innerHTML = `
                         <p style="color: green; font-size: 1.15em;">
-                            🎉 کمک شما با موفقیت ثبت شد!
+                            ${_t('payment.successBody', null, '🎉 Your contribution was recorded successfully!')}
                         </p>
                         <p>
-                            مبلغ کمک:
-                            <strong>${selectedAmount} USDT</strong>
+                            ${_t('payment.amountLabel', { amount: selectedAmount }, 'Amount: ' + selectedAmount + ' USDT')}
                         </p>
                         <p>
                             <a href="${net.explorer}/tx/${approveTxHash}" target="_blank">
-                                مشاهده اجازه انتقال
+                                ${_t('payment.viewApprove', null, 'View Approve')}
                             </a>
                             |
                             <a href="${net.explorer}/tx/${depositTxHash}" target="_blank">
-                                مشاهده تراکنش کمک
+                                ${_t('payment.viewDeposit', null, 'View Deposit')}
                             </a>
                         </p>
-                        <p>ClassChain از حمایت شما سپاسگزار است! ❤️</p>
+                        <p>${_t('payment.thanks', null, 'ClassChain thanks you for your support! ❤️')}</p>
                     `;
                 }
 
@@ -1267,14 +1240,25 @@ document.addEventListener('classchain:langchange', function () {
         const descEl = document.getElementById('projectDesc');
         if (titleEl) {
             titleEl.innerText = isPool
-                ? (projects['نام پروژه'] || _t('pool.title', null, 'General Pool'))
+                ? (projects['نام پروژه'] || _t('pool.title', null, 'General Contribution Pool'))
                 : (projects['نام پروژه'] || _t('project.noName', null, 'Unnamed project'));
         }
-        if (descEl && isPool) {
-            descEl.innerText = _t('pool.desc', null, '');
+        if (descEl) {
+            if (isPool) {
+                descEl.innerText = _t('pool.desc', null, 'Contribute to the general pool — after community voting, funds are allocated to selected projects');
+            } else {
+                descEl.innerText = _t('project.meta', {
+                    province: projects.استان || '',
+                    region: projects.منطقه || '',
+                    classes: projects['تعداد کلاس'] || 0
+                }, (projects.استان || '') + ' - ' + (projects.منطقه || '') + ' | ' + (projects['تعداد کلاس'] || 0) + ' classes');
+            }
         }
         if (typeof loadProjectFinancials === 'function') {
             loadProjectFinancials(Number(projects['targetAmount(USDT)']) || 0);
+        }
+        if (typeof loadDonorsFromIndexer === 'function') {
+            loadDonorsFromIndexer(projects.ProjectID);
         }
         if (typeof updateButtonState === 'function') updateButtonState();
     } catch (e) {
