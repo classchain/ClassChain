@@ -1,14 +1,13 @@
 /**
  * ClassChain Indexer — Cloudflare Worker + HTTP API
+ * Phase 0 / Phase 1 patch
  *
- * Networks: polygon_amoy + tron_nile
+ * New routes:
+ *   GET  /api/contributor?donor=...&network_id=...
+ *   GET  /api/queue?limit=50&network_id=...
+ *   GET  /api/contributors?network_id=...&limit=100
  *
- * Routes:
- *   GET  /health
- *   POST /sync          (with X-Indexer-Secret)
- *   GET  /api/donors
- *   GET  /api/transfers
- *   GET  /api/sync-status
+ * Existing routes unchanged.
  */
 
 import { ProjectRegistry } from './core/discovery/ProjectRegistry.js';
@@ -17,6 +16,7 @@ import { IndexerRunner } from './core/runner/IndexerRunner.js';
 import { TreasuryRepository } from './db/TreasuryRepository.js';
 import { TransferRepository } from './db/TransferRepository.js';
 import { SyncStateRepository } from './db/SyncStateRepository.js';
+import { ContributionLedgerService } from './services/ContributionLedgerService.js';
 import { createAdapter } from './adapters/createAdapter.js';
 
 const DEFAULT_NETWORK_IDS = ['polygon_amoy', 'tron_nile'];
@@ -49,12 +49,14 @@ async function loadProjectsRegistry(env) {
 async function runIndexer(env, options = {}) {
   if (!env.DB) throw new Error('D1 binding DB is missing');
 
+  const ledger = new ContributionLedgerService(env.DB);
+
   const registryJson = await loadProjectsRegistry(env);
   const runner = new IndexerRunner({
     projectRegistry: new ProjectRegistry(registryJson),
     networkResolver: new NetworkResolver(),
     treasuryRepository: new TreasuryRepository(env.DB),
-    transferRepository: new TransferRepository(env.DB),
+    transferRepository: new TransferRepository(env.DB, ledger),
     syncStateRepository: new SyncStateRepository(env.DB),
     adapterFactory: createAdapter,
     networkIds: readNetworkIds(env),
@@ -119,6 +121,8 @@ export default {
       }
     }
 
+    // ---------- existing APIs ----------
+
     if (method === 'GET' && path === '/api/donors') {
       const projectId = url.searchParams.get('projectId');
       if (!projectId) return jsonResponse({ ok: false, error: 'projectId is required' }, 400);
@@ -158,6 +162,38 @@ export default {
       `).all();
 
       return jsonResponse({ status: 'ok', treasuries: rows.results });
+    }
+
+    // ---------- Phase 1 APIs ----------
+
+    if (method === 'GET' && path === '/api/contributor') {
+      const donor = url.searchParams.get('donor');
+      const networkId = url.searchParams.get('network_id');
+      if (!donor || !networkId) {
+        return jsonResponse({ ok: false, error: 'donor and network_id are required' }, 400);
+      }
+
+      const ledger = new ContributionLedgerService(env.DB);
+      const data = await ledger.getContributor(donor, networkId);
+      return jsonResponse({ ok: true, contributor: data });
+    }
+
+    if (method === 'GET' && path === '/api/queue') {
+      const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 200);
+      const networkId = url.searchParams.get('network_id') || null;
+
+      const ledger = new ContributionLedgerService(env.DB);
+      const queue = await ledger.getQueue(limit, networkId);
+      return jsonResponse({ ok: true, queue });
+    }
+
+    if (method === 'GET' && path === '/api/contributors') {
+      const limit = Math.min(Number(url.searchParams.get('limit')) || 100, 500);
+      const networkId = url.searchParams.get('network_id') || null;
+
+      const ledger = new ContributionLedgerService(env.DB);
+      const contributors = await ledger.listContributors(networkId, limit);
+      return jsonResponse({ ok: true, contributors });
     }
 
     return jsonResponse({ ok: false, error: 'not_found' }, 404);
