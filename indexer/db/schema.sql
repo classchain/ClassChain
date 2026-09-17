@@ -87,3 +87,41 @@ CREATE TABLE IF NOT EXISTS sync_state (
 
 CREATE INDEX IF NOT EXISTS idx_sync_status
     ON sync_state(status);
+
+-- ============================================================
+-- Phase 0 / Phase 1: Contribution Ledger + FIFO Queue
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS contribution_balances (
+    donor               TEXT NOT NULL,
+    network_id          TEXT NOT NULL,
+    total_contributed   TEXT NOT NULL DEFAULT '0',
+    total_allocated     TEXT NOT NULL DEFAULT '0',
+    unallocated         TEXT NOT NULL DEFAULT '0',
+    first_at            INTEGER,
+    last_at             INTEGER,
+    updated_at          TEXT NOT NULL,
+    PRIMARY KEY (donor, network_id)
+);
+
+CREATE TABLE IF NOT EXISTS allocation_queue (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    donor                   TEXT NOT NULL,
+    network_id              TEXT NOT NULL,
+    amount_raw              TEXT NOT NULL,
+    remaining_raw           TEXT NOT NULL,
+    contribution_tx_hash    TEXT,
+    contribution_timestamp  INTEGER NOT NULL,
+    status                  TEXT NOT NULL DEFAULT 'OPEN',
+    transfer_uid            TEXT,
+    created_at              TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_queue_open
+    ON allocation_queue(status, contribution_timestamp, id);
+
+CREATE INDEX IF NOT EXISTS idx_queue_donor
+    ON allocation_queue(donor, network_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_queue_transfer_uid
+    ON allocation_queue(transfer_uid);
