@@ -7,7 +7,8 @@
  *   GET  /api/queue?limit=50&network_id=...
  *   GET  /api/contributors?network_id=...&limit=100
  *
- * Existing routes unchanged.
+ * Sync filter:
+ *   POST /sync?projectId=GENERAL_POOL
  */
 
 import { ProjectRegistry } from './core/discovery/ProjectRegistry.js';
@@ -40,7 +41,7 @@ function readNumber(env, key, fallback) {
 
 async function loadProjectsRegistry(env) {
   const url = env.PROJECTS_JSON_URL ||
-    'https://raw.githubusercontent.com/classchain/ClassChain/Donation/frontend/data/Projects.json';
+    'https://raw.githubusercontent.com/classchain/ClassChain/Mobile/frontend/data/Projects.json';
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`Failed to load Projects.json: ${res.status}`);
   return await res.json();
@@ -114,7 +115,8 @@ export default {
         return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       }
       try {
-        const summary = await runIndexer(env);
+        const projectId = url.searchParams.get('projectId') || undefined;
+        const summary = await runIndexer(env, projectId ? { projectId } : {});
         return jsonResponse({ ok: true, summary });
       } catch (e) {
         return jsonResponse({ ok: false, error: e.message }, 500);

@@ -78,6 +78,11 @@ export class IndexerRunner {
         const discovery =
             this.discoveryService.discover();
 
+        const projectIdFilter =
+            options.projectId
+                ? String(options.projectId)
+                : null;
+
         const summary = {
             discovered:
                 discovery.valid.length +
@@ -111,6 +116,20 @@ export class IndexerRunner {
 
 
         for (const treasury of discovery.valid) {
+
+            if (
+                projectIdFilter &&
+                String(treasury.projectId) !== projectIdFilter
+            ) {
+                summary.skipped++;
+                summary.results.push({
+                    projectId: treasury.projectId,
+                    networkId: treasury.networkId,
+                    address: treasury.address,
+                    status: 'SKIPPED_PROJECT_FILTER'
+                });
+                continue;
+            }
 
             if (
                 !this._shouldSyncNetwork(
