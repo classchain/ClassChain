@@ -1,6 +1,6 @@
 /**
  * ClassChain Indexer — Cloudflare Worker + HTTP API
- * Phase 0 / Phase 1 / Phase 2
+ * Phase 0 / Phase 1 / Phase 2 / Phase 3
  *
  * Phase 1:
  *   GET  /api/contributor?donor=...&network_id=...
@@ -16,6 +16,14 @@
  *   POST /api/voting/rounds/:id/allocate (admin)
  *   POST /api/allocate                   (admin, direct FIFO without round)
  *
+ * Phase 3:
+ *   POST /api/link/request
+ *   POST /api/link/verify
+ *   GET  /api/link/status?telegram_user_id=...
+ *   POST /api/link/unlink                (admin)
+ *   GET  /api/community/status?telegram_user_id=... | donor=&network_id=
+ *   GET  /api/community/members?type=contributor|project&project_id=
+ *
  * Sync filter:
  *   POST /sync?projectId=GENERAL_POOL
  */
@@ -29,6 +37,8 @@ import { SyncStateRepository } from './db/SyncStateRepository.js';
 import { ContributionLedgerService } from './services/ContributionLedgerService.js';
 import { VotingService } from './services/VotingService.js';
 import { AllocationEngine } from './services/AllocationEngine.js';
+import { WalletLinkService } from './services/WalletLinkService.js';
+import { CommunityStatusService } from './services/CommunityStatusService.js';
 import { createAdapter } from './adapters/createAdapter.js';
 
 const DEFAULT_NETWORK_IDS = ['polygon_amoy', 'tron_nile'];
@@ -131,7 +141,12 @@ export default {
     }
 
     if (method === 'GET' && path === '/health') {
-      return jsonResponse({ ok: true, service: 'classchain-indexer', networks: readNetworkIds(env) });
+      return jsonResponse({
+        ok: true,
+        service: 'classchain-indexer',
+        phase: 3,
+        networks: readNetworkIds(env),
+      });
     }
 
     if (method === 'POST' && path === '/sync') {
@@ -325,6 +340,127 @@ export default {
           networkId: body.network_id || body.networkId || null,
         });
         return jsonResponse(result);
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    // ---------- Phase 3 APIs: Wallet Linking ----------
+
+    if (method === 'POST' && path === '/api/link/request') {
+      const body = await readJsonBody(request);
+      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
+      try {
+        const svc = new WalletLinkService(env.DB);
+        const data = await svc.requestLink({
+          telegramUserId: body.telegram_user_id || body.telegramUserId,
+          networkId: body.network_id || body.networkId,
+        });
+        return jsonResponse({ ok: true, ...data });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    if (method === 'POST' && path === '/api/link/verify') {
+      const body = await readJsonBody(request);
+      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
+      try {
+        const svc = new WalletLinkService(env.DB);
+        const data = await svc.verifyLink({
+          telegramUserId: body.telegram_user_id || body.telegramUserId,
+          networkId: body.network_id || body.networkId,
+          donor: body.donor,
+          signature: body.signature,
+          message: body.message,
+          nonce: body.nonce,
+        });
+        return jsonResponse(data);
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    if (method === 'GET' && path === '/api/link/status') {
+      const telegramUserId = url.searchParams.get('telegram_user_id');
+      if (!telegramUserId) {
+        return jsonResponse({ ok: false, error: 'telegram_user_id is required' }, 400);
+      }
+      try {
+        const svc = new WalletLinkService(env.DB);
+        const data = await svc.getStatus(telegramUserId);
+        return jsonResponse({ ok: true, ...data });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    if (method === 'POST' && path === '/api/link/unlink') {
+      if (!requireAdmin(request, env)) {
+        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
+      }
+      const body = await readJsonBody(request);
+      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
+      try {
+        const svc = new WalletLinkService(env.DB);
+        await svc.unlink({
+          telegramUserId: body.telegram_user_id || body.telegramUserId,
+          networkId: body.network_id || body.networkId,
+          donor: body.donor || null,
+        });
+        return jsonResponse({ ok: true });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    // ---------- Phase 3 APIs: Community Status ----------
+
+    if (method === 'GET' && path === '/api/community/status') {
+      const telegramUserId = url.searchParams.get('telegram_user_id');
+      const donor = url.searchParams.get('donor');
+      const networkId = url.searchParams.get('network_id') || null;
+
+      if (!telegramUserId && !donor) {
+        return jsonResponse({
+          ok: false,
+          error: 'telegram_user_id or donor is required',
+        }, 400);
+      }
+
+      try {
+        const svc = new CommunityStatusService(env.DB);
+        const data = telegramUserId
+          ? await svc.statusByTelegram(telegramUserId)
+          : await svc.statusByDonor(donor, networkId);
+        return jsonResponse({ ok: true, ...data });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    if (method === 'GET' && path === '/api/community/members') {
+      const type = url.searchParams.get('type');
+      const limit = Math.min(Number(url.searchParams.get('limit')) || 500, 1000);
+
+      try {
+        const svc = new CommunityStatusService(env.DB);
+        if (type === 'contributor') {
+          const members = await svc.listContributorMembers(limit);
+          return jsonResponse({ ok: true, type: 'contributor', members });
+        }
+        if (type === 'project') {
+          const projectId = url.searchParams.get('project_id');
+          if (!projectId) {
+            return jsonResponse({ ok: false, error: 'project_id is required' }, 400);
+          }
+          const members = await svc.listProjectMembers(projectId, limit);
+          return jsonResponse({ ok: true, type: 'project', project_id: projectId, members });
+        }
+        return jsonResponse({
+          ok: false,
+          error: 'type must be contributor or project',
+        }, 400);
       } catch (e) {
         return jsonResponse({ ok: false, error: e.message }, 400);
       }
