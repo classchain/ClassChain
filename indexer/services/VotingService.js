@@ -1,6 +1,7 @@
 /**
  * VotingService — rounds + preference votes.
  * Eligibility: unallocated > 0 on the given network.
+ * Rule: only one OPEN round at a time.
  */
 
 import { VotingRepository } from '../db/VotingRepository.js';
@@ -22,6 +23,15 @@ export class VotingService {
         if (!Array.isArray(candidateProjects) || candidateProjects.length < 1) {
             throw new Error('candidateProjects must be a non-empty array');
         }
+
+        // Phase 3: only one open round at a time
+        const existingOpenId = await this.votingRepo.hasOpenRound();
+        if (existingOpenId != null) {
+            throw new Error(
+                `an open voting round already exists (id=${existingOpenId}); close it before opening a new one`
+            );
+        }
+
         return this.votingRepo.createRound({ title, candidateProjects, networkId });
     }
 
@@ -84,6 +94,7 @@ export class VotingService {
 
     /**
      * Run FIFO allocation for a CLOSED round (manual confirm).
+     * Default: global queue (networkId null) unless the round was scoped.
      */
     async allocateRound(roundId) {
         const round = await this.votingRepo.getRound(roundId);

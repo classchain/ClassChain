@@ -10,6 +10,17 @@ export class VotingRepository {
         this.db = db;
     }
 
+    async hasOpenRound() {
+        const row = await this.db
+            .prepare(`
+                SELECT id FROM voting_rounds
+                WHERE status = 'OPEN'
+                LIMIT 1
+            `)
+            .first();
+        return row ? row.id : null;
+    }
+
     async createRound({
         title,
         candidateProjects,
