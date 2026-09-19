@@ -1,11 +1,20 @@
 /**
  * ClassChain Indexer — Cloudflare Worker + HTTP API
- * Phase 0 / Phase 1 patch
+ * Phase 0 / Phase 1 / Phase 2
  *
- * New routes:
+ * Phase 1:
  *   GET  /api/contributor?donor=...&network_id=...
  *   GET  /api/queue?limit=50&network_id=...
  *   GET  /api/contributors?network_id=...&limit=100
+ *
+ * Phase 2:
+ *   GET  /api/voting/rounds
+ *   GET  /api/voting/rounds/:id
+ *   POST /api/voting/rounds              (admin)
+ *   POST /api/voting/rounds/:id/vote
+ *   POST /api/voting/rounds/:id/close    (admin)
+ *   POST /api/voting/rounds/:id/allocate (admin)
+ *   POST /api/allocate                   (admin, direct FIFO without round)
  *
  * Sync filter:
  *   POST /sync?projectId=GENERAL_POOL
@@ -18,6 +27,8 @@ import { TreasuryRepository } from './db/TreasuryRepository.js';
 import { TransferRepository } from './db/TransferRepository.js';
 import { SyncStateRepository } from './db/SyncStateRepository.js';
 import { ContributionLedgerService } from './services/ContributionLedgerService.js';
+import { VotingService } from './services/VotingService.js';
+import { AllocationEngine } from './services/AllocationEngine.js';
 import { createAdapter } from './adapters/createAdapter.js';
 
 const DEFAULT_NETWORK_IDS = ['polygon_amoy', 'tron_nile'];
@@ -37,6 +48,12 @@ function readNetworkIds(env) {
 function readNumber(env, key, fallback) {
   const n = Number(env[key]);
   return Number.isFinite(n) ? n : fallback;
+}
+
+function requireAdmin(request, env) {
+  const secret = env.INDEXER_SYNC_SECRET;
+  if (!secret) return true; // no secret configured → allow (dev)
+  return request.headers.get('X-Indexer-Secret') === secret;
 }
 
 async function loadProjectsRegistry(env) {
@@ -82,6 +99,14 @@ function jsonResponse(body, status = 200) {
   });
 }
 
+async function readJsonBody(request) {
+  try {
+    return await request.json();
+  } catch {
+    return null;
+  }
+}
+
 export default {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
@@ -110,8 +135,7 @@ export default {
     }
 
     if (method === 'POST' && path === '/sync') {
-      const secret = env.INDEXER_SYNC_SECRET;
-      if (secret && request.headers.get('X-Indexer-Secret') !== secret) {
+      if (!requireAdmin(request, env)) {
         return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       }
       try {
@@ -196,6 +220,114 @@ export default {
       const ledger = new ContributionLedgerService(env.DB);
       const contributors = await ledger.listContributors(networkId, limit);
       return jsonResponse({ ok: true, contributors });
+    }
+
+    // ---------- Phase 2 APIs ----------
+
+    if (method === 'GET' && path === '/api/voting/rounds') {
+      const voting = new VotingService(env.DB);
+      const rounds = await voting.listRounds(50);
+      return jsonResponse({ ok: true, rounds });
+    }
+
+    const roundMatch = path.match(/^\/api\/voting\/rounds\/(\d+)$/);
+    if (method === 'GET' && roundMatch) {
+      const voting = new VotingService(env.DB);
+      const round = await voting.getRound(Number(roundMatch[1]));
+      if (!round) return jsonResponse({ ok: false, error: 'not_found' }, 404);
+      return jsonResponse({ ok: true, round });
+    }
+
+    if (method === 'POST' && path === '/api/voting/rounds') {
+      if (!requireAdmin(request, env)) {
+        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
+      }
+      const body = await readJsonBody(request);
+      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
+      try {
+        const voting = new VotingService(env.DB);
+        const round = await voting.openRound({
+          title: body.title,
+          candidateProjects: body.candidate_projects || body.candidateProjects,
+          networkId: body.network_id || body.networkId || null,
+        });
+        return jsonResponse({ ok: true, round });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    const voteMatch = path.match(/^\/api\/voting\/rounds\/(\d+)\/vote$/);
+    if (method === 'POST' && voteMatch) {
+      const body = await readJsonBody(request);
+      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
+      try {
+        const voting = new VotingService(env.DB);
+        const result = await voting.castVote({
+          roundId: Number(voteMatch[1]),
+          donor: body.donor,
+          networkId: body.network_id || body.networkId,
+          projectId: body.project_id || body.projectId,
+          telegramUserId: body.telegram_user_id || body.telegramUserId || null,
+        });
+        return jsonResponse({ ok: true, ...result });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    const closeMatch = path.match(/^\/api\/voting\/rounds\/(\d+)\/close$/);
+    if (method === 'POST' && closeMatch) {
+      if (!requireAdmin(request, env)) {
+        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
+      }
+      const body = await readJsonBody(request);
+      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
+      try {
+        const voting = new VotingService(env.DB);
+        const round = await voting.closeRound({
+          roundId: Number(closeMatch[1]),
+          selectedProjectId: body.selected_project_id || body.selectedProjectId,
+          requiredAmountRaw: body.required_amount_raw || body.requiredAmountRaw,
+        });
+        return jsonResponse({ ok: true, round });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    const allocateMatch = path.match(/^\/api\/voting\/rounds\/(\d+)\/allocate$/);
+    if (method === 'POST' && allocateMatch) {
+      if (!requireAdmin(request, env)) {
+        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
+      }
+      try {
+        const voting = new VotingService(env.DB);
+        const result = await voting.allocateRound(Number(allocateMatch[1]));
+        return jsonResponse({ ok: true, ...result });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    // Direct FIFO allocate (without voting round) — admin only
+    if (method === 'POST' && path === '/api/allocate') {
+      if (!requireAdmin(request, env)) {
+        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
+      }
+      const body = await readJsonBody(request);
+      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
+      try {
+        const engine = new AllocationEngine(env.DB);
+        const result = await engine.allocate({
+          projectId: body.project_id || body.projectId,
+          requiredAmountRaw: body.required_amount_raw || body.requiredAmountRaw,
+          networkId: body.network_id || body.networkId || null,
+        });
+        return jsonResponse(result);
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
     }
 
     return jsonResponse({ ok: false, error: 'not_found' }, 404);
