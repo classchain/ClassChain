@@ -47,20 +47,26 @@ export class AllocationEngine {
         const allocatedAt = Math.floor(Date.now() / 1000);
         const slices = [];
 
-        // Pull a generous window of open queue entries
         const allowedNetworks = Array.isArray(networkIds) && networkIds.length
             ? new Set(networkIds)
             : null;
 
-        // Read enough of the global FIFO queue to cover all configured
-        // project-treasury networks. Entries on other networks are skipped.
-        const openEntries = await this.queueRepo.peekOpen(5000, null);
+        // Consume the eligible global FIFO queue in chunks. Filtering is done
+        // by the repository so a large queue on unrelated networks does not
+        // block eligible contributions and there is no fixed global queue cap.
+        while (remainingNeeded > 0n) {
+            const openEntries = await this.queueRepo.peekOpen(
+                500,
+                null,
+                allowedNetworks ? [...allowedNetworks] : null
+            );
 
-        for (const entry of openEntries) {
-            if (remainingNeeded <= 0n) break;
-            if (allowedNetworks && !allowedNetworks.has(entry.network_id)) continue;
+            if (!openEntries.length) break;
 
-            const available = BigInt(entry.remaining_raw);
+            for (const entry of openEntries) {
+                if (remainingNeeded <= 0n) break;
+
+                const available = BigInt(entry.remaining_raw);
             if (available <= 0n) continue;
 
             const take = available < remainingNeeded ? available : remainingNeeded;
@@ -93,7 +99,8 @@ export class AllocationEngine {
                 amount_raw: String(take)
             });
 
-            remainingNeeded -= take;
+                remainingNeeded -= take;
+            }
         }
 
         const totalAllocated = BigInt(String(requiredAmountRaw)) - remainingNeeded;
