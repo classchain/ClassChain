@@ -36,7 +36,7 @@ export class AllocationEngine {
      * @param {string[]|null} params.networkIds  allowed treasury networks for the selected project
      * @returns {Promise<object>} summary
      */
-    async allocate({ projectId, requiredAmountRaw, networkIds = null }) {
+    async allocate({ projectId, requiredAmountRaw, networkIds = null, networkId = null }) {
         if (!projectId) throw new Error('projectId is required');
         if (!requiredAmountRaw || BigInt(String(requiredAmountRaw)) <= 0n) {
             throw new Error('requiredAmountRaw must be a positive integer string');
@@ -47,9 +47,10 @@ export class AllocationEngine {
         const allocatedAt = Math.floor(Date.now() / 1000);
         const slices = [];
 
-        const allowedNetworks = Array.isArray(networkIds) && networkIds.length
-            ? new Set(networkIds)
-            : null;
+        const resolvedNetworkIds = Array.isArray(networkIds) && networkIds.length
+            ? networkIds
+            : (networkId ? [networkId] : null);
+        const allowedNetworks = resolvedNetworkIds ? new Set(resolvedNetworkIds) : null;
 
         // Consume the eligible global FIFO queue in chunks. Filtering is done
         // by the repository so a large queue on unrelated networks does not
