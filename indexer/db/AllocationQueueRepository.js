@@ -71,7 +71,7 @@ export class AllocationQueueRepository {
     /**
      * Peek the next OPEN / PARTIAL entries in FIFO order.
      */
-    async peekOpen(limit = 50, networkId = null) {
+    async peekOpen(limit = 50, networkId = null, networkIds = null) {
         let query = `
             SELECT *
             FROM allocation_queue
@@ -83,6 +83,10 @@ export class AllocationQueueRepository {
         if (networkId) {
             query += ` AND network_id = ?`;
             binds.push(networkId);
+        } else if (Array.isArray(networkIds) && networkIds.length) {
+            const placeholders = networkIds.map(() => '?').join(', ');
+            query += ` AND network_id IN (${placeholders})`;
+            binds.push(...networkIds);
         }
 
         query += `
