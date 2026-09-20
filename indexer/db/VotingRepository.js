@@ -23,8 +23,7 @@ export class VotingRepository {
 
     async createRound({
         title,
-        candidateProjects,
-        networkId = null
+        candidateProjects
     }) {
         const now = new Date().toISOString();
         const openedAt = Math.floor(Date.now() / 1000);
@@ -36,12 +35,11 @@ export class VotingRepository {
                     title,
                     candidate_projects,
                     status,
-                    network_id,
                     opened_at,
                     created_at
-                ) VALUES (?, ?, 'OPEN', ?, ?, ?)
+                ) VALUES (?, ?, 'OPEN', ?, ?)
             `)
-            .bind(title, candidatesJson, networkId, openedAt, now)
+            .bind(title, candidatesJson, openedAt, now)
             .run();
 
         const id = result.meta?.last_row_id;
@@ -108,7 +106,6 @@ export class VotingRepository {
     async castVote({
         roundId,
         donor,
-        networkId,
         projectId,
         telegramUserId = null
     }) {
@@ -120,8 +117,8 @@ export class VotingRepository {
                 INSERT INTO votes (
                     round_id, donor, network_id, project_id,
                     telegram_user_id, voted_at, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(round_id, donor, network_id) DO UPDATE SET
+                ) VALUES (?, ?, NULL, ?, ?, ?, ?)
+                ON CONFLICT(round_id, donor) DO UPDATE SET
                     project_id = excluded.project_id,
                     telegram_user_id = excluded.telegram_user_id,
                     voted_at = excluded.voted_at
@@ -129,7 +126,6 @@ export class VotingRepository {
             .bind(
                 roundId,
                 donor,
-                networkId,
                 projectId,
                 telegramUserId,
                 votedAt,
