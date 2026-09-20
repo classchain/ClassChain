@@ -6,10 +6,10 @@
  *
  * Order of money is already fixed by AllocationEngine (FIFO).
  * This service only packages those slices for treasury-owner approval
- * and eventual on-chain execution (single-sig now, multi-sig later).
+ * and eventual on-chain execution through the GENERAL_POOL multisig.
  *
- * Worker does NOT hold private keys. Owners approve externally;
- * admin can mark executed after on-chain tx is known.
+ * Worker does NOT hold private keys. Treasury owners submit and confirm
+ * the multisig transaction directly from their wallets.
  */
 
 import { DisbursementRepository } from '../db/DisbursementRepository.js';
