@@ -262,7 +262,9 @@ export default {
       const body = await readJsonBody(request);
       if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
       try {
-        const voting = new VotingService(env.DB);
+        const voting = new VotingService(env.DB, {
+          loadProjects: () => loadProjectsRegistry(env),
+        });
         const round = await voting.openRound({
           title: body.title,
           candidateProjects: body.candidate_projects || body.candidateProjects,
@@ -299,11 +301,12 @@ export default {
       const body = await readJsonBody(request);
       if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
       try {
-        const voting = new VotingService(env.DB);
+        const voting = new VotingService(env.DB, {
+          loadProjects: () => loadProjectsRegistry(env),
+        });
         const round = await voting.closeRound({
           roundId: Number(closeMatch[1]),
           selectedProjectId: body.selected_project_id || body.selectedProjectId,
-          requiredAmountRaw: body.required_amount_raw || body.requiredAmountRaw,
         });
         return jsonResponse({ ok: true, round });
       } catch (e) {
