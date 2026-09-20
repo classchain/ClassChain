@@ -20,7 +20,7 @@ export class VotingService {
         this.loadProjects = options.loadProjects || null;
     }
 
-    async openRound({ title, candidateProjects })
+    async openRound({ title, candidateProjects }) {
         if (!title) throw new Error('title is required');
         if (!Array.isArray(candidateProjects) || candidateProjects.length < 1) {
             throw new Error('candidateProjects must be a non-empty array');
@@ -49,7 +49,7 @@ export class VotingService {
         return { ...round, tally, votes_count: votes.length };
     }
 
-    async castVote({ roundId, donor, projectId, telegramUserId = null })
+    async castVote({ roundId, donor, projectId, telegramUserId = null }) {
         const round = await this.votingRepo.getRound(roundId);
         if (!round) throw new Error('round not found');
         if (round.status !== 'OPEN') throw new Error('round is not open');
