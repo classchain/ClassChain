@@ -9,7 +9,7 @@
 
     <!-- ⚠️ Web3 باید قبل از ماژول‌ها بارگذاری شود -->
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
-    <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="css/admin.css">\n    <style>\n        .workflow-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;background:linear-gradient(135deg,#f7fbff,#eef7f3);border:1px solid #dfe9e5;border-radius:16px;padding:24px 26px;margin-bottom:18px}.workflow-hero h2{margin:5px 0 8px;font-size:25px}.workflow-hero p{margin:0;color:#68737d}.workflow-kicker{font-size:12px;font-weight:700;color:#16a085;letter-spacing:.04em}.workflow-step{min-width:72px;height:72px;border-radius:50%;background:#fff;border:1px solid #dce7e2;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#16a085}.workflow-step span{font-size:11px;font-weight:500;color:#68737d}.workflow-card{background:#fff;border:1px solid #e5e9ed;border-radius:14px;padding:20px;margin:16px 0;box-shadow:0 3px 14px rgba(0,0,0,.04)}.card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px}.card-header h3{margin:0 0 5px}.card-header p{margin:0;color:#7a838b;font-size:13px}.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.toolbar select{padding:8px 11px;border:1px solid #d8dee3;border-radius:7px;background:#fff}.workflow-badge{background:#eef7f3;color:#13866f;border-radius:20px;padding:6px 12px;font-size:11px;font-weight:700}.workflow-create-round{border-right:4px solid #16a085}.round-form-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:16px;margin-bottom:14px}.round-form-grid label{display:block;font-size:13px;font-weight:700;margin-bottom:7px}.round-form-grid input,.round-form-grid select{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d8dee3;border-radius:8px;background:#fff}.round-form-grid small{display:block;color:#89929a;margin-top:6px}.round-form-grid select[multiple]{min-height:150px}.workflow-primary{margin-top:4px}.estimate-box{border:1px dashed #b8cfc7;background:#f7fbf9;border-radius:9px;padding:12px;display:flex;flex-direction:column;justify-content:center}.estimate-box span{font-size:12px;color:#78838b}.estimate-box strong{font-size:18px;color:#167b67;margin-top:5px}.action-row{display:flex;gap:10px;flex-wrap:wrap}.disburse-toolbar{justify-content:flex-start;margin-bottom:14px}@media(max-width:700px){.workflow-hero{padding:18px}.workflow-hero h2{font-size:20px}.workflow-step{min-width:58px;height:58px}.round-form-grid{grid-template-columns:1fr}.card-header{flex-direction:column}.toolbar{width:100%}}\n    </style>
 </head>
 <body>
     <div class="admin-container">
@@ -32,9 +32,8 @@
                     <a href="#" class="active" data-section="create">🏗️ ساخت خزانه</a>
                     <a href="#" data-section="add-project">➕ افزودن پروژه</a>
                     <a href="#" data-section="projects">📋 پروژه‌ها</a>
-                    <a href="#" data-section="community">جامعه / FIFO</a>
-                    <a href="#" data-section="voting">ثبت رأی جامعه</a>
-                    <a href="#" data-section="disburse">تخصیص خزانه</a>
+                    <a href="#" data-section="pre-vote">🧭 عملیات قبل از رأی‌گیری</a>
+                    <a href="#" data-section="post-vote">🗳️ عملیات بعد از رأی‌گیری</a>
                     <a href="#" data-section="settings">⚙️ تنظیمات</a>
                 </nav>
             </aside>
@@ -232,83 +231,157 @@
 
                 <!-- بخش تنظیمات -->
                 
-                <section id="section-community" class="section" style="display:none;">
-                    <h2>جامعه مشارکت‌کنندگان و صف FIFO</h2>
-                    <div class="form-group" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px;">
-                        <label>شبکه:</label>
-                        <select id="communityNetwork">
-                            <option value="">همه</option>
-                            <option value="polygon_amoy">polygon_amoy</option>
-                            <option value="tron_nile">tron_nile</option>
-                        </select>
-                        <button type="button" id="communityRefreshBtn" class="btn-secondary">بروزرسانی</button>
-                    </div>
-                    <h3>Contributors (unallocated &gt; 0)</h3>
-                    <div id="communityContributors"></div>
-                    <h3 style="margin-top:24px;">صف FIFO</h3>
-                    <div id="communityQueue"></div>
-                    <h3 style="margin-top:24px;">جستجوی donor</h3>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
-                        <input type="text" id="communityLookupDonor" placeholder="0x... یا T..." style="flex:1;min-width:220px;padding:8px;">
-                        <input type="text" id="communityLookupNetwork" value="polygon_amoy" style="width:140px;padding:8px;">
-                        <button type="button" id="communityLookupBtn" class="btn-secondary">جستجو</button>
-                    </div>
-                    <div id="communityLookupResult"></div>
-                </section>
-                <section id="section-voting" class="section" style="display:none;">
-                    <h2>ثبت رأی جامعه</h2>
-                    <button type="button" id="votingRefreshBtn" class="btn-secondary">لیست راندها</button>
-                    <div id="votingRoundsList" style="margin-top:12px;"></div>
-                    <input type="hidden" id="votingSelectedRoundId" value="">
-                    <div id="votingRoundDetail" style="margin-top:16px;"></div>
-                    <hr style="margin:24px 0;">
-                    <h3>باز کردن راند جدید</h3>
-                    <div class="form-group">
-                        <input type="text" id="votingNewTitle" placeholder="عنوان راند" style="width:100%;padding:8px;margin-bottom:8px;">
-                        <select id="votingNewCandidates" multiple size="8" style="width:100%;padding:8px;margin-bottom:8px;"></select>
-                        <button type="button" id="votingOpenBtn" class="btn-connect" style="margin-top:8px;">باز کردن راند</button>
-                    </div>
-                    <h3>ثبت رأی جامعه</h3>
-                    <div class="form-group" style="display:flex;flex-direction:column;gap:8px;max-width:480px;">
-                        <input type="text" id="votingVoteDonor" placeholder="donor 0x...">
-                        <select id="votingVoteProject" style="width:100%;padding:8px;"></select>
-                        <button type="button" id="votingVoteBtn" class="btn-secondary">ثبت رأی جامعه</button>
-                    </div>
-                    <h3>بستن راند + allocate</h3>
-                    <div class="form-group" style="display:flex;flex-direction:column;gap:8px;max-width:480px;">
-                        <select id="votingCloseProject" style="width:100%;padding:8px;"></select>
-                        <div id="votingCloseEstimate" class="muted">مبلغ برآورد پروژه پس از انتخاب، از Projects.json خوانده می‌شود.</div>
-                        <div style="display:flex;gap:8px;">
-                            <button type="button" id="votingCloseBtn" class="btn-secondary">بستن</button>
-                            <button type="button" id="votingAllocateBtn" class="btn-connect">Allocate</button>
+                <section id="section-pre-vote" class="section" style="display:none;">
+                    <div class="workflow-hero">
+                        <div>
+                            <span class="workflow-kicker">مرحله ۱</span>
+                            <h2>عملیات قبل از رأی‌گیری</h2>
+                            <p>مدیریت جامعه مشارکت‌کنندگان، صف FIFO و آماده‌سازی راند رأی‌گیری.</p>
                         </div>
+                        <div class="workflow-step">۱ <span>آماده‌سازی</span></div>
                     </div>
-                </section>
-                <section id="section-disburse" class="section" style="display:none;">
-                    <h2>انتقال از خزانه عمومی</h2>
-                    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0;">
-                        <select id="disburseNetworkFilter">
-                            <option value="">همه شبکه‌ها</option>
-                        </select>
-                        <button type="button" id="disburseRefreshBtn" class="btn-secondary">بروزرسانی</button>
+
+                    <div class="workflow-card">
+                        <div class="card-header">
+                            <div>
+                                <h3>جامعه مشارکت‌کنندگان</h3>
+                                <p>مشارکت‌کنندگانی که هنوز بخشی از سرمایه آن‌ها تخصیص نیافته است.</p>
+                            </div>
+                            <div class="toolbar">
+                                <label>شبکه</label>
+                                <select id="communityNetwork">
+                                    <option value="">همه شبکه‌ها</option>
+                                    <option value="polygon_amoy">polygon_amoy</option>
+                                    <option value="tron_nile">tron_nile</option>
+                                </select>
+                                <button type="button" id="communityRefreshBtn" class="btn-secondary">🔄 بروزرسانی</button>
+                            </div>
+                        </div>
+                        <div id="communityContributors"></div>
                     </div>
-                    <div class="form-group">
-                        <label>Approver:</label>
-                        <input type="text" id="disburseApprover" placeholder="0x..." style="width:100%;max-width:420px;padding:8px;">
+
+                    <div class="workflow-card">
+                        <div class="card-header">
+                            <div>
+                                <h3>صف FIFO</h3>
+                                <p>اولویت تخصیص بر اساس زمان ورود مشارکت.</p>
+                            </div>
+                            <span class="workflow-badge">FIFO</span>
+                        </div>
+                        <div id="communityQueue"></div>
                     </div>
-                    <div id="disbursePendingList"></div>
-                    <h3 style="margin-top:24px;">جزئیات</h3>
-                    <input type="hidden" id="disburseDetailId" value="">
-                    <div id="disburseDetailBox"></div>
-                    <hr style="margin:24px 0;">
-                    <h3>Prepare دستی</h3>
-                    <div style="display:flex;flex-direction:column;gap:8px;max-width:480px;">
-                        <input type="text" id="disburseBatchId" placeholder="allocation_batch_id">
-                        <input type="text" id="disburseProjectId" placeholder="project_id">
-                        <button type="button" id="disbursePrepareBtn" class="btn-secondary">Prepare</button>
+
+                    <div class="workflow-card">
+                        <div class="card-header">
+                            <div>
+                                <h3>راندهای رأی‌گیری</h3>
+                                <p>راندها را ببینید یا یک راند جدید برای جامعه باز کنید.</p>
+                            </div>
+                            <button type="button" id="votingRefreshBtn" class="btn-secondary">🔄 بروزرسانی راندها</button>
+                        </div>
+                        <div id="votingRoundsList"></div>
+                    </div>
+
+                    <div class="workflow-card workflow-create-round">
+                        <div class="card-header">
+                            <div>
+                                <h3>باز کردن راند جدید</h3>
+                                <p>پروژه‌های کاندید را از فهرست پروژه‌های دارای خزانه انتخاب کنید.</p>
+                            </div>
+                            <span class="workflow-step">۱/۲</span>
+                        </div>
+                        <div class="round-form-grid">
+                            <div>
+                                <label>عنوان راند</label>
+                                <input type="text" id="votingNewTitle" placeholder="مثلاً انتخاب پروژه مهر ۱۴۰۵">
+                            </div>
+                            <div>
+                                <label>پروژه‌های کاندید</label>
+                                <select id="votingNewCandidates" multiple size="7"></select>
+                                <small>با نگه‌داشتن Ctrl / Command می‌توانید چند پروژه انتخاب کنید.</small>
+                            </div>
+                        </div>
+                        <button type="button" id="votingOpenBtn" class="btn-connect workflow-primary">🚀 باز کردن راند</button>
                     </div>
                 </section>
 
+                <section id="section-post-vote" class="section" style="display:none;">
+                    <div class="workflow-hero">
+                        <div>
+                            <span class="workflow-kicker">مرحله ۲</span>
+                            <h2>عملیات بعد از رأی‌گیری</h2>
+                            <p>ثبت رأی، تعیین پروژه منتخب، تخصیص FIFO و انتقال از خزانه عمومی.</p>
+                        </div>
+                        <div class="workflow-step">۲ <span>اجرا</span></div>
+                    </div>
+
+                    <input type="hidden" id="votingSelectedRoundId" value="">
+
+                    <div class="workflow-card">
+                        <div class="card-header">
+                            <div>
+                                <h3>ثبت رأی جامعه</h3>
+                                <p>ابتدا راند را از فهرست انتخاب کنید؛ سپس رأی‌دهنده و یکی از کاندیدهای همان راند را انتخاب کنید.</p>
+                            </div>
+                            <span class="workflow-badge">VOTE</span>
+                        </div>
+                        <div id="votingRoundDetail"></div>
+                        <div class="round-form-grid vote-grid">
+                            <div>
+                                <label>رأی‌دهنده</label>
+                                <input type="text" id="votingVoteDonor" placeholder="آدرس کیف پول 0x... یا T...">
+                            </div>
+                            <div>
+                                <label>پروژه منتخب رأی‌دهنده</label>
+                                <select id="votingVoteProject"></select>
+                            </div>
+                        </div>
+                        <button type="button" id="votingVoteBtn" class="btn-secondary workflow-primary">🗳️ ثبت رأی جامعه</button>
+                    </div>
+
+                    <div class="workflow-card">
+                        <div class="card-header">
+                            <div>
+                                <h3>بستن راند و تخصیص FIFO</h3>
+                                <p>مبلغ پروژه دستی وارد نمی‌شود؛ برآورد پروژه مستقیماً از Projects.json خوانده می‌شود.</p>
+                            </div>
+                            <span class="workflow-badge">ALLOCATE</span>
+                        </div>
+                        <div class="round-form-grid">
+                            <div>
+                                <label>پروژه منتخب جامعه</label>
+                                <select id="votingCloseProject"></select>
+                            </div>
+                            <div class="estimate-box" id="votingCloseEstimate">
+                                <span>برآورد پروژه</span>
+                                <strong>از Projects.json</strong>
+                            </div>
+                        </div>
+                        <div class="action-row">
+                            <button type="button" id="votingCloseBtn" class="btn-secondary">🔒 بستن راند</button>
+                            <button type="button" id="votingAllocateBtn" class="btn-connect">⚡ اجرای تخصیص FIFO</button>
+                        </div>
+                    </div>
+
+                    <div class="workflow-card">
+                        <div class="card-header">
+                            <div>
+                                <h3>انتقال از خزانه عمومی</h3>
+                                <p>پس از تخصیص، درخواست‌های انتقال اینجا آماده امضا با کیف پول خزانه عمومی هستند.</p>
+                            </div>
+                            <button type="button" id="disburseRefreshBtn" class="btn-secondary">🔄 بروزرسانی</button>
+                        </div>
+                        <div class="toolbar disburse-toolbar">
+                            <label>شبکه</label>
+                            <select id="disburseNetworkFilter">
+                                <option value="">همه شبکه‌ها</option>
+                            </select>
+                        </div>
+                        <input type="hidden" id="disburseDetailId" value="">
+                        <div id="disbursePendingList"></div>
+                        <div id="disburseDetailBox" style="margin-top:16px;"></div>
+                    </div>
+                </section>
                 <section id="section-settings" class="section" style="display:none;">
                     <h2>⚙️ تنظیمات</h2>
                     <div class="settings-group" style="background:white;padding:20px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
@@ -356,9 +429,8 @@
             document.querySelectorAll('.sidebar-nav a').forEach(link => {
                 link.addEventListener('click', function () {
                     const section = this.dataset.section;
-                    if (section === 'community') { loadContributors(); loadQueue(); }
-                    if (section === 'voting') loadVotingRounds();
-                    if (section === 'disburse') loadDisbursePending();
+                    if (section === 'pre-vote') { loadContributors(); loadQueue(); loadVotingRounds(); }
+                    if (section === 'post-vote') { loadDisbursePending(); }
                 });
             });
         });
