@@ -44,7 +44,6 @@ export async function loadVotingRounds() {
               <td>${r.title || ''}</td>
               <td><strong>${r.status}</strong></td>
               <td style="font-size:12px;">${cands || '—'}</td>
-              <td>${r.network_id || 'جهانی'}</td>
               <td>
                 <button type="button" class="btn-sm btn-secondary" data-round-detail="${r.id}">جزئیات</button>
               </td>
