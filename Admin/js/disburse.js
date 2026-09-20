@@ -131,8 +131,8 @@ async function submitEvm(row, account) {
 
 async function findEvmTransaction(multisig, row) {
   const token = getTokenAddress(row.network_id, 'USDT');
-  const tokenContract = new Web3(window.ethereum).eth.Contract;
-  const erc20 = new Web3(window.ethereum).eth.Contract(ERC20_ABI, token);
+  const web3 = new Web3(window.ethereum);
+  const erc20 = new web3.eth.Contract(ERC20_ABI, token);
   const expectedData = erc20.methods.transfer(row.to_address, String(row.amount_raw)).encodeABI().toLowerCase();
   const count = Number(await multisig.methods.getTransactionCount().call());
 
@@ -203,16 +203,28 @@ async function walletAction(row) {
       txHash = await confirmEvm(row, account, txIndex);
     }
 
+    if (txIndex === undefined) return { phase: 'submitted', txIndex, txHash };
     await recordOnchainState(row.id, txIndex, txHash, account);
-    return { txIndex, txHash };
+    const finalTx = await multisig.methods.getTransaction(txIndex).call();
+    if (finalTx.executed) {
+      await indexerFetch(`/api/disburse/${row.id}/executed`, { method: 'POST', body: JSON.stringify({ execute_tx_hash: txHash }) });
+    }
+    return { phase: 'confirmed', txIndex, txHash };
   }
 
   const tronWeb = wallet.provider;
-  const contract = await tronWeb.contract(MULTISIG_ABI, row.multisig_address);
-  const count = Number(await contract.getTransactionCount().call());
-  const txHash = await confirmTron(row, tronWeb, Math.max(0, count - 1));
-  await recordOnchainState(row.id, Math.max(0, count - 1), txHash, tronWeb.defaultAddress.base58);
-  return { txIndex: Math.max(0, count - 1), txHash };
+  const existing = await findTronTransaction(tronWeb, row);
+  if (!existing) {
+    const submitted = await submitTron(row, tronWeb);
+    return { phase: 'submitted', txIndex: submitted.txIndex, txHash: submitted.txHash };
+  }
+  const txHash = await confirmTron(row, tronWeb, existing.index);
+  await recordOnchainState(row.id, existing.index, txHash, tronWeb.defaultAddress.base58);
+  const finalTx = await existing.contract.getTransaction(existing.index).call();
+  if (finalTx.executed) {
+    await indexerFetch(`/api/disburse/${row.id}/executed`, { method: 'POST', body: JSON.stringify({ execute_tx_hash: txHash }) });
+  }
+  return { phase: 'confirmed', txIndex: existing.index, txHash };
 }
 
 async function recordOnchainState(id, txIndex, txHash, approver) {
