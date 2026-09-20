@@ -33,10 +33,10 @@ export class AllocationEngine {
      * @param {object} params
      * @param {string} params.projectId
      * @param {string} params.requiredAmountRaw  integer string (base units)
-     * @param {string|null} params.networkId     if set, only that network's queue
+     * @param {string[]|null} params.networkIds  allowed treasury networks for the selected project
      * @returns {Promise<object>} summary
      */
-    async allocate({ projectId, requiredAmountRaw, networkId = null }) {
+    async allocate({ projectId, requiredAmountRaw, networkIds = null }) {
         if (!projectId) throw new Error('projectId is required');
         if (!requiredAmountRaw || BigInt(String(requiredAmountRaw)) <= 0n) {
             throw new Error('requiredAmountRaw must be a positive integer string');
@@ -48,10 +48,17 @@ export class AllocationEngine {
         const slices = [];
 
         // Pull a generous window of open queue entries
-        const openEntries = await this.queueRepo.peekOpen(500, networkId);
+        const allowedNetworks = Array.isArray(networkIds) && networkIds.length
+            ? new Set(networkIds)
+            : null;
+
+        // Read enough of the global FIFO queue to cover all configured
+        // project-treasury networks. Entries on other networks are skipped.
+        const openEntries = await this.queueRepo.peekOpen(5000, null);
 
         for (const entry of openEntries) {
             if (remainingNeeded <= 0n) break;
+            if (allowedNetworks && !allowedNetworks.has(entry.network_id)) continue;
 
             const available = BigInt(entry.remaining_raw);
             if (available <= 0n) continue;
