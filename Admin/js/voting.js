@@ -7,15 +7,25 @@ function el(id) {
   return document.getElementById(id);
 }
 
+/** USDT human amount → 6-decimal base units. Long integers are treated as already-raw. */
+function usdtToRaw(v) {
+  const s = String(v || '').trim().replace(/,/g, '');
+  if (!s) throw new Error('مبلغ خالی است');
+  if (/^\d{10,}$/.test(s)) return s;
+  const n = Number(s);
+  if (!Number.isFinite(n) || n <= 0) throw new Error('مبلغ USDT نامعتبر است');
+  return String(BigInt(Math.round(n * 1e6)));
+}
+
 export async function loadVotingRounds() {
   const box = el('votingRoundsList');
   if (!box) return;
-  box.innerHTML = '…';
+  box.innerHTML = '<p class="muted">…</p>';
   try {
     const data = await indexerFetch('/api/voting/rounds');
     const rounds = data.rounds || [];
     if (!rounds.length) {
-      box.innerHTML = '<p>راندی نیست.</p>';
+      box.innerHTML = '<p class="muted">راندی نیست.</p>';
       return;
     }
     box.innerHTML = `
@@ -33,8 +43,8 @@ export async function loadVotingRounds() {
               <td>${r.id}</td>
               <td>${r.title || ''}</td>
               <td><strong>${r.status}</strong></td>
-              <td style="font-size:12px;">${cands}</td>
-              <td>${r.network_id || '—'}</td>
+              <td style="font-size:12px;">${cands || '—'}</td>
+              <td>${r.network_id || 'جهانی'}</td>
               <td>
                 <button type="button" class="btn-sm btn-secondary" data-round-detail="${r.id}">جزئیات</button>
               </td>
@@ -44,7 +54,7 @@ export async function loadVotingRounds() {
         </tbody>
       </table>`;
   } catch (e) {
-    box.innerHTML = `<p style="color:#e74c3c;">${e.message}</p>`;
+    box.innerHTML = `<p class="err">${e.message}</p>`;
   }
 }
 
@@ -63,17 +73,17 @@ export async function loadRoundDetail(id) {
       .map((t) => `${t.project_id}: ${t.vote_count}`)
       .join(' · ');
     box.innerHTML = `
-      <div style="background:#f8f9fa;padding:14px;border-radius:10px;">
+      <div class="round-detail">
         <p><strong>#${r.id}</strong> ${r.title} — <code>${r.status}</code></p>
-        <p>کاندیدها: ${(r.candidate_projects || []).join(', ')}</p>
+        <p>کاندیدها: ${(r.candidate_projects || []).join(', ') || '—'}</p>
         <p>آرا: ${r.votes_count ?? 0} | Tally: ${tally || '—'}</p>
-        <p>selected: ${r.selected_project_id || '—'} | required: ${
+        <p>منتخب: ${r.selected_project_id || '—'} | مبلغ: ${
           r.required_amount_raw ? formatUsdt(r.required_amount_raw) + ' USDT' : '—'
         }</p>
-        <p style="font-size:12px;">batch: ${r.allocation_batch_id || '—'}</p>
+        <p class="muted">batch: ${r.allocation_batch_id || '—'}</p>
       </div>`;
   } catch (e) {
-    box.innerHTML = `<p style="color:#e74c3c;">${e.message}</p>`;
+    box.innerHTML = `<p class="err">${e.message}</p>`;
   }
 }
 
@@ -110,7 +120,7 @@ export async function castVote() {
   const networkId = el('votingVoteNetwork')?.value?.trim() || 'polygon_amoy';
   const projectId = el('votingVoteProject')?.value?.trim();
   if (!roundId || !donor || !projectId) {
-    alert('round، donor و project لازم است');
+    alert('ابتدا جزئیات راند را بزنید، سپس donor و project را پر کنید');
     return;
   }
   try {
@@ -132,9 +142,16 @@ export async function castVote() {
 export async function closeRound() {
   const roundId = el('votingSelectedRoundId')?.value;
   const selected = el('votingCloseProject')?.value?.trim();
-  const amount = el('votingCloseAmount')?.value?.trim();
-  if (!roundId || !selected || !amount) {
-    alert('round انتخاب‌شده، پروژه و مبلغ (base units) لازم است');
+  const amountInput = el('votingCloseAmount')?.value?.trim();
+  if (!roundId || !selected || !amountInput) {
+    alert('راند را از جزئیات انتخاب کنید، پروژه و مبلغ USDT لازم است');
+    return;
+  }
+  let amountRaw;
+  try {
+    amountRaw = usdtToRaw(amountInput);
+  } catch (e) {
+    alert(e.message);
     return;
   }
   try {
@@ -142,10 +159,10 @@ export async function closeRound() {
       method: 'POST',
       body: JSON.stringify({
         selected_project_id: selected,
-        required_amount_raw: amount,
+        required_amount_raw: amountRaw,
       }),
     });
-    alert('راند بسته شد');
+    alert('راند بسته شد · ' + formatUsdt(amountRaw) + ' USDT');
     await loadVotingRounds();
     await loadRoundDetail(roundId);
   } catch (e) {
@@ -164,11 +181,16 @@ export async function allocateRound() {
       method: 'POST',
       body: '{}',
     });
+    const disb = data.disbursement?.disbursements || data.disbursement || {};
     alert(
       'allocate OK\nbatch: ' +
         (data.allocation_batch_id || '') +
+        '\nallocated: ' +
+        formatUsdt(data.allocated_amount_raw || '0') +
+        ' USDT' +
+        (data.fully_funded ? '' : '\nکمبود: ' + formatUsdt(data.shortfall_raw || '0')) +
         '\ndisbursement: ' +
-        JSON.stringify(data.disbursement?.disbursements || data.disbursement || {}, null, 2)
+        JSON.stringify(disb, null, 2)
     );
     await loadVotingRounds();
     await loadRoundDetail(roundId);

@@ -181,7 +181,6 @@ body {
     margin-bottom: 16px;
 }
 
-/* --- Indexer admin panels --- */
 .admin-simple-table {
   width: 100%;
   border-collapse: collapse;
@@ -209,4 +208,72 @@ body {
   border-radius: 6px;
   border: 1px solid #ddd;
   background: #ecf0f1;
+}
+
+.indexer-card {
+  background: #fff;
+  padding: 18px 20px;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  margin-bottom: 16px;
+}
+.indexer-card h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+.indexer-hint {
+  color: #666;
+  font-size: 13px;
+  line-height: 1.7;
+  margin: -8px 0 16px;
+}
+.indexer-toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.indexer-toolbar input,
+.indexer-toolbar select {
+  padding: 8px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+}
+.muted { color: #888; font-size: 13px; }
+.err { color: #e74c3c; }
+.health-pill {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: #ecf0f1;
+  font-size: 12px;
+}
+.health-pill.ok { background: #d5f5e3; color: #1e8449; }
+.health-pill.bad { background: #fadbd8; color: #922b21; }
+.round-detail {
+  background: #f8f9fa;
+  padding: 14px;
+  border-radius: 10px;
+  line-height: 1.7;
+}
+
+@media (max-width: 720px) {
+  .admin-body { flex-direction: column; }
+  .sidebar {
+    width: 100%;
+    border-left: none;
+    border-bottom: 1px solid #e8e8e8;
+  }
+  .sidebar-nav { display: flex; flex-wrap: wrap; }
+  .sidebar-nav a {
+    padding: 10px 12px;
+    border-right: none;
+  }
+  .sidebar-nav a.active { border-right: none; border-bottom: 3px solid #6c5ce7; }
+  .main-content { padding: 16px; }
+  .form-group input,
+  .form-group select { max-width: 100%; }
 }
