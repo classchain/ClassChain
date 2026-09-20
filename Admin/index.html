@@ -33,7 +33,7 @@
                     <a href="#" data-section="add-project">➕ افزودن پروژه</a>
                     <a href="#" data-section="projects">📋 پروژه‌ها</a>
                     <a href="#" data-section="community">جامعه / FIFO</a>
-                    <a href="#" data-section="voting">رای‌گیری</a>
+                    <a href="#" data-section="voting">ثبت رأی جامعه</a>
                     <a href="#" data-section="disburse">تخصیص خزانه</a>
                     <a href="#" data-section="settings">⚙️ تنظیمات</a>
                 </nav>
@@ -256,7 +256,7 @@
                     <div id="communityLookupResult"></div>
                 </section>
                 <section id="section-voting" class="section" style="display:none;">
-                    <h2>رای‌گیری و تخصیص</h2>
+                    <h2>ثبت رأی جامعه</h2>
                     <button type="button" id="votingRefreshBtn" class="btn-secondary">لیست راندها</button>
                     <div id="votingRoundsList" style="margin-top:12px;"></div>
                     <input type="hidden" id="votingSelectedRoundId" value="">
@@ -265,19 +265,19 @@
                     <h3>باز کردن راند جدید</h3>
                     <div class="form-group">
                         <input type="text" id="votingNewTitle" placeholder="عنوان راند" style="width:100%;padding:8px;margin-bottom:8px;">
-                        <input type="text" id="votingNewCandidates" placeholder="کاندیدها: 1004,1005,1090" style="width:100%;padding:8px;margin-bottom:8px;">
+                        <select id="votingNewCandidates" multiple size="8" style="width:100%;padding:8px;margin-bottom:8px;"></select>
                         <button type="button" id="votingOpenBtn" class="btn-connect" style="margin-top:8px;">باز کردن راند</button>
                     </div>
-                    <h3>ثبت رای</h3>
+                    <h3>ثبت رأی جامعه</h3>
                     <div class="form-group" style="display:flex;flex-direction:column;gap:8px;max-width:480px;">
                         <input type="text" id="votingVoteDonor" placeholder="donor 0x...">
-                        <input type="text" id="votingVoteProject" placeholder="project_id">
-                        <button type="button" id="votingVoteBtn" class="btn-secondary">رای بده</button>
+                        <select id="votingVoteProject" style="width:100%;padding:8px;"></select>
+                        <button type="button" id="votingVoteBtn" class="btn-secondary">ثبت رأی جامعه</button>
                     </div>
                     <h3>بستن راند + allocate</h3>
                     <div class="form-group" style="display:flex;flex-direction:column;gap:8px;max-width:480px;">
-                        <input type="text" id="votingCloseProject" placeholder="selected_project_id">
-                        <input type="text" id="votingCloseAmount" placeholder="required_amount_raw">
+                        <select id="votingCloseProject" style="width:100%;padding:8px;"></select>
+                        <div id="votingCloseEstimate" class="muted">مبلغ برآورد پروژه پس از انتخاب، از Projects.json خوانده می‌شود.</div>
                         <div style="display:flex;gap:8px;">
                             <button type="button" id="votingCloseBtn" class="btn-secondary">بستن</button>
                             <button type="button" id="votingAllocateBtn" class="btn-connect">Allocate</button>
