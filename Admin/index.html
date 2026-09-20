@@ -9,7 +9,7 @@
 
     <!-- ⚠️ Web3 باید قبل از ماژول‌ها بارگذاری شود -->
     <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
-    <link rel="stylesheet" href="css/admin.css">\n    <style>\n        .workflow-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;background:linear-gradient(135deg,#f7fbff,#eef7f3);border:1px solid #dfe9e5;border-radius:16px;padding:24px 26px;margin-bottom:18px}.workflow-hero h2{margin:5px 0 8px;font-size:25px}.workflow-hero p{margin:0;color:#68737d}.workflow-kicker{font-size:12px;font-weight:700;color:#16a085;letter-spacing:.04em}.workflow-step{min-width:72px;height:72px;border-radius:50%;background:#fff;border:1px solid #dce7e2;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#16a085}.workflow-step span{font-size:11px;font-weight:500;color:#68737d}.workflow-card{background:#fff;border:1px solid #e5e9ed;border-radius:14px;padding:20px;margin:16px 0;box-shadow:0 3px 14px rgba(0,0,0,.04)}.card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px}.card-header h3{margin:0 0 5px}.card-header p{margin:0;color:#7a838b;font-size:13px}.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.toolbar select{padding:8px 11px;border:1px solid #d8dee3;border-radius:7px;background:#fff}.workflow-badge{background:#eef7f3;color:#13866f;border-radius:20px;padding:6px 12px;font-size:11px;font-weight:700}.workflow-create-round{border-right:4px solid #16a085}.round-form-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:16px;margin-bottom:14px}.round-form-grid label{display:block;font-size:13px;font-weight:700;margin-bottom:7px}.round-form-grid input,.round-form-grid select{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d8dee3;border-radius:8px;background:#fff}.round-form-grid small{display:block;color:#89929a;margin-top:6px}.round-form-grid select[multiple]{min-height:150px}.workflow-primary{margin-top:4px}.estimate-box{border:1px dashed #b8cfc7;background:#f7fbf9;border-radius:9px;padding:12px;display:flex;flex-direction:column;justify-content:center}.estimate-box span{font-size:12px;color:#78838b}.estimate-box strong{font-size:18px;color:#167b67;margin-top:5px}.action-row{display:flex;gap:10px;flex-wrap:wrap}.disburse-toolbar{justify-content:flex-start;margin-bottom:14px}@media(max-width:700px){.workflow-hero{padding:18px}.workflow-hero h2{font-size:20px}.workflow-step{min-width:58px;height:58px}.round-form-grid{grid-template-columns:1fr}.card-header{flex-direction:column}.toolbar{width:100%}}\n    </style>
+    <link rel="stylesheet" href="css/admin.css">\n    <style>\n        .workflow-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;background:linear-gradient(135deg,#f7fbff,#eef7f3);border:1px solid #dfe9e5;border-radius:16px;padding:24px 26px;margin-bottom:18px}.workflow-hero h2{margin:5px 0 8px;font-size:25px}.workflow-hero p{margin:0;color:#68737d}.workflow-kicker{font-size:12px;font-weight:700;color:#16a085;letter-spacing:.04em}.workflow-step{min-width:72px;height:72px;border-radius:50%;background:#fff;border:1px solid #dce7e2;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#16a085}.workflow-step span{font-size:11px;font-weight:500;color:#68737d}.workflow-card{background:#fff;border:1px solid #e5e9ed;border-radius:14px;padding:20px;margin:16px 0;box-shadow:0 3px 14px rgba(0,0,0,.04)}.card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px}.card-header h3{margin:0 0 5px}.card-header p{margin:0;color:#7a838b;font-size:13px}.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.toolbar select{padding:8px 11px;border:1px solid #d8dee3;border-radius:7px;background:#fff}.workflow-badge{background:#eef7f3;color:#13866f;border-radius:20px;padding:6px 12px;font-size:11px;font-weight:700}.workflow-create-round{border-right:4px solid #16a085}.round-form-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:16px;margin-bottom:14px}.round-form-grid label{display:block;font-size:13px;font-weight:700;margin-bottom:7px}.round-form-grid input,.round-form-grid select{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d8dee3;border-radius:8px;background:#fff}.round-form-grid small{display:block;color:#89929a;margin-top:6px}.round-form-grid select[multiple]{min-height:150px}.result-vote-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}.result-vote-item{border:1px solid #e1e7ea;border-radius:10px;padding:12px;background:#fbfcfc}.result-vote-item label{display:block;font-size:13px;font-weight:700;margin-bottom:7px}.result-vote-item input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d8dee3;border-radius:8px}@media(max-width:700px){.result-vote-grid{grid-template-columns:1fr}}.workflow-primary{margin-top:4px}.estimate-box{border:1px dashed #b8cfc7;background:#f7fbf9;border-radius:9px;padding:12px;display:flex;flex-direction:column;justify-content:center}.estimate-box span{font-size:12px;color:#78838b}.estimate-box strong{font-size:18px;color:#167b67;margin-top:5px}.action-row{display:flex;gap:10px;flex-wrap:wrap}.disburse-toolbar{justify-content:flex-start;margin-bottom:14px}@media(max-width:700px){.workflow-hero{padding:18px}.workflow-hero h2{font-size:20px}.workflow-step{min-width:58px;height:58px}.round-form-grid{grid-template-columns:1fr}.card-header{flex-direction:column}.toolbar{width:100%}}\n    </style>
 </head>
 <body>
     <div class="admin-container">
@@ -32,8 +32,8 @@
                     <a href="#" class="active" data-section="create">🏗️ ساخت خزانه</a>
                     <a href="#" data-section="add-project">➕ افزودن پروژه</a>
                     <a href="#" data-section="projects">📋 پروژه‌ها</a>
-                    <a href="#" data-section="pre-vote">🧭 عملیات قبل از رأی‌گیری</a>
-                    <a href="#" data-section="post-vote">🗳️ عملیات بعد از رأی‌گیری</a>
+                    <a href="#" data-section="pre-vote">📋 صف FIFO</a>
+                    <a href="#" data-section="post-vote">🗳️ ثبت رأی و تخصیص</a>
                     <a href="#" data-section="settings">⚙️ تنظیمات</a>
                 </nav>
             </aside>
@@ -235,29 +235,10 @@
                     <div class="workflow-hero">
                         <div>
                             <span class="workflow-kicker">مرحله ۱</span>
-                            <h2>عملیات قبل از رأی‌گیری</h2>
-                            <p>مدیریت جامعه مشارکت‌کنندگان، صف FIFO و آماده‌سازی راند رأی‌گیری.</p>
+                            <h2>صف FIFO</h2>
+                            <p>صف فعلی مشارکت‌کنندگان و آماده‌سازی راند رأی‌گیری.</p>
                         </div>
                         <div class="workflow-step">۱ <span>آماده‌سازی</span></div>
-                    </div>
-
-                    <div class="workflow-card">
-                        <div class="card-header">
-                            <div>
-                                <h3>جامعه مشارکت‌کنندگان</h3>
-                                <p>مشارکت‌کنندگانی که هنوز بخشی از سرمایه آن‌ها تخصیص نیافته است.</p>
-                            </div>
-                            <div class="toolbar">
-                                <label>شبکه</label>
-                                <select id="communityNetwork">
-                                    <option value="">همه شبکه‌ها</option>
-                                    <option value="polygon_amoy">polygon_amoy</option>
-                                    <option value="tron_nile">tron_nile</option>
-                                </select>
-                                <button type="button" id="communityRefreshBtn" class="btn-secondary">🔄 بروزرسانی</button>
-                            </div>
-                        </div>
-                        <div id="communityContributors"></div>
                     </div>
 
                     <div class="workflow-card">
@@ -309,8 +290,8 @@
                     <div class="workflow-hero">
                         <div>
                             <span class="workflow-kicker">مرحله ۲</span>
-                            <h2>عملیات بعد از رأی‌گیری</h2>
-                            <p>ثبت رأی، تعیین پروژه منتخب، تخصیص FIFO و انتقال از خزانه عمومی.</p>
+                            <h2>ثبت رأی و تخصیص</h2>
+                            <p>ثبت نتیجه رأی‌گیری تلگرام، تعیین پروژه منتخب، تخصیص FIFO و انتقال از خزانه عمومی.</p>
                         </div>
                         <div class="workflow-step">۲ <span>اجرا</span></div>
                     </div>
@@ -320,23 +301,14 @@
                     <div class="workflow-card">
                         <div class="card-header">
                             <div>
-                                <h3>ثبت رأی جامعه</h3>
-                                <p>ابتدا راند را از فهرست انتخاب کنید؛ سپس رأی‌دهنده و یکی از کاندیدهای همان راند را انتخاب کنید.</p>
+                                <h3>ثبت نتیجه رأی‌گیری جامعه</h3>
+                                <p>رأی‌گیری اعضای واجد شرایط در تلگرام انجام می‌شود؛ اینجا فقط نتیجه نهایی هر پروژه ثبت می‌شود.</p>
                             </div>
-                            <span class="workflow-badge">VOTE</span>
+                            <span class="workflow-badge">RESULT</span>
                         </div>
                         <div id="votingRoundDetail"></div>
-                        <div class="round-form-grid vote-grid">
-                            <div>
-                                <label>رأی‌دهنده</label>
-                                <input type="text" id="votingVoteDonor" placeholder="آدرس کیف پول 0x... یا T...">
-                            </div>
-                            <div>
-                                <label>پروژه منتخب رأی‌دهنده</label>
-                                <select id="votingVoteProject"></select>
-                            </div>
-                        </div>
-                        <button type="button" id="votingVoteBtn" class="btn-secondary workflow-primary">🗳️ ثبت رأی جامعه</button>
+                        <div id="votingResultInputs" class="result-vote-grid"></div>
+                        <button type="button" id="votingResultBtn" class="btn-secondary workflow-primary">💾 ثبت نتیجه رأی‌گیری</button>
                     </div>
 
                     <div class="workflow-card">
@@ -358,7 +330,7 @@
                             </div>
                         </div>
                         <div class="action-row">
-                            <button type="button" id="votingCloseBtn" class="btn-secondary">🔒 بستن راند</button>
+                            <button type="button" id="votingCloseBtn" class="btn-secondary">🔒 ثبت پروژه منتخب و بستن راند</button>
                             <button type="button" id="votingAllocateBtn" class="btn-connect">⚡ اجرای تخصیص FIFO</button>
                         </div>
                     </div>
@@ -410,12 +382,11 @@
     <script type="module" src="js/app.js"></script>
 
     <script type="module">
-        import { initCommunityPanel, loadContributors, loadQueue } from './js/community.js';
+        import { loadQueue } from './js/community.js';
         import { initVotingPanel, loadVotingRounds } from './js/voting.js';
         import { initDisbursePanel, loadDisbursePending } from './js/disburse.js';
         import { setIndexerSecret } from './js/config/indexer.js';
         document.addEventListener('DOMContentLoaded', () => {
-            initCommunityPanel();
             initVotingPanel();
             initDisbursePanel();
             document.getElementById('saveIndexerSecretBtn')?.addEventListener('click', () => {
@@ -429,7 +400,7 @@
             document.querySelectorAll('.sidebar-nav a').forEach(link => {
                 link.addEventListener('click', function () {
                     const section = this.dataset.section;
-                    if (section === 'pre-vote') { loadContributors(); loadQueue(); loadVotingRounds(); }
+                    if (section === 'pre-vote') { loadQueue(); loadVotingRounds(); }
                     if (section === 'post-vote') { loadDisbursePending(); }
                 });
             });
