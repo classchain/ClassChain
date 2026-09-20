@@ -62,8 +62,8 @@ export async function loadRoundDetail(id) {
     const candidateProjects = projects.filter((project) =>
       (r.candidate_projects || []).includes(String(project.ProjectID))
     );
-    fillProjectSelect(el('votingVoteProject'), candidateProjects, false);
     fillProjectSelect(el('votingCloseProject'), candidateProjects, false);
+    renderResultInputs(candidateProjects, r.result_tally || r.tally || []);
     const tally = (r.tally || [])
       .map((t) => `${t.project_id}: ${t.vote_count}`)
       .join(' · ');
@@ -96,6 +96,19 @@ async function loadProjectsForVoting() {
       return Object.values(project.funds || {}).some((fund) => fund?.address);
     });
   return projectsCache;
+}
+
+function renderResultInputs(candidateProjects, tally = []) {
+  const box = el('votingResultInputs');
+  if (!box) return;
+  const counts = new Map((tally || []).map((item) => [String(item.project_id), Number(item.vote_count || 0)]));
+  box.innerHTML = candidateProjects.map((project) => {
+    const value = counts.get(String(project.ProjectID)) || 0;
+    return '<div class="result-vote-item">' +
+      '<label>' + project.ProjectID + ' — ' + (project['نام پروژه'] || 'بدون نام') + '</label>' +
+      '<input type="number" min="0" step="1" data-vote-count="' + project.ProjectID + '" value="' + value + '">' +
+      '</div>';
+  }).join('');
 }
 
 function fillProjectSelect(select, projects, multiple = false) {
@@ -140,23 +153,32 @@ export async function openRound() {
   }
 }
 
-export async function castVote() {
-  const roundId = el('votingSelectedRoundId')?.value || el('votingVoteRoundId')?.value;
-  const donor = el('votingVoteDonor')?.value?.trim();
-  const projectId = el('votingVoteProject')?.value?.trim();
-  if (!roundId || !donor || !projectId) {
-    alert('ابتدا راند را از جزئیات انتخاب کنید و سپس donor و پروژه را مشخص کنید');
+export async function saveVotingResult() {
+  const roundId = el('votingSelectedRoundId')?.value;
+  const selected = el('votingCloseProject')?.value?.trim();
+  const inputs = Array.from(document.querySelectorAll('[data-vote-count]'));
+  if (!roundId || !selected || !inputs.length) {
+    alert('ابتدا راند و پروژه منتخب را مشخص کنید');
+    return;
+  }
+  const resultTally = inputs.map((input) => ({
+    project_id: input.getAttribute('data-vote-count'),
+    vote_count: Number(input.value || 0),
+  }));
+  if (resultTally.some((item) => !Number.isInteger(item.vote_count) || item.vote_count < 0)) {
+    alert('تعداد آرا باید عدد صحیح صفر یا بیشتر باشد');
     return;
   }
   try {
-    await indexerFetch(`/api/voting/rounds/${roundId}/vote`, {
+    await indexerFetch('/api/voting/rounds/' + roundId + '/close', {
       method: 'POST',
       body: JSON.stringify({
-        donor,
-        project_id: projectId,
+        selected_project_id: selected,
+        result_tally: resultTally,
       }),
     });
-    alert('رای ثبت شد');
+    alert('نتیجه رأی‌گیری ثبت و راند بسته شد');
+    await loadVotingRounds();
     await loadRoundDetail(roundId);
   } catch (e) {
     alert('خطا: ' + e.message);
@@ -216,7 +238,7 @@ export async function allocateRound() {
 export function initVotingPanel() {
   el('votingRefreshBtn')?.addEventListener('click', () => loadVotingRounds());
   el('votingOpenBtn')?.addEventListener('click', () => openRound());
-  el('votingVoteBtn')?.addEventListener('click', () => castVote());
+  el('votingResultBtn')?.addEventListener('click', () => saveVotingResult());
   el('votingCloseBtn')?.addEventListener('click', () => closeRound());
   el('votingAllocateBtn')?.addEventListener('click', () => allocateRound());
   prepareVotingProjectSelectors().catch((e) => console.error(e));
