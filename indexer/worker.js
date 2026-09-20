@@ -266,7 +266,6 @@ export default {
         const round = await voting.openRound({
           title: body.title,
           candidateProjects: body.candidate_projects || body.candidateProjects,
-          networkId: body.network_id || body.networkId || null,
         });
         return jsonResponse({ ok: true, round });
       } catch (e) {
@@ -283,7 +282,6 @@ export default {
         const result = await voting.castVote({
           roundId: Number(voteMatch[1]),
           donor: body.donor,
-          networkId: body.network_id || body.networkId,
           projectId: body.project_id || body.projectId,
           telegramUserId: body.telegram_user_id || body.telegramUserId || null,
         });
@@ -319,7 +317,9 @@ export default {
         return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       }
       try {
-        const voting = new VotingService(env.DB);
+        const voting = new VotingService(env.DB, {
+          loadProjects: () => loadProjectsRegistry(env),
+        });
         const result = await voting.allocateRound(Number(allocateMatch[1]));
         let disbursement = null;
         try {
