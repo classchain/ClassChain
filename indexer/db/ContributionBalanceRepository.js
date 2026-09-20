@@ -117,6 +117,19 @@ export class ContributionBalanceRepository {
         return this.get(donor, networkId);
     }
 
+    async getTotalUnallocated(donor) {
+        const row = await this.db
+            .prepare(`
+                SELECT COALESCE(SUM(CAST(unallocated AS INTEGER)), 0) AS total
+                FROM contribution_balances
+                WHERE donor = ?
+            `)
+            .bind(donor)
+            .first();
+
+        return BigInt(String(row?.total || '0'));
+    }
+
     async listContributorsWithUnallocated(networkId = null, limit = 100) {
         let query = `
             SELECT *
