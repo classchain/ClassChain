@@ -1,107 +1,184 @@
-/* admin.css - base + indexer panels */
+/* css/admin.css */
 
-* { box-sizing: border-box; }
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
 body {
-  margin: 0;
-  font-family: 'Vazirmatn', Tahoma, sans-serif;
-  background: #f0f2f5;
-  color: #2c3e50;
-  direction: rtl;
+    font-family: 'Vazirmatn', Tahoma, sans-serif;
+    background: #f0f2f5;
+    color: #2c3e50;
+    direction: rtl;
 }
-.admin-container { min-height: 100vh; display: flex; flex-direction: column; }
+
+.admin-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
 .admin-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 24px;
-  background: #1a1a2e;
-  color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    color: #fff;
 }
-.logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; }
-.header-actions { display: flex; align-items: center; gap: 12px; }
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .status-badge {
-  font-size: 13px;
-  padding: 4px 10px;
-  border-radius: 20px;
-  background: #333;
+    font-size: 13px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.15);
 }
+
 .btn-connect {
-  background: #6c5ce7;
-  color: #fff;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: inherit;
+    background: #6c5ce7;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
 }
+
+.btn-connect:hover { background: #5b4cdb; }
+
 .btn-secondary {
-  background: #ecf0f1;
-  border: 1px solid #ddd;
-  padding: 8px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: inherit;
+    background: #ecf0f1;
+    border: 1px solid #ddd;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
 }
-.admin-body { display: flex; flex: 1; }
+
+.admin-body {
+    display: flex;
+    flex: 1;
+}
+
 .sidebar {
-  width: 220px;
-  background: #fff;
-  border-left: 1px solid #e8e8e8;
-  padding: 16px 0;
+    width: 230px;
+    background: #fff;
+    border-left: 1px solid #e8e8e8;
+    padding: 16px 0;
+    flex-shrink: 0;
 }
+
 .sidebar-nav a {
-  display: block;
-  padding: 12px 20px;
-  color: #555;
-  text-decoration: none;
-  font-size: 14px;
+    display: block;
+    padding: 12px 20px;
+    color: #555;
+    text-decoration: none;
+    font-size: 14px;
+    transition: background 0.15s;
 }
+
 .sidebar-nav a:hover { background: #f5f6fa; }
+
 .sidebar-nav a.active {
-  background: #eef0ff;
-  color: #6c5ce7;
-  font-weight: 600;
-  border-right: 3px solid #6c5ce7;
+    background: #eef0ff;
+    color: #6c5ce7;
+    font-weight: 600;
+    border-right: 3px solid #6c5ce7;
 }
+
 .main-content {
-  flex: 1;
-  padding: 24px;
-  overflow: auto;
+    flex: 1;
+    padding: 24px;
+    overflow: auto;
 }
-.section h2 { margin-top: 0; }
+
+.section h2 { margin-top: 0; margin-bottom: 20px; }
+
 .form-group { margin-bottom: 16px; }
-.form-group label { display: block; margin-bottom: 6px; font-size: 13px; color: #666; }
+
+.form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: #666;
+}
+
 .form-group input,
-.form-group select {
-  padding: 10px 12px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 14px;
+.form-group select,
+.form-group textarea {
+    padding: 10px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 14px;
+    width: 100%;
+    max-width: 480px;
 }
-.network-tabs, .ownership-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
-.network-tab, .ownership-tab {
-  padding: 8px 14px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background: #fff;
-  cursor: pointer;
-  font-family: inherit;
+
+.network-tabs,
+.ownership-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
 }
-.network-tab.active, .ownership-tab.active {
-  background: #6c5ce7;
-  color: #fff;
-  border-color: #6c5ce7;
+
+.network-tab,
+.ownership-tab {
+    padding: 8px 14px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    font-family: inherit;
 }
+
+.network-tab.active,
+.ownership-tab.active {
+    background: #6c5ce7;
+    color: #fff;
+    border-color: #6c5ce7;
+}
+
 .btn-create {
-  background: #27ae60;
-  color: #fff;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 15px;
+    background: #27ae60;
+    color: #fff;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 15px;
+}
+
+.input-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+.settings-group {
+    margin-bottom: 16px;
 }
 
 /* --- Indexer admin panels --- */
