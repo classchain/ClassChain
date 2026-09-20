@@ -1,6 +1,7 @@
 /**
  * VotingService — rounds + preference votes.
- * Eligibility: unallocated > 0 on the given network.
+ * Eligibility: donor has unallocated balance on at least one network.
+ * Voting is network-agnostic; network selection belongs only to financial allocation.
  * Rule: only one OPEN round at a time.
  */
 
@@ -10,15 +11,16 @@ import { AllocationEngine } from './AllocationEngine.js';
 
 export class VotingService {
 
-    constructor(db) {
+    constructor(db, options = {}) {
         if (!db) throw new Error('D1 database is required');
         this.db = db;
         this.votingRepo = new VotingRepository(db);
         this.balanceRepo = new ContributionBalanceRepository(db);
         this.allocationEngine = new AllocationEngine(db);
+        this.loadProjects = options.loadProjects || null;
     }
 
-    async openRound({ title, candidateProjects, networkId = null }) {
+    async openRound({ title, candidateProjects })
         if (!title) throw new Error('title is required');
         if (!Array.isArray(candidateProjects) || candidateProjects.length < 1) {
             throw new Error('candidateProjects must be a non-empty array');
@@ -32,7 +34,7 @@ export class VotingService {
             );
         }
 
-        return this.votingRepo.createRound({ title, candidateProjects, networkId });
+        return this.votingRepo.createRound({ title, candidateProjects });
     }
 
     async listRounds(limit = 20) {
@@ -47,7 +49,7 @@ export class VotingService {
         return { ...round, tally, votes_count: votes.length };
     }
 
-    async castVote({ roundId, donor, networkId, projectId, telegramUserId = null }) {
+    async castVote({ roundId, donor, projectId, telegramUserId = null })
         const round = await this.votingRepo.getRound(roundId);
         if (!round) throw new Error('round not found');
         if (round.status !== 'OPEN') throw new Error('round is not open');
@@ -57,9 +59,9 @@ export class VotingService {
             throw new Error('projectId is not a candidate in this round');
         }
 
-        // Eligibility: unallocated > 0
-        const balance = await this.balanceRepo.get(donor, networkId);
-        const unallocated = BigInt(balance?.unallocated || '0');
+        // Eligibility is aggregated across all networks. The voter does not
+        // choose a network; the network is resolved later during allocation.
+        const unallocated = await this.balanceRepo.getTotalUnallocated(donor);
         if (unallocated <= 0n) {
             throw new Error('donor has no unallocated balance; not eligible to vote');
         }
@@ -67,7 +69,6 @@ export class VotingService {
         await this.votingRepo.castVote({
             roundId,
             donor,
-            networkId,
             projectId,
             telegramUserId
         });
@@ -94,7 +95,9 @@ export class VotingService {
 
     /**
      * Run FIFO allocation for a CLOSED round (manual confirm).
-     * Default: global queue (networkId null) unless the round was scoped.
+     * Allocation is global FIFO, restricted to networks where the selected
+     * project actually has a treasury. The project registry is the source
+     * for that network set.
      */
     async allocateRound(roundId) {
         const round = await this.votingRepo.getRound(roundId);
@@ -106,10 +109,28 @@ export class VotingService {
             throw new Error('round missing selected_project_id or required_amount_raw');
         }
 
+        if (!this.loadProjects) {
+            throw new Error('Projects registry loader is required for allocation');
+        }
+
+        const registry = await this.loadProjects();
+        const project = this._findProject(registry, round.selected_project_id);
+        if (!project) {
+            throw new Error(`project ${round.selected_project_id} not found in Projects.json`);
+        }
+
+        const projectNetworkIds = Object.entries(project.funds || {})
+            .filter(([, fund]) => fund?.address)
+            .map(([networkId]) => networkId);
+
+        if (!projectNetworkIds.length) {
+            throw new Error('selected project has no configured treasury');
+        }
+
         const result = await this.allocationEngine.allocate({
             projectId: round.selected_project_id,
             requiredAmountRaw: round.required_amount_raw,
-            networkId: round.network_id || null
+            networkIds: projectNetworkIds
         });
 
         await this.votingRepo.markAllocated(roundId, result.allocation_batch_id);
@@ -118,5 +139,15 @@ export class VotingService {
             round_id: roundId,
             ...result
         };
+    }
+
+    _findProject(registry, projectId) {
+        const features = registry?.features || [];
+        const id = String(projectId);
+        for (const f of features) {
+            const a = f?.attributes;
+            if (a && String(a.ProjectID) === id) return a;
+        }
+        return null;
     }
 }
