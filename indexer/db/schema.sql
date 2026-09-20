@@ -171,12 +171,12 @@ CREATE TABLE IF NOT EXISTS votes (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     round_id            INTEGER NOT NULL,
     donor               TEXT NOT NULL,
-    network_id          TEXT NOT NULL,
+    network_id          TEXT,
     project_id          TEXT NOT NULL,
     telegram_user_id    TEXT,
     voted_at            INTEGER NOT NULL,
     created_at          TEXT NOT NULL,
-    UNIQUE(round_id, donor, network_id),
+    UNIQUE(round_id, donor),
     FOREIGN KEY (round_id) REFERENCES voting_rounds(id)
 );
 
