@@ -308,18 +308,6 @@
                             <span class="workflow-badge">RESULT</span>
                         </div>
                         <div id="votingRoundDetail"></div>
-                        <div id="votingResultInputs" class="result-vote-grid"></div>
-                        <button type="button" id="votingResultBtn" class="btn-secondary workflow-primary">💾 ثبت نتیجه و بستن راند</button>
-                    </div>
-
-                    <div class="workflow-card">
-                        <div class="card-header">
-                            <div>
-                                <h3>بستن راند و تخصیص FIFO</h3>
-                                <p>مبلغ پروژه دستی وارد نمی‌شود؛ برآورد پروژه مستقیماً از Projects.json خوانده می‌شود.</p>
-                            </div>
-                            <span class="workflow-badge">ALLOCATE</span>
-                        </div>
                         <div class="round-form-grid">
                             <div>
                                 <label>پروژه منتخب جامعه</label>
@@ -329,6 +317,18 @@
                                 <span>برآورد پروژه</span>
                                 <strong>از Projects.json</strong>
                             </div>
+                        </div>
+                        <div id="votingResultInputs" class="result-vote-grid"></div>
+                        <button type="button" id="votingResultBtn" class="btn-secondary workflow-primary">💾 ثبت نتیجه و بستن راند</button>
+                    </div>
+
+                    <div class="workflow-card">
+                        <div class="card-header">
+                            <div>
+                                <h3>تخصیص FIFO</h3>
+                                <p>پس از ثبت نتیجه و مشخص شدن پروژه منتخب، سهم مشارکت‌کنندگان از صف FIFO تخصیص داده می‌شود.</p>
+                            </div>
+                            <span class="workflow-badge">ALLOCATE</span>
                         </div>
                         <div class="action-row">
                             <button type="button" id="votingAllocateBtn" class="btn-connect">⚡ اجرای تخصیص FIFO</button>
