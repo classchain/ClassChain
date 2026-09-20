@@ -164,6 +164,27 @@ async function submitTron(row, tronWeb) {
   return { txHash: typeof tx === 'string' ? tx : tx?.txid || tx?.transaction || '', txIndex: Number(count) - 1 };
 }
 
+async function findTronTransaction(tronWeb, row) {
+  const token = getTokenAddress(row.network_id, 'USDT');
+  const expectedData = encodeTronTransfer(row.to_address, row.amount_raw).toLowerCase();
+  const contract = await tronWeb.contract(MULTISIG_ABI, row.multisig_address);
+  const count = Number(await contract.getTransactionCount().call());
+
+  for (let i = count - 1; i >= 0; i--) {
+    const tx = await contract.getTransaction(i).call();
+    const txData = String(tx.data || '').replace(/^0x/, '').toLowerCase();
+    if (
+      String(tx.to || '').toUpperCase() === String(token || '').toUpperCase() &&
+      String(tx.value || '0') === '0' &&
+      txData === expectedData &&
+      !tx.executed
+    ) {
+      return { index: i, confirmations: Number(tx.numConfirmations || 0), contract };
+    }
+  }
+  return null;
+}
+
 async function confirmEvm(row, account, index) {
   const web3 = new Web3(window.ethereum);
   const multisig = new web3.eth.Contract(MULTISIG_ABI, row.multisig_address);
@@ -195,21 +216,18 @@ async function walletAction(row) {
     let txHash;
     let txIndex = existing?.index;
 
-    if (txIndex === undefined) {
+    if (!existing) {
       const submitted = await submitEvm(row, account);
-      txHash = submitted.txHash;
-      txIndex = submitted.txIndex;
-    } else {
-      txHash = await confirmEvm(row, account, txIndex);
+      return { phase: 'submitted', txIndex: submitted.txIndex, txHash: submitted.txHash };
     }
 
-    if (txIndex === undefined) return { phase: 'submitted', txIndex, txHash };
-    await recordOnchainState(row.id, txIndex, txHash, account);
-    const finalTx = await multisig.methods.getTransaction(txIndex).call();
+    const txHash = await confirmEvm(row, account, existing.index);
+    await recordOnchainState(row.id, existing.index, txHash, account);
+    const finalTx = await multisig.methods.getTransaction(existing.index).call();
     if (finalTx.executed) {
       await indexerFetch(`/api/disburse/${row.id}/executed`, { method: 'POST', body: JSON.stringify({ execute_tx_hash: txHash }) });
     }
-    return { phase: 'confirmed', txIndex, txHash };
+    return { phase: 'confirmed', txIndex: existing.index, txHash };
   }
 
   const tronWeb = wallet.provider;
@@ -274,9 +292,7 @@ export async function loadDisbursePending() {
         <tbody>
           ${rows.map(r => {
             const signatures = `${r.confirmations_count || 0}/${r.required_signatures || 1}`;
-            const action = r.multisig_address
-              ? (r.onchain_tx_index == null ? 'ایجاد تراکنش' : 'تأیید با کیف پول')
-              : 'نیازمند Multisig';
+            const action = r.multisig_address ? 'اقدام با کیف پول' : 'نیازمند Multisig';
 
             return `
               <tr>
