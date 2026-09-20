@@ -60,6 +60,21 @@ const ERC20_ABI = [
   }
 ];
 
+function syncNetworkFilter(rows) {
+  const select = el('disburseNetworkFilter');
+  if (!select) return;
+
+  const current = select.value;
+  const networks = [...new Set((rows || []).map(r => r.network_id).filter(Boolean))].sort();
+
+  select.innerHTML = '<option value="">همه شبکه‌ها</option>' +
+    networks.map(id => `<option value="${id}">${id}</option>`).join('');
+
+  if (current && networks.includes(current)) {
+    select.value = current;
+  }
+}
+
 function statusBadge(status) {
   const colors = {
     PENDING_APPROVAL: '#f39c12',
@@ -266,6 +281,7 @@ export async function loadDisbursePending() {
     const q = networkId ? `?network_id=${encodeURIComponent(networkId)}` : '';
     const data = await indexerFetch(`/api/disburse/pending${q}`);
     const rows = data.pending || [];
+    syncNetworkFilter(rows);
 
     if (!rows.length) {
       box.innerHTML = '<p style="color:#666;">درخواستی در انتظار تأیید نیست.</p>';
