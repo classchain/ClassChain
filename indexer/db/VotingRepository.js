@@ -67,7 +67,7 @@ export class VotingRepository {
         return (result.results || []).map(r => this._normalizeRound(r));
     }
 
-    async closeRound(id, selectedProjectId, requiredAmountRaw) {
+    async closeRound(id, selectedProjectId, requiredAmountRaw, resultTally = []) {
         const closedAt = Math.floor(Date.now() / 1000);
         await this.db
             .prepare(`
@@ -75,12 +75,14 @@ export class VotingRepository {
                 SET status = 'CLOSED',
                     selected_project_id = ?,
                     required_amount_raw = ?,
+                    result_tally = ?,
                     closed_at = ?
                 WHERE id = ? AND status = 'OPEN'
             `)
             .bind(
                 selectedProjectId,
                 String(requiredAmountRaw),
+                JSON.stringify(resultTally),
                 closedAt,
                 id
             )
@@ -169,9 +171,16 @@ export class VotingRepository {
         } catch {
             candidates = [];
         }
+        let resultTally = [];
+        try {
+            resultTally = JSON.parse(row.result_tally || '[]');
+        } catch {
+            resultTally = [];
+        }
         return {
             ...row,
-            candidate_projects: candidates
+            candidate_projects: candidates,
+            result_tally: resultTally
         };
     }
 }
