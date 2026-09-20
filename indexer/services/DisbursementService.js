@@ -120,14 +120,32 @@ export class DisbursementService {
     }
 
     async listPending(networkId = null, limit = 50) {
-        return this.repo.listPending(networkId, limit);
+        const rows = await this.repo.listPending(networkId, limit);
+        return this._enrich(rows);
     }
 
     async get(id) {
         const row = await this.repo.get(id);
         if (!row) return null;
         const approvals = await this.repo.listApprovals(id);
-        return { ...row, approvals };
+        const [enriched] = await this._enrich([row]);
+        return { ...(enriched || row), approvals };
+    }
+
+    async _enrich(rows) {
+        if (!rows.length || !this.loadProjects) return rows;
+        const registry = await this.loadProjects();
+        return rows.map((row) => {
+            const project = this._findProject(registry, row.project_id);
+            const general = this._findProject(registry, GENERAL_PROJECT_ID);
+            const fund = general?.funds?.[row.network_id];
+            return {
+                ...row,
+                multisig_address: fund?.multisigAddress || null,
+                required_signatures: Number(row.required_signatures) || Number(fund?.requiredSignatures) || 1,
+                project_name: project?.ProjectName || project?.Name || null,
+            };
+        });
     }
 
     async approve(disbursementId, approver) {
