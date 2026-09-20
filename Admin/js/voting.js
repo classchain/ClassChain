@@ -31,7 +31,7 @@ export async function loadVotingRounds() {
     box.innerHTML = `
       <table class="admin-simple-table">
         <thead>
-          <tr><th>ID</th><th>عنوان</th><th>وضعیت</th><th>کاندیدها</th><th>شبکه</th><th></th></tr>
+          <tr><th>ID</th><th>عنوان</th><th>وضعیت</th><th>کاندیدها</th><th></th></tr>
         </thead>
         <tbody>
           ${rounds
@@ -93,7 +93,6 @@ export async function openRound() {
     ?.split(/[,\s]+/)
     .map((s) => s.trim())
     .filter(Boolean);
-  const networkId = el('votingNewNetwork')?.value || null;
   if (!title || !cands?.length) {
     alert('عنوان و حداقل یک پروژه کاندید لازم است');
     return;
@@ -104,7 +103,6 @@ export async function openRound() {
       body: JSON.stringify({
         title,
         candidate_projects: cands,
-        network_id: networkId || null,
       }),
     });
     alert('راند باز شد: #' + data.round?.id);
@@ -117,7 +115,6 @@ export async function openRound() {
 export async function castVote() {
   const roundId = el('votingSelectedRoundId')?.value || el('votingVoteRoundId')?.value;
   const donor = el('votingVoteDonor')?.value?.trim();
-  const networkId = el('votingVoteNetwork')?.value?.trim() || 'polygon_amoy';
   const projectId = el('votingVoteProject')?.value?.trim();
   if (!roundId || !donor || !projectId) {
     alert('ابتدا جزئیات راند را بزنید، سپس donor و project را پر کنید');
@@ -128,7 +125,6 @@ export async function castVote() {
       method: 'POST',
       body: JSON.stringify({
         donor,
-        network_id: networkId,
         project_id: projectId,
       }),
     });
