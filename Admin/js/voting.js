@@ -68,6 +68,12 @@ export async function loadRoundDetail(id) {
       return;
     }
     if (el('votingSelectedRoundId')) el('votingSelectedRoundId').value = r.id;
+    const projects = await loadProjectsForVoting();
+    const candidateProjects = projects.filter((project) =>
+      (r.candidate_projects || []).includes(String(project.ProjectID))
+    );
+    fillProjectSelect(el('votingVoteProject'), candidateProjects, false);
+    fillProjectSelect(el('votingCloseProject'), candidateProjects, false);
     const tally = (r.tally || [])
       .map((t) => `${t.project_id}: ${t.vote_count}`)
       .join(' · ');
