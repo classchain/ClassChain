@@ -64,7 +64,7 @@ export async function loadRoundDetail(id) {
     );
     fillProjectSelect(el('votingCloseProject'), candidateProjects, false);
     renderResultInputs(candidateProjects, r.result_tally || r.tally || []);
-    const tally = (r.tally || [])
+    const tally = (r.result_tally?.length ? r.result_tally : (r.tally || []))
       .map((t) => `${t.project_id}: ${t.vote_count}`)
       .join(' · ');
     box.innerHTML = `
@@ -239,7 +239,6 @@ export function initVotingPanel() {
   el('votingRefreshBtn')?.addEventListener('click', () => loadVotingRounds());
   el('votingOpenBtn')?.addEventListener('click', () => openRound());
   el('votingResultBtn')?.addEventListener('click', () => saveVotingResult());
-  el('votingCloseBtn')?.addEventListener('click', () => closeRound());
   el('votingAllocateBtn')?.addEventListener('click', () => allocateRound());
   prepareVotingProjectSelectors().catch((e) => console.error(e));
   el('votingRoundsList')?.addEventListener('click', (e) => {
