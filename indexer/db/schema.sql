@@ -159,6 +159,7 @@ CREATE TABLE IF NOT EXISTS voting_rounds (
     status              TEXT NOT NULL DEFAULT 'OPEN',
     selected_project_id TEXT,
     required_amount_raw TEXT,
+    result_tally        TEXT NOT NULL DEFAULT '[]',
     network_id          TEXT,
     allocation_batch_id TEXT,
     opened_at           INTEGER NOT NULL,
