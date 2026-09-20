@@ -98,7 +98,7 @@ export class VotingService {
      * Close round with admin-selected project + required amount.
      * Does NOT allocate yet — allocation is a separate explicit step.
      */
-    async closeRound({ roundId, selectedProjectId }) {
+    async closeRound({ roundId, selectedProjectId, resultTally = [] }) {
         const round = await this.votingRepo.getRound(roundId);
         if (!round) throw new Error('round not found');
         if (round.status !== 'OPEN') throw new Error('round is not open');
@@ -133,7 +133,22 @@ export class VotingService {
             throw new Error(`project ${selectedProjectId} has zero targetAmount(USDT)`);
         }
 
-        return this.votingRepo.closeRound(roundId, selectedProjectId, requiredAmountRaw);
+        const tally = Array.isArray(resultTally) ? resultTally : [];
+        const candidateSet = new Set(candidates.map(String));
+        const seen = new Set();
+        for (const item of tally) {
+            const projectId = String(item?.project_id ?? item?.projectId ?? '');
+            const voteCount = Number(item?.vote_count ?? item?.voteCount);
+            if (!candidateSet.has(projectId)) throw new Error('result contains non-candidate project ' + projectId);
+            if (seen.has(projectId)) throw new Error('duplicate result for project ' + projectId);
+            if (!Number.isInteger(voteCount) || voteCount < 0) throw new Error('invalid vote count for project ' + projectId);
+            seen.add(projectId);
+        }
+        if (seen.size !== candidateSet.size) {
+            throw new Error('result_tally must contain every candidate project exactly once');
+        }
+
+        return this.votingRepo.closeRound(roundId, selectedProjectId, requiredAmountRaw, tally);
     }
 
     /**
