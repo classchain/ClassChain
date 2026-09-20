@@ -7,16 +7,6 @@ function el(id) {
   return document.getElementById(id);
 }
 
-/** USDT human amount → 6-decimal base units. Long integers are treated as already-raw. */
-function usdtToRaw(v) {
-  const s = String(v || '').trim().replace(/,/g, '');
-  if (!s) throw new Error('مبلغ خالی است');
-  if (/^\d{10,}$/.test(s)) return s;
-  const n = Number(s);
-  if (!Number.isFinite(n) || n <= 0) throw new Error('مبلغ USDT نامعتبر است');
-  return String(BigInt(Math.round(n * 1e6)));
-}
-
 export async function loadVotingRounds() {
   const box = el('votingRoundsList');
   if (!box) return;
@@ -92,13 +82,46 @@ export async function loadRoundDetail(id) {
   }
 }
 
+let projectsCache = null;
+
+async function loadProjectsForVoting() {
+  if (projectsCache) return projectsCache;
+  const response = await fetch('../frontend/data/Projects.json', { cache: 'no-store' });
+  if (!response.ok) throw new Error('Projects.json قابل بارگذاری نیست');
+  const data = await response.json();
+  projectsCache = (data.features || [])
+    .map((feature) => feature?.attributes)
+    .filter((project) => {
+      if (!project?.ProjectID || String(project.ProjectID) === 'GENERAL_POOL') return false;
+      return Object.values(project.funds || {}).some((fund) => fund?.address);
+    });
+  return projectsCache;
+}
+
+function fillProjectSelect(select, projects, multiple = false) {
+  if (!select) return;
+  select.multiple = multiple;
+  select.innerHTML = multiple ? '' : '<option value="">انتخاب پروژه</option>';
+  for (const project of projects) {
+    const option = document.createElement('option');
+    option.value = String(project.ProjectID);
+    option.textContent = String(project.ProjectID) + ' — ' + (project['نام پروژه'] || 'بدون نام');
+    select.appendChild(option);
+  }
+}
+
+async function prepareVotingProjectSelectors() {
+  const projects = await loadProjectsForVoting();
+  fillProjectSelect(el('votingNewCandidates'), projects, true);
+}
+
 export async function openRound() {
   const title = el('votingNewTitle')?.value?.trim();
-  const cands = el('votingNewCandidates')?.value
-    ?.split(/[,\s]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (!title || !cands?.length) {
+  const candidateSelect = el('votingNewCandidates');
+  const cands = candidateSelect
+    ? Array.from(candidateSelect.selectedOptions).map((option) => option.value).filter(Boolean)
+    : [];
+  if (!title || !cands.length) {
     alert('عنوان و حداقل یک پروژه کاندید لازم است');
     return;
   }
@@ -122,7 +145,7 @@ export async function castVote() {
   const donor = el('votingVoteDonor')?.value?.trim();
   const projectId = el('votingVoteProject')?.value?.trim();
   if (!roundId || !donor || !projectId) {
-    alert('ابتدا جزئیات راند را بزنید، سپس donor و project را پر کنید');
+    alert('ابتدا راند را از جزئیات انتخاب کنید و سپس donor و پروژه را مشخص کنید');
     return;
   }
   try {
@@ -143,27 +166,17 @@ export async function castVote() {
 export async function closeRound() {
   const roundId = el('votingSelectedRoundId')?.value;
   const selected = el('votingCloseProject')?.value?.trim();
-  const amountInput = el('votingCloseAmount')?.value?.trim();
-  if (!roundId || !selected || !amountInput) {
-    alert('راند را از جزئیات انتخاب کنید، پروژه و مبلغ USDT لازم است');
-    return;
-  }
-  let amountRaw;
-  try {
-    amountRaw = usdtToRaw(amountInput);
-  } catch (e) {
-    alert(e.message);
+  if (!roundId || !selected) {
+    alert('راند را از جزئیات انتخاب کنید و پروژه منتخب را مشخص کنید');
     return;
   }
   try {
-    await indexerFetch(`/api/voting/rounds/${roundId}/close`, {
+    const data = await indexerFetch(`/api/voting/rounds/${roundId}/close`, {
       method: 'POST',
-      body: JSON.stringify({
-        selected_project_id: selected,
-        required_amount_raw: amountRaw,
-      }),
+      body: JSON.stringify({ selected_project_id: selected }),
     });
-    alert('راند بسته شد · ' + formatUsdt(amountRaw) + ' USDT');
+    const amountRaw = data.round?.required_amount_raw || '0';
+    alert('راند بسته شد · برآورد پروژه: ' + formatUsdt(amountRaw) + ' USDT');
     await loadVotingRounds();
     await loadRoundDetail(roundId);
   } catch (e) {
@@ -206,6 +219,7 @@ export function initVotingPanel() {
   el('votingVoteBtn')?.addEventListener('click', () => castVote());
   el('votingCloseBtn')?.addEventListener('click', () => closeRound());
   el('votingAllocateBtn')?.addEventListener('click', () => allocateRound());
+  prepareVotingProjectSelectors().catch((e) => console.error(e));
   el('votingRoundsList')?.addEventListener('click', (e) => {
     const t = e.target;
     if (!(t instanceof HTMLElement)) return;
