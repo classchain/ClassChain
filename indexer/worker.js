@@ -307,6 +307,7 @@ export default {
         const round = await voting.closeRound({
           roundId: Number(closeMatch[1]),
           selectedProjectId: body.selected_project_id || body.selectedProjectId,
+          resultTally: body.result_tally || body.resultTally || [],
         });
         return jsonResponse({ ok: true, round });
       } catch (e) {
