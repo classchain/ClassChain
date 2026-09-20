@@ -104,6 +104,7 @@ export class DisbursementService {
                 amount_raw: String(amount),
                 from_address: fromAddress,
                 to_address: toAddress,
+                multisig_address: fromFund?.multisigAddress || null,
                 required_signatures: requiredSignatures,
                 id: row.id,
                 inserted: row.inserted,
