@@ -1,6 +1,6 @@
 /**
  * ClassChain Indexer — Cloudflare Worker + HTTP API
- * Phase 0 / Phase 1 / Phase 2 / Phase 3
+ * Phase 0 / Phase 1 / Phase 2 / Phase 3 / Phase 4
  *
  * Phase 1:
  *   GET  /api/contributor?donor=...&network_id=...
@@ -24,6 +24,13 @@
  *   GET  /api/community/status?telegram_user_id=... | donor=&network_id=
  *   GET  /api/community/members?type=contributor|project&project_id=
  *
+ * Phase 4:
+ *   GET  /api/disburse/pending
+ *   GET  /api/disburse/:id
+ *   POST /api/disburse/:id/approve
+ *   POST /api/disburse/:id/executed      (admin)
+ *   POST /api/disburse/prepare           (admin)
+ *
  * Sync filter:
  *   POST /sync?projectId=GENERAL_POOL
  */
@@ -39,6 +46,7 @@ import { VotingService } from './services/VotingService.js';
 import { AllocationEngine } from './services/AllocationEngine.js';
 import { WalletLinkService } from './services/WalletLinkService.js';
 import { CommunityStatusService } from './services/CommunityStatusService.js';
+import { DisbursementService } from './services/DisbursementService.js';
 import { createAdapter } from './adapters/createAdapter.js';
 
 const DEFAULT_NETWORK_IDS = ['polygon_amoy', 'tron_nile'];
@@ -62,7 +70,7 @@ function readNumber(env, key, fallback) {
 
 function requireAdmin(request, env) {
   const secret = env.INDEXER_SYNC_SECRET;
-  if (!secret) return true; // no secret configured → allow (dev)
+  if (!secret) return true;
   return request.headers.get('X-Indexer-Secret') === secret;
 }
 
@@ -144,7 +152,7 @@ export default {
       return jsonResponse({
         ok: true,
         service: 'classchain-indexer',
-        phase: 3,
+        phase: 4,
         networks: readNetworkIds(env),
       });
     }
@@ -161,8 +169,6 @@ export default {
         return jsonResponse({ ok: false, error: e.message }, 500);
       }
     }
-
-    // ---------- existing APIs ----------
 
     if (method === 'GET' && path === '/api/donors') {
       const projectId = url.searchParams.get('projectId');
@@ -205,8 +211,6 @@ export default {
       return jsonResponse({ status: 'ok', treasuries: rows.results });
     }
 
-    // ---------- Phase 1 APIs ----------
-
     if (method === 'GET' && path === '/api/contributor') {
       const donor = url.searchParams.get('donor');
       const networkId = url.searchParams.get('network_id');
@@ -236,8 +240,6 @@ export default {
       const contributors = await ledger.listContributors(networkId, limit);
       return jsonResponse({ ok: true, contributors });
     }
-
-    // ---------- Phase 2 APIs ----------
 
     if (method === 'GET' && path === '/api/voting/rounds') {
       const voting = new VotingService(env.DB);
@@ -319,13 +321,24 @@ export default {
       try {
         const voting = new VotingService(env.DB);
         const result = await voting.allocateRound(Number(allocateMatch[1]));
-        return jsonResponse({ ok: true, ...result });
+        let disbursement = null;
+        try {
+          const disb = new DisbursementService(env.DB, {
+            loadProjects: () => loadProjectsRegistry(env),
+          });
+          disbursement = await disb.prepareFromBatch(
+            result.allocation_batch_id,
+            result.project_id
+          );
+        } catch (de) {
+          disbursement = { ok: false, error: de.message };
+        }
+        return jsonResponse({ ok: true, ...result, disbursement });
       } catch (e) {
         return jsonResponse({ ok: false, error: e.message }, 400);
       }
     }
 
-    // Direct FIFO allocate (without voting round) — admin only
     if (method === 'POST' && path === '/api/allocate') {
       if (!requireAdmin(request, env)) {
         return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
@@ -334,18 +347,29 @@ export default {
       if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
       try {
         const engine = new AllocationEngine(env.DB);
+        const projectId = body.project_id || body.projectId;
         const result = await engine.allocate({
-          projectId: body.project_id || body.projectId,
+          projectId,
           requiredAmountRaw: body.required_amount_raw || body.requiredAmountRaw,
           networkId: body.network_id || body.networkId || null,
         });
-        return jsonResponse(result);
+        let disbursement = null;
+        try {
+          const disb = new DisbursementService(env.DB, {
+            loadProjects: () => loadProjectsRegistry(env),
+          });
+          disbursement = await disb.prepareFromBatch(
+            result.allocation_batch_id,
+            projectId
+          );
+        } catch (de) {
+          disbursement = { ok: false, error: de.message };
+        }
+        return jsonResponse({ ...result, disbursement });
       } catch (e) {
         return jsonResponse({ ok: false, error: e.message }, 400);
       }
     }
-
-    // ---------- Phase 3 APIs: Wallet Linking ----------
 
     if (method === 'POST' && path === '/api/link/request') {
       const body = await readJsonBody(request);
@@ -414,8 +438,6 @@ export default {
       }
     }
 
-    // ---------- Phase 3 APIs: Community Status ----------
-
     if (method === 'GET' && path === '/api/community/status') {
       const telegramUserId = url.searchParams.get('telegram_user_id');
       const donor = url.searchParams.get('donor');
@@ -461,6 +483,82 @@ export default {
           ok: false,
           error: 'type must be contributor or project',
         }, 400);
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    if (method === 'GET' && path === '/api/disburse/pending') {
+      const networkId = url.searchParams.get('network_id') || null;
+      const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 200);
+      const svc = new DisbursementService(env.DB, {
+        loadProjects: () => loadProjectsRegistry(env),
+      });
+      const rows = await svc.listPending(networkId, limit);
+      return jsonResponse({ ok: true, pending: rows });
+    }
+
+    const disburseGet = path.match(/^\/api\/disburse\/(\d+)$/);
+    if (method === 'GET' && disburseGet) {
+      const svc = new DisbursementService(env.DB);
+      const row = await svc.get(Number(disburseGet[1]));
+      if (!row) return jsonResponse({ ok: false, error: 'not_found' }, 404);
+      return jsonResponse({ ok: true, disbursement: row });
+    }
+
+    const disburseApprove = path.match(/^\/api\/disburse\/(\d+)\/approve$/);
+    if (method === 'POST' && disburseApprove) {
+      const body = await readJsonBody(request);
+      if (!body?.approver) {
+        return jsonResponse({ ok: false, error: 'approver is required' }, 400);
+      }
+      try {
+        const svc = new DisbursementService(env.DB);
+        const row = await svc.approve(Number(disburseApprove[1]), body.approver);
+        return jsonResponse({ ok: true, disbursement: row });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    const disburseExecuted = path.match(/^\/api\/disburse\/(\d+)\/executed$/);
+    if (method === 'POST' && disburseExecuted) {
+      if (!requireAdmin(request, env)) {
+        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
+      }
+      const body = await readJsonBody(request);
+      const txHash = body?.execute_tx_hash || body?.executeTxHash;
+      if (!txHash) {
+        return jsonResponse({ ok: false, error: 'execute_tx_hash is required' }, 400);
+      }
+      try {
+        const svc = new DisbursementService(env.DB);
+        const row = await svc.markExecuted(
+          Number(disburseExecuted[1]),
+          txHash,
+          body.onchain_tx_index ?? body.onchainTxIndex ?? null
+        );
+        return jsonResponse({ ok: true, disbursement: row });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    if (method === 'POST' && path === '/api/disburse/prepare') {
+      if (!requireAdmin(request, env)) {
+        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
+      }
+      const body = await readJsonBody(request);
+      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
+      try {
+        const svc = new DisbursementService(env.DB, {
+          loadProjects: () => loadProjectsRegistry(env),
+        });
+        const result = await svc.prepareFromBatch(
+          body.allocation_batch_id || body.allocationBatchId,
+          body.project_id || body.projectId
+        );
+        return jsonResponse(result);
       } catch (e) {
         return jsonResponse({ ok: false, error: e.message }, 400);
       }
