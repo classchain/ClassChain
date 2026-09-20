@@ -213,9 +213,6 @@ async function walletAction(row) {
     const multisig = new web3.eth.Contract(MULTISIG_ABI, row.multisig_address);
 
     const existing = await findEvmTransaction(multisig, row);
-    let txHash;
-    let txIndex = existing?.index;
-
     if (!existing) {
       const submitted = await submitEvm(row, account);
       return { phase: 'submitted', txIndex: submitted.txIndex, txHash: submitted.txHash };
@@ -321,7 +318,7 @@ export async function approveDisburse(id) {
     const data = await indexerFetch(`/api/disburse/${id}`);
     if (!data.disbursement) throw new Error('درخواست یافت نشد.');
     await walletAction(data.disbursement);
-    alert('تراکنش کیف پول ثبت شد. وضعیت پس از تأیید بلاکچین به‌روزرسانی می‌شود.');
+    alert('عملیات کیف پول انجام شد. اگر این اولین امضا باشد، تراکنش Multisig ایجاد شده و امضای بعدی با همین درخواست انجام می‌شود.');
     await loadDisbursePending();
     await loadDisburseDetail(id);
   } catch (e) {
