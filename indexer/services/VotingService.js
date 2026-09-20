@@ -34,6 +34,24 @@ export class VotingService {
             );
         }
 
+        if (!this.loadProjects) {
+            throw new Error('Projects registry loader is required for voting');
+        }
+        const registry = await this.loadProjects();
+        for (const projectId of candidateProjects) {
+            const project = this._findProject(registry, projectId);
+            if (!project) {
+                throw new Error(`candidate project ${projectId} not found in Projects.json`);
+            }
+            if (String(project.ProjectID) === 'GENERAL_POOL') {
+                throw new Error('GENERAL_POOL cannot be a voting candidate');
+            }
+            const hasTreasury = Object.values(project.funds || {}).some((fund) => fund?.address);
+            if (!hasTreasury) {
+                throw new Error(`candidate project ${projectId} has no configured treasury`);
+            }
+        }
+
         return this.votingRepo.createRound({ title, candidateProjects });
     }
 
@@ -80,7 +98,7 @@ export class VotingService {
      * Close round with admin-selected project + required amount.
      * Does NOT allocate yet — allocation is a separate explicit step.
      */
-    async closeRound({ roundId, selectedProjectId, requiredAmountRaw }) {
+    async closeRound({ roundId, selectedProjectId }) {
         const round = await this.votingRepo.getRound(roundId);
         if (!round) throw new Error('round not found');
         if (round.status !== 'OPEN') throw new Error('round is not open');
@@ -88,6 +106,31 @@ export class VotingService {
         const candidates = round.candidate_projects || [];
         if (!candidates.includes(selectedProjectId)) {
             throw new Error('selectedProjectId is not a candidate');
+        }
+
+        if (!this.loadProjects) {
+            throw new Error('Projects registry loader is required for voting');
+        }
+        const registry = await this.loadProjects();
+        const project = this._findProject(registry, selectedProjectId);
+        if (!project) {
+            throw new Error(`project ${selectedProjectId} not found in Projects.json`);
+        }
+
+        const targetAmount = project['targetAmount(USDT)'];
+        if (targetAmount === undefined || targetAmount === null || String(targetAmount).trim() === '') {
+            throw new Error(`project ${selectedProjectId} has no targetAmount(USDT) in Projects.json`);
+        }
+
+        const targetText = String(targetAmount).replace(/,/g, '').trim();
+        if (!/^\d+(\.\d+)?$/.test(targetText)) {
+            throw new Error(`invalid targetAmount(USDT) for project ${selectedProjectId}`);
+        }
+        const [whole, fraction = ''] = targetText.split('.');
+        const fractionPadded = (fraction + '000000').slice(0, 6);
+        const requiredAmountRaw = (BigInt(whole) * 1000000n + BigInt(fractionPadded)).toString();
+        if (requiredAmountRaw === '0') {
+            throw new Error(`project ${selectedProjectId} has zero targetAmount(USDT)`);
         }
 
         return this.votingRepo.closeRound(roundId, selectedProjectId, requiredAmountRaw);
