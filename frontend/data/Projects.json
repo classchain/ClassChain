@@ -671,7 +671,7 @@
         "targetAmount(USDT)": 0,
         "status": null,
         "raisedAmount": null,
-        "funds": {    
+        "funds": {
           "polygon_amoy": {
             "address": "0xf0A747a45576c37a959078D688d4ad6044E9Ca76",
             "multisigAddress": null,
@@ -682,6 +682,18 @@
             "createdAt": "2026-09-15T07:46:16.668Z",
             "network": "polygon_amoy",
             "isMultisig": false
+          },
+          "tron_nile": {
+            "address": "TNpH6AyKJRLip6NEp6wjaTw3FbbduFD1hJ",
+            "multisigAddress": null,
+            "owners": [
+              "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1",
+              "TWriCnUmTXBBZNoGRgS9m8iqJMs3efrYHd"
+            ],
+            "requiredSignatures": 2,
+            "createdAt": "2026-09-22T08:04:13.564Z",
+            "network": "tron_nile",
+            "isMultisig": true
           }
         }
       }
