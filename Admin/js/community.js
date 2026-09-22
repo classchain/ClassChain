@@ -28,20 +28,46 @@ function findGeneralPool(registry) {
   return null;
 }
 
+function inferNetworkId(row) {
+  if (row.network_id) return row.network_id;
+  if (row.networkId) return row.networkId;
+  const donor = String(row.donor || '');
+  if (donor.startsWith('T')) return 'tron_nile';
+  if (donor.startsWith('0x') || donor.startsWith('0X')) return 'polygon_amoy';
+  return 'unknown';
+}
+
+function amountToRaw(row) {
+  if (row.amount_raw != null && String(row.amount_raw).trim() !== '') {
+    try {
+      return BigInt(String(row.amount_raw));
+    } catch {
+      /* fall through */
+    }
+  }
+  const a = Number(row.amount || 0);
+  if (!Number.isFinite(a)) return 0n;
+  return BigInt(Math.round(a * 1e6));
+}
+
 /**
- * Render GENERAL_POOL treasury summary in the hero panel:
- * addresses per network + ledger unallocated totals.
+ * Render GENERAL_POOL treasury:
+ * - on-chain balance (same source as donate page) when possible
+ * - indexed deposits from /api/transfers on all networks
  */
 export async function loadGeneralPoolTreasuryInfo() {
   const box = el('generalPoolTreasuryInfo');
+  const depositsBox = el('generalPoolDeposits');
   if (!box) return;
 
   box.innerHTML = '<div class="treasury-info-loading muted">در حال بارگذاری اطلاعات خزانه…</div>';
+  if (depositsBox) depositsBox.innerHTML = '<p class="muted">…</p>';
 
   try {
-    const [registry, contributorsData] = await Promise.all([
+    const [registry, transfersData, syncData] = await Promise.all([
       loadProjectsRegistry(),
-      indexerFetch('/api/contributors?limit=500').catch(() => ({ contributors: [] })),
+      indexerFetch('/api/transfers?projectId=GENERAL_POOL').catch(() => ({ transfers: [] })),
+      indexerFetch('/api/sync-status').catch(() => ({ treasuries: [] })),
     ]);
 
     const general = findGeneralPool(registry);
@@ -51,19 +77,43 @@ export async function loadGeneralPoolTreasuryInfo() {
     }
 
     const funds = general.funds || {};
-    const contributors = contributorsData.contributors || [];
+    const networks = Object.keys(funds).sort();
+    const transfers = transfersData.transfers || transfersData.donors || [];
 
-    // Sum unallocated per network from ledger
-    const unallocByNet = {};
-    let totalUnalloc = 0n;
-    for (const c of contributors) {
-      const nid = c.network_id || c.networkId;
-      const u = BigInt(String(c.unallocated || '0'));
-      unallocByNet[nid] = (unallocByNet[nid] || 0n) + u;
-      totalUnalloc += u;
+    const indexedByNet = {};
+    let indexedTotal = 0n;
+    for (const t of transfers) {
+      const nid = inferNetworkId(t);
+      const raw = amountToRaw(t);
+      indexedByNet[nid] = (indexedByNet[nid] || 0n) + raw;
+      indexedTotal += raw;
     }
 
-    const networks = Object.keys(funds).sort();
+    let chainTotal = null;
+    let chainBreakdown = [];
+    try {
+      if (window.ClassChainRaisedReader?.getProjectRaisedUSDT) {
+        const result = await window.ClassChainRaisedReader.getProjectRaisedUSDT(general);
+        chainTotal = Number(result?.total) || 0;
+        chainBreakdown = result?.breakdown || [];
+      }
+    } catch (e) {
+      console.warn('on-chain balance failed', e);
+    }
+
+    const chainByNet = {};
+    for (const b of chainBreakdown) {
+      const nid = b.networkId || b.network_id || b.network;
+      chainByNet[nid] = Number(b.amount) || 0;
+    }
+
+    const syncMap = {};
+    for (const t of syncData.treasuries || []) {
+      if (String(t.project_id) === 'GENERAL_POOL') {
+        syncMap[t.network_id] = t;
+      }
+    }
+
     if (!networks.length) {
       box.innerHTML = '<div class="err">برای GENERAL_POOL هنوز آدرسی ثبت نشده.</div>';
       return;
@@ -73,28 +123,91 @@ export async function loadGeneralPoolTreasuryInfo() {
       .map((nid) => {
         const fund = funds[nid] || {};
         const addr = fund.address || '—';
-        const bal = unallocByNet[nid] != null ? formatUsdt(String(unallocByNet[nid])) : '0';
+        const chainBal =
+          chainByNet[nid] != null ? Number(chainByNet[nid]).toFixed(2) : null;
+        const indexedBal = formatUsdt(String(indexedByNet[nid] || 0n));
+        const sync = syncMap[nid];
+        const syncLabel = sync
+          ? `indexed ${sync.tx_count ?? 0} tx · ${sync.status || '?'}`
+          : 'sync n/a';
         const owners = Array.isArray(fund.owners) ? fund.owners.length : 0;
         const sigs = fund.requiredSignatures ?? 1;
         const multi = fund.isMultisig ? `multisig ${sigs}/${owners}` : 'تک‌امضا';
+        const balHtml =
+          chainBal != null
+            ? `<div class="ti-bal">${chainBal} USDT</div><div class="ti-meta">ایندکس: ${indexedBal}</div>`
+            : `<div class="ti-bal">${indexedBal} USDT</div><div class="ti-meta">از transfers ایندکسر</div>`;
         return `<div class="ti-row">
           <div>
             <div class="ti-net">${nid}</div>
             <div class="ti-addr" title="${addr}">${shortAddr(addr)}</div>
-            <div class="ti-meta">${multi}</div>
+            <div class="ti-meta">${multi} · ${syncLabel}</div>
           </div>
-          <div class="ti-bal">${bal} USDT</div>
+          <div style="text-align:left">${balHtml}</div>
         </div>`;
       })
       .join('');
 
+    const totalLabel =
+      chainTotal != null
+        ? `${chainTotal.toFixed(2)} USDT (زنجیره)`
+        : `${formatUsdt(String(indexedTotal))} USDT (ایندکس)`;
+
     box.innerHTML = `
-      <div class="ti-title">خزانه عمومی · موجودی آزاد دفترکل</div>
+      <div class="ti-title">خزانه عمومی · موجودی فعلی</div>
       ${rows}
-      <div class="ti-meta">جمع آزاد: <strong>${formatUsdt(String(totalUnalloc))} USDT</strong> · موجودی زنجیره جداگانه است</div>
+      <div class="ti-meta">جمع: <strong>${totalLabel}</strong>
+        ${chainTotal != null ? ` · ایندکس‌شده: ${formatUsdt(String(indexedTotal))} USDT` : ''}
+      </div>
     `;
+
+    if (depositsBox) {
+      if (!transfers.length) {
+        depositsBox.innerHTML =
+          '<p class="muted">واریزی ایندکس‌شده‌ای ثبت نشده (sync ممکن است ناقص باشد).</p>';
+      } else {
+        const sorted = [...transfers].sort((a, b) => {
+          const ba = Number(a.block_number || 0);
+          const bb = Number(b.block_number || 0);
+          if (bb !== ba) return bb - ba;
+          return Number(b.event_index || 0) - Number(a.event_index || 0);
+        });
+        depositsBox.innerHTML = `
+          <table class="admin-simple-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>شبکه</th>
+                <th>Donor</th>
+                <th>مبلغ</th>
+                <th>Tx</th>
+                <th>بلاک</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${sorted
+                .map((t, i) => {
+                  const nid = inferNetworkId(t);
+                  const tx = t.tx_hash || t.txHash || '';
+                  return `<tr>
+                    <td>${i + 1}</td>
+                    <td>${nid}</td>
+                    <td><code title="${t.donor || ''}">${shortAddr(t.donor)}</code></td>
+                    <td><strong>${formatUsdt(String(amountToRaw(t)))}</strong></td>
+                    <td><code title="${tx}">${shortAddr(tx)}</code></td>
+                    <td>${t.block_number ?? '—'}</td>
+                  </tr>`;
+                })
+                .join('')}
+            </tbody>
+          </table>
+          <p class="ti-meta" style="margin-top:8px">مجموع واریزی‌های ایندکس‌شده: <strong>${formatUsdt(String(indexedTotal))} USDT</strong> · ${transfers.length} تراکنش</p>
+        `;
+      }
+    }
   } catch (e) {
     box.innerHTML = `<div class="err">${e.message}</div>`;
+    if (depositsBox) depositsBox.innerHTML = '';
   }
 }
 
@@ -272,7 +385,6 @@ export function initCommunityPanel() {
   });
   el('communityLookupBtn')?.addEventListener('click', () => lookupContributor());
 
-  // Initial treasury + queue when panel boots
   loadGeneralPoolTreasuryInfo();
   loadQueue();
 }
