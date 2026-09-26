@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ClassChain — Indexer Admin</title>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Vazirmatn, Tahoma, sans-serif; background: #f0f2f5; color: #2c3e50; }
+    header { background: #1a1a2e; color: #fff; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+    header h1 { margin: 0; font-size: 18px; }
+    nav { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 16px; background: #fff; border-bottom: 1px solid #e5e5e5; }
+    nav button { border: 1px solid #ddd; background: #f8f9fa; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-family: inherit; }
+    nav button.active { background: #6c5ce7; color: #fff; border-color: #6c5ce7; }
+    main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.05); margin-bottom: 16px; }
+    input, select, button.primary { font-family: inherit; padding: 8px 12px; border-radius: 8px; border: 1px solid #ddd; }
+    button.primary { background: #6c5ce7; color: #fff; border: none; cursor: pointer; }
+    button.secondary { background: #ecf0f1; border: 1px solid #ddd; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-family: inherit; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: right; }
+    th { background: #f8f9fa; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+    pre { background: #f8f9fa; padding: 12px; border-radius: 8px; overflow: auto; font-size: 12px; }
+    .err { color: #e74c3c; }
+    .muted { color: #888; font-size: 13px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; color: #fff; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ClassChain Indexer Admin</h1>
+    <div class="row">
+      <input id="secret" type="password" placeholder="Indexer Secret" style="width:200px" />
+      <button class="secondary" id="saveSecret">ذخیره Secret</button>
+      <a href="index.html" style="color:#a29bfe;font-size:13px;">پنل اصلی</a>
+    </div>
+  </header>
+  <nav>
+    <button type="button" class="active" data-tab="community">جامعه / FIFO</button>
+    <button type="button" data-tab="voting">رای‌گیری</button>
+    <button type="button" data-tab="disburse">تخصیص خزانه</button>
+  </nav>
+  <main>
+    <section id="tab-community" class="panel active">
+      <div class="card">
+        <div class="row">
+          <select id="cNet">
+            <option value="">همه شبکه‌ها</option>
+            <option value="polygon_amoy">polygon_amoy</option>
+            <option value="tron_nile">tron_nile</option>
+          </select>
+          <button class="secondary" id="cRefresh">بروزرسانی</button>
+        </div>
+        <h3>Contributors</h3>
+        <div id="cList" class="muted">…</div>
+        <h3>صف FIFO</h3>
+        <div id="cQueue" class="muted">…</div>
+      </div>
+    </section>
+    <section id="tab-voting" class="panel">
+      <div class="card">
+        <button class="secondary" id="vRefresh">لیست راندها</button>
+        <div id="vRounds" style="margin-top:12px"></div>
+        <div id="vDetail" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h3>باز کردن راند</h3>
+        <div class="row">
+          <input id="vTitle" placeholder="عنوان" style="flex:1;min-width:160px" />
+          <input id="vCands" placeholder="1004,1005,1090" style="flex:1;min-width:160px" />
+          <select id="vNet">
+            <option value="polygon_amoy">polygon_amoy</option>
+            <option value="tron_nile">tron_nile</option>
+          </select>
+          <button class="primary" id="vOpen">باز کن</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3>رای / بستن / Allocate</h3>
+        <p class="muted">اول «جزئیات» را بزن تا round انتخاب شود.</p>
+        <input type="hidden" id="vRoundId" />
+        <div class="row">
+          <input id="vDonor" placeholder="donor 0x..." style="flex:1;min-width:180px" />
+          <input id="vProject" placeholder="project_id" style="width:120px" />
+          <button class="secondary" id="vVote">رای</button>
+        </div>
+        <div class="row">
+          <input id="vCloseProject" placeholder="selected project" style="width:120px" />
+          <input id="vCloseAmount" placeholder="amount_raw" style="width:180px" />
+          <button class="secondary" id="vClose">بستن</button>
+          <button class="primary" id="vAlloc">Allocate</button>
+        </div>
+      </div>
+    </section>
+    <section id="tab-disburse" class="panel">
+      <div class="card">
+        <div class="row">
+          <select id="dNet">
+            <option value="">همه</option>
+            <option value="polygon_amoy">polygon_amoy</option>
+            <option value="tron_nile">tron_nile</option>
+          </select>
+          <button class="secondary" id="dRefresh">بروزرسانی</button>
+        </div>
+        <div class="row">
+          <input id="dApprover" placeholder="approver 0x..." style="flex:1;min-width:220px" />
+        </div>
+        <div id="dList" class="muted">…</div>
+        <div id="dDetail" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h3>Prepare دستی</h3>
+        <div class="row">
+          <input id="dBatch" placeholder="allocation_batch_id" style="flex:1;min-width:200px" />
+          <input id="dProject" placeholder="project_id" style="width:100px" />
+          <button class="primary" id="dPrepare">Prepare</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script type="module">
+    const INDEXER = 'https://classchain-indexer.classchain.workers.dev';
+    function secret() { return sessionStorage.getItem('classchain_indexer_secret') || ''; }
+    async function api(path, opts = {}) {
+      const headers = { Accept: 'application/json', ...(opts.body ? { 'Content-Type': 'application/json' } : {}) };
+      const s = secret();
+      if (s) headers['X-Indexer-Secret'] = s;
+      const res = await fetch(INDEXER + path, { ...opts, headers });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok && data.ok !== true) throw new Error(data.error || ('HTTP ' + res.status));
+      return data;
+    }
+    function usdt(raw) {
+      try {
+        const n = BigInt(String(raw || '0'));
+        const whole = n / 1000000n;
+        const frac = n % 1000000n;
+        if (frac === 0n) return whole.toString();
+        return whole + '.' + frac.toString().padStart(6, '0').replace(/0+$/, '');
+      } catch { return String(raw); }
+    }
+    function short(a) {
+      if (!a || a.length < 12) return a || '—';
+      return a.slice(0, 6) + '…' + a.slice(-4);
+    }
+    function badge(st) {
+      const c = { PENDING_APPROVAL: '#f39c12', APPROVED: '#3498db', EXECUTED: '#27ae60', OPEN: '#27ae60', CLOSED: '#7f8c8d', ALLOCATED: '#9b59b6' }[st] || '#95a5a6';
+      return `<span class="badge" style="background:${c}">${st}</span>`;
+    }
+    document.querySelectorAll('nav button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('nav button').forEach((b) => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+        if (btn.dataset.tab === 'community') loadCommunity();
+        if (btn.dataset.tab === 'voting') loadRounds();
+        if (btn.dataset.tab === 'disburse') loadDisburse();
+      });
+    });
+    document.getElementById('saveSecret').onclick = () => {
+      const v = document.getElementById('secret').value.trim();
+      if (v) { sessionStorage.setItem('classchain_indexer_secret', v); alert('ذخیره شد'); document.getElementById('secret').value = ''; }
+    };
+    async function loadCommunity() {
+      const net = document.getElementById('cNet').value;
+      const q = net ? `?network_id=${encodeURIComponent(net)}&limit=100` : '?limit=100';
+      const list = document.getElementById('cList');
+      const queue = document.getElementById('cQueue');
+      list.textContent = '…'; queue.textContent = '…';
+      try {
+        const [c, qdata] = await Promise.all([api('/api/contributors' + q), api('/api/queue' + (net ? `?network_id=${encodeURIComponent(net)}` : ''))]);
+        const rows = c.contributors || [];
+        list.innerHTML = rows.length ? `<table><thead><tr><th>Donor</th><th>شبکه</th><th>آزاد</th><th>کل</th></tr></thead><tbody>${rows.map((r) => `<tr><td><code title="${r.donor}">${short(r.donor)}</code></td><td>${r.network_id}</td><td><b>${usdt(r.unallocated)}</b></td><td>${usdt(r.total_contributed)}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">خالی</p>';
+        const qr = qdata.queue || [];
+        queue.innerHTML = qr.length ? `<table><thead><tr><th>#</th><th>Donor</th><th>باقی</th><th>وضعیت</th></tr></thead><tbody>${qr.map((r) => `<tr><td>${r.id}</td><td>${short(r.donor)}</td><td>${usdt(r.remaining_raw)}</td><td>${r.status}</td></tr>`).join('')}</tbody></table>` : '<p class="muted">صف خالی</p>';
+      } catch (e) { list.innerHTML = `<p class="err">${e.message}</p>`; queue.innerHTML = ''; }
+    }
+    async function loadRounds() {
+      const box = document.getElementById('vRounds');
+      box.textContent = '…';
+      try {
+        const data = await api('/api/voting/rounds');
+        const rounds = data.rounds || [];
+        box.innerHTML = rounds.length ? `<table><thead><tr><th>ID</th><th>عنوان</th><th>وضعیت</th><th></th></tr></thead><tbody>${rounds.map((r) => `<tr><td>${r.id}</td><td>${r.title || ''}</td><td>${badge(r.status)}</td><td><button class="secondary" data-rid="${r.id}">جزئیات</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted">راندی نیست</p>';
+        box.querySelectorAll('[data-rid]').forEach((b) => { b.onclick = () => showRound(b.dataset.rid); });
+      } catch (e) { box.innerHTML = `<p class="err">${e.message}</p>`; }
+    }
+    async function showRound(id) {
+      document.getElementById('vRoundId').value = id;
+      const box = document.getElementById('vDetail');
+      try {
+        const data = await api('/api/voting/rounds/' + id);
+        box.innerHTML = `<pre>${JSON.stringify(data.round, null, 2)}</pre>`;
+      } catch (e) { box.innerHTML = `<p class="err">${e.message}</p>`; }
+    }
+    document.getElementById('vOpen').onclick = async () => {
+      try {
+        const title = document.getElementById('vTitle').value.trim();
+        const cands = document.getElementById('vCands').value.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
+        const network_id = document.getElementById('vNet').value;
+        const data = await api('/api/voting/rounds', { method: 'POST', body: JSON.stringify({ title, candidate_projects: cands, network_id }) });
+        alert('راند #' + data.round?.id); loadRounds();
+      } catch (e) { alert(e.message); }
+    };
+    document.getElementById('vVote').onclick = async () => {
+      try {
+        const id = document.getElementById('vRoundId').value;
+        await api('/api/voting/rounds/' + id + '/vote', { method: 'POST', body: JSON.stringify({ donor: document.getElementById('vDonor').value.trim(), network_id: document.getElementById('vNet').value, project_id: document.getElementById('vProject').value.trim() }) });
+        alert('رای ثبت شد'); showRound(id);
+      } catch (e) { alert(e.message); }
+    };
+    document.getElementById('vClose').onclick = async () => {
+      try {
+        const id = document.getElementById('vRoundId').value;
+        await api('/api/voting/rounds/' + id + '/close', { method: 'POST', body: JSON.stringify({ selected_project_id: document.getElementById('vCloseProject').value.trim(), required_amount_raw: document.getElementById('vCloseAmount').value.trim() }) });
+        alert('بسته شد'); loadRounds(); showRound(id);
+      } catch (e) { alert(e.message); }
+    };
+    document.getElementById('vAlloc').onclick = async () => {
+      try {
+        const id = document.getElementById('vRoundId').value;
+        const data = await api('/api/voting/rounds/' + id + '/allocate', { method: 'POST', body: '{}' });
+        alert(JSON.stringify(data, null, 2)); loadRounds();
+      } catch (e) { alert(e.message); }
+    };
+    async function loadDisburse() {
+      const net = document.getElementById('dNet').value;
+      const box = document.getElementById('dList');
+      box.textContent = '…';
+      try {
+        const q = net ? `?network_id=${encodeURIComponent(net)}` : '';
+        const data = await api('/api/disburse/pending' + q);
+        const rows = data.pending || [];
+        box.innerHTML = rows.length ? `<table><thead><tr><th>ID</th><th>پروژه</th><th>مبلغ</th><th>مسیر</th><th>وضعیت</th><th></th></tr></thead><tbody>${rows.map((r) => `<tr><td>${r.id}</td><td>${r.project_id}</td><td><b>${usdt(r.amount_raw)}</b></td><td style="font-size:11px">${short(r.from_address)} → ${short(r.to_address)}</td><td>${badge(r.status)}</td><td><button class="secondary" data-approve="${r.id}">تأیید</button> <button class="secondary" data-detail="${r.id}">جزئیات</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted">در انتظار تأیید نیست</p>';
+        box.querySelectorAll('[data-approve]').forEach((b) => { b.onclick = () => approve(b.dataset.approve); });
+        box.querySelectorAll('[data-detail]').forEach((b) => { b.onclick = () => detail(b.dataset.detail); });
+      } catch (e) { box.innerHTML = `<p class="err">${e.message}</p>`; }
+    }
+    async function approve(id) {
+      const approver = document.getElementById('dApprover').value.trim();
+      if (!approver) return alert('approver لازم است');
+      try {
+        const data = await api('/api/disburse/' + id + '/approve', { method: 'POST', body: JSON.stringify({ approver }) });
+        alert(data.disbursement?.status || 'ok'); loadDisburse();
+      } catch (e) { alert(e.message); }
+    }
+    async function detail(id) {
+      const box = document.getElementById('dDetail');
+      try {
+        const data = await api('/api/disburse/' + id);
+        box.innerHTML = `<pre>${JSON.stringify(data.disbursement, null, 2)}</pre><div class="row"><input id="dTx" placeholder="execute_tx_hash" style="flex:1" /><button class="primary" id="dExec">ثبت EXECUTED</button></div>`;
+        document.getElementById('dExec').onclick = async () => {
+          try {
+            await api('/api/disburse/' + id + '/executed', { method: 'POST', body: JSON.stringify({ execute_tx_hash: document.getElementById('dTx').value.trim() }) });
+            alert('EXECUTED'); loadDisburse();
+          } catch (e) { alert(e.message); }
+        };
+      } catch (e) { box.innerHTML = `<p class="err">${e.message}</p>`; }
+    }
+    document.getElementById('dPrepare').onclick = async () => {
+      try {
+        const data = await api('/api/disburse/prepare', { method: 'POST', body: JSON.stringify({ allocation_batch_id: document.getElementById('dBatch').value.trim(), project_id: document.getElementById('dProject').value.trim() }) });
+        alert(JSON.stringify(data, null, 2)); loadDisburse();
+      } catch (e) { alert(e.message); }
+    };
+    document.getElementById('cRefresh').onclick = loadCommunity;
+    document.getElementById('cNet').onchange = loadCommunity;
+    document.getElementById('vRefresh').onclick = loadRounds;
+    document.getElementById('dRefresh').onclick = loadDisburse;
+    document.getElementById('dNet').onchange = loadDisburse;
+    loadCommunity();
+  </script>
+</body>
+</html>
