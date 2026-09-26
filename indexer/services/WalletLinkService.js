@@ -33,7 +33,7 @@ function normalizeEvmAddress(addr) {
 async function recoverEvmAddress(message, signature) {
     // Dynamic import so worker still loads if package missing during early deploy
     const { secp256k1 } = await import('@noble/secp256k1');
-    const { keccak_256 } = await import('@noble/hashes/sha3');
+    const { keccak_256 } = await import('@noble/hashes/sha3.js');
 
     const prefix = `\x19Ethereum Signed Message:\n${message.length}`;
     const msgHash = keccak_256(new TextEncoder().encode(prefix + message));
