@@ -2,13 +2,13 @@
  * TelegramSyncService
  *
  * Rules (Phase 5):
- *   - unallocated > 0 (any linked wallet)  → must be in GENERAL group
- *   - unallocated = 0 and has allocation to project X → leave GENERAL, join project X group (if configured)
- *   - no link / no balance → leave GENERAL (and project groups when known)
+ *   - unallocated > 0 (any linked wallet) -> must be in GENERAL group
+ *   - after allocation, a donor leaves GENERAL only when no unallocated balance remains
+ *   - if a project group exists, the donor receives a project invite
  *
  * Telegram cannot force-add users who never started the bot.
- * Flow: ensure invite link / DM invite → user joins → membership row ACTIVE.
- * Removal uses ban+unban (kick) when bot is admin.
+ * Flow: DM one-user invite -> user joins -> membership row ACTIVE.
+ * Removal uses ban+unban (kick) when the bot is admin.
  */
 
 import { CommunityStatusService } from './CommunityStatusService.js';
@@ -40,38 +40,39 @@ export class TelegramSyncService {
         });
     }
 
-    /**
-     * Full reconcile for GENERAL pool members.
-     * Returns summary of actions taken.
-     */
     async syncGeneral() {
         if (!this.bot) throw new Error('TELEGRAM_BOT_TOKEN not configured');
         const general = await this.ensureGeneralGroupSeeded();
         const chatId = general.chat_id;
 
         const shouldBeIn = await this.community.listContributorMembers(2000);
-        // Unique telegram ids with unallocated > 0
         const wantSet = new Set(
             (shouldBeIn || [])
                 .map((r) => String(r.telegram_user_id || ''))
                 .filter(Boolean)
         );
 
-        const current = await this.groups.listMembershipsByChat(chatId, 'ACTIVE');
-        const currentSet = new Set(current.map((m) => String(m.telegram_user_id)));
+        // PENDING_INVITE must also count as already processed. Otherwise the
+        // five-minute cron would DM a new invite every cycle.
+        const active = await this.groups.listMembershipsByChat(chatId, 'ACTIVE');
+        const pending = await this.groups.listMembershipsByChat(chatId, 'PENDING_INVITE');
+        const activeSet = new Set(active.map((m) => String(m.telegram_user_id)));
+        const pendingSet = new Set(pending.map((m) => String(m.telegram_user_id)));
+        const trackedSet = new Set([...activeSet, ...pendingSet]);
 
         const summary = {
             chat_id: chatId,
             want: wantSet.size,
-            currently_tracked_active: currentSet.size,
+            currently_tracked_active: activeSet.size,
+            currently_pending_invite: pendingSet.size,
             invited: [],
             removed: [],
             errors: [],
         };
 
-        // Invite missing
+        // Invite only users for whom we have not already sent an invite.
         for (const tgId of wantSet) {
-            if (currentSet.has(tgId)) continue;
+            if (trackedSet.has(tgId)) continue;
             try {
                 const link = await this.bot.createChatInviteLink(chatId, {
                     memberLimit: 1,
@@ -99,12 +100,16 @@ export class TelegramSyncService {
             }
         }
 
-        // Remove those no longer eligible
-        for (const tgId of currentSet) {
+        // Remove active members who are no longer eligible. Pending invites
+        // are simply marked REMOVED because they have not joined yet.
+        for (const tgId of trackedSet) {
             if (wantSet.has(tgId)) continue;
+            const wasActive = activeSet.has(tgId);
             try {
-                await this.bot.banChatMember(chatId, tgId);
-                await this.bot.unbanChatMember(chatId, tgId);
+                if (wasActive) {
+                    await this.bot.banChatMember(chatId, tgId);
+                    await this.bot.unbanChatMember(chatId, tgId);
+                }
                 await this.groups.setMembership({
                     telegramUserId: tgId,
                     chatId,
@@ -119,11 +124,6 @@ export class TelegramSyncService {
         return summary;
     }
 
-    /**
-     * After allocate to projectId: for each donor who now has unallocated=0
-     * on all networks (or specifically lost eligibility), remove from GENERAL
-     * and try to move to project group if configured.
-     */
     async onAllocated({ projectId, donors = [] }) {
         if (!this.bot) return { ok: false, error: 'no_bot_token' };
         const general = await this.ensureGeneralGroupSeeded();
@@ -132,21 +132,28 @@ export class TelegramSyncService {
             : null;
 
         const results = [];
+        const seen = new Set();
+
         for (const donor of donors) {
-            const status = await this.community.statusByDonor(donor);
+            const donorKey = `${String(donor.donor || donor)}:${String(donor.network_id || donor.networkId || '')}`;
+            if (seen.has(donorKey)) continue;
+            seen.add(donorKey);
+
+            const status = await this.community.statusByDonor(
+                donor.donor || donor,
+                donor.network_id || donor.networkId || null
+            );
             const tgId = status.telegram_user_id;
             if (!tgId) {
                 results.push({ donor, skipped: 'no_telegram_link' });
                 continue;
             }
 
-            const stillContributor = status.in_contributor_community === true;
-            if (stillContributor) {
+            if (status.in_contributor_community === true) {
                 results.push({ donor, telegram_user_id: tgId, kept_in_general: true });
                 continue;
             }
 
-            // Remove from GENERAL
             try {
                 await this.bot.banChatMember(general.chat_id, tgId);
                 await this.bot.unbanChatMember(general.chat_id, tgId);
@@ -160,7 +167,6 @@ export class TelegramSyncService {
                 continue;
             }
 
-            // Invite to project group if exists
             if (projectGroup) {
                 try {
                     const link = await this.bot.createChatInviteLink(projectGroup.chat_id, {
@@ -197,14 +203,21 @@ export class TelegramSyncService {
         return { ok: true, project_id: projectId, results };
     }
 
-    /**
-     * Mark user ACTIVE when they join (from chat_join_request or /start inside group).
-     */
     async markJoined(telegramUserId, chatId) {
         await this.groups.setMembership({
             telegramUserId,
             chatId,
             status: 'ACTIVE',
+            error: null,
+        });
+    }
+
+    async markLeft(telegramUserId, chatId, error = null) {
+        await this.groups.setMembership({
+            telegramUserId,
+            chatId,
+            status: 'REMOVED',
+            error,
         });
     }
 }
