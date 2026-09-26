@@ -39,23 +39,13 @@ export class TelegramSyncService {
         const shouldBeIn = await this.community.listContributorMembers(2000);
         const wantSet = new Set((shouldBeIn || []).map(r => String(r.telegram_user_id || '')).filter(Boolean));
 
-        // PENDING_INVITE counts as already processed so the five-minute cron
-        // does not send the same user a new invite every cycle.
         const active = await this.groups.listMembershipsByChat(chatId, 'ACTIVE');
         const pending = await this.groups.listMembershipsByChat(chatId, 'PENDING_INVITE');
         const activeSet = new Set(active.map(m => String(m.telegram_user_id)));
         const pendingSet = new Set(pending.map(m => String(m.telegram_user_id)));
         const trackedSet = new Set([...activeSet, ...pendingSet]);
 
-        const summary = {
-            chat_id: chatId,
-            want: wantSet.size,
-            currently_tracked_active: activeSet.size,
-            currently_pending_invite: pendingSet.size,
-            invited: [],
-            removed: [],
-            errors: [],
-        };
+        const summary = { chat_id: chatId, want: wantSet.size, currently_tracked_active: activeSet.size, currently_pending_invite: pendingSet.size, invited: [], removed: [], errors: [] };
 
         for (const tgId of wantSet) {
             if (trackedSet.has(tgId)) continue;
@@ -70,8 +60,6 @@ export class TelegramSyncService {
             }
         }
 
-        // Active users are kicked; pending invites have not joined yet and only
-        // need their state changed to REMOVED.
         for (const tgId of trackedSet) {
             if (wantSet.has(tgId)) continue;
             try {
@@ -101,7 +89,7 @@ export class TelegramSyncService {
             if (seen.has(donorKey)) continue;
             seen.add(donorKey);
 
-            // Aggregate across ALL linked networks. A donor with a remaining
+            // Aggregate across ALL linked networks. A donor with remaining
             // balance on another network must stay in General.
             const status = await this.community.statusByDonor(donorAddress);
             const tgId = status.telegram_user_id;
@@ -115,8 +103,11 @@ export class TelegramSyncService {
             }
 
             try {
-                await this.bot.banChatMember(general.chat_id, tgId);
-                await this.bot.unbanChatMember(general.chat_id, tgId);
+                const membership = await this.groups.getMembership(tgId, general.chat_id);
+                if (membership?.status === 'ACTIVE') {
+                    await this.bot.banChatMember(general.chat_id, tgId);
+                    await this.bot.unbanChatMember(general.chat_id, tgId);
+                }
                 await this.groups.setMembership({ telegramUserId: tgId, chatId: general.chat_id, status: 'REMOVED' });
             } catch (e) {
                 results.push({ donor: donorAddress, telegram_user_id: tgId, remove_error: e.message });
