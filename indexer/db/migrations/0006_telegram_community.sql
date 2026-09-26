@@ -1,13 +1,13 @@
 -- Phase 5: Telegram Community Sync
--- Additive only. Tracks which groups exist and membership state for sync.
+-- Additive only. Tracks configured groups and membership state.
 
 CREATE TABLE IF NOT EXISTS telegram_groups (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    kind                TEXT NOT NULL,          -- 'GENERAL' | 'PROJECT'
+    kind                TEXT NOT NULL,          -- GENERAL | PROJECT
     project_id          TEXT,                   -- NULL for GENERAL; ProjectID for project groups
-    chat_id             TEXT NOT NULL UNIQUE,   -- Telegram chat id, e.g. -1003951313123
+    chat_id             TEXT NOT NULL UNIQUE,
     title               TEXT,
-    invite_link         TEXT,                   -- cached primary invite link (optional)
+    invite_link         TEXT,
     active              INTEGER NOT NULL DEFAULT 1,
     created_at          TEXT NOT NULL,
     updated_at          TEXT NOT NULL
@@ -34,7 +34,8 @@ CREATE INDEX IF NOT EXISTS idx_tg_memberships_user
 CREATE INDEX IF NOT EXISTS idx_tg_memberships_chat_status
     ON telegram_memberships(chat_id, status);
 
--- Seed GENERAL group (chat_id provided by operator; update if needed)
--- Run after migration if row missing:
--- INSERT OR IGNORE INTO telegram_groups (kind, project_id, chat_id, title, active, created_at, updated_at)
--- VALUES ('GENERAL', NULL, '-1003951313123', 'ClassChain General Pool', 1, datetime('now'), datetime('now'));
+-- Real ClassChain General Pool supergroup.
+INSERT OR IGNORE INTO telegram_groups
+    (kind, project_id, chat_id, title, active, created_at, updated_at)
+VALUES
+    ('GENERAL', NULL, '-1003951313123', 'ClassChain General Pool', 1, datetime('now'), datetime('now'));
