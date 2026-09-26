@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@noble/secp256k1": "^2.2.3",
+    "@noble/hashes": "^1.8.0",
     "bs58": "^6.0.0"
   }
 }
