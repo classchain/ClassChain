@@ -1,11 +1,8 @@
 /**
  * TelegramBotHandler — process webhook updates from Telegram.
  *
- * Commands:
- *   /start  — welcome + how to link
- *   /link   — instructions to link wallet (points to API / web)
- *   /status — community status for this telegram user
- *   /sync   — admin-only: trigger GENERAL sync (needs X-Indexer-Secret via deep context not available; use HTTP API)
+ * Commands: /start /status /link
+ * Also tracks normal invite-link joins through chat_member updates.
  */
 
 import { CommunityStatusService } from './CommunityStatusService.js';
@@ -29,7 +26,7 @@ export class TelegramBotHandler {
     async handleUpdate(update) {
         if (!this.bot) return { ok: false, error: 'no_bot' };
 
-        // Join request approval path
+        // Join-request groups can approve and record membership here.
         if (update.chat_join_request) {
             const req = update.chat_join_request;
             const userId = req.from?.id;
@@ -45,6 +42,31 @@ export class TelegramBotHandler {
             return { ok: true, type: 'join_request' };
         }
 
+        // Standard invite-link joins arrive as chat_member updates. Without
+        // this handler PENDING_INVITE would never become ACTIVE.
+        if (update.chat_member) {
+            const member = update.chat_member;
+            const userId = member.new_chat_member?.user?.id || member.from?.id;
+            const chatId = member.chat?.id;
+            const oldStatus = member.old_chat_member?.status;
+            const newStatus = member.new_chat_member?.status;
+
+            if (userId && chatId) {
+                const joined = ['member', 'administrator', 'creator'].includes(newStatus);
+                const left = ['left', 'kicked'].includes(newStatus);
+
+                if (joined && !['member', 'administrator', 'creator'].includes(oldStatus)) {
+                    await this.sync.markJoined(userId, chatId);
+                    return { ok: true, type: 'member_joined', telegram_user_id: userId, chat_id: chatId };
+                }
+                if (left) {
+                    await this.sync.markLeft(userId, chatId);
+                    return { ok: true, type: 'member_left', telegram_user_id: userId, chat_id: chatId };
+                }
+            }
+            return { ok: true, type: 'chat_member' };
+        }
+
         const msg = update.message;
         if (!msg || !msg.text) return { ok: true, ignored: true };
 
@@ -53,10 +75,7 @@ export class TelegramBotHandler {
         const text = String(msg.text).trim();
         const isPrivate = msg.chat.type === 'private';
 
-        if (!isPrivate) {
-            // In groups we mostly track joins via join_request; ignore chatter
-            return { ok: true, ignored: 'group_message' };
-        }
+        if (!isPrivate) return { ok: true, ignored: 'group_message' };
 
         if (text.startsWith('/start')) {
             await this.bot.sendMessage(
@@ -84,10 +103,7 @@ export class TelegramBotHandler {
                 if (st.wallets?.length) {
                     lines.push('', '<b>والت‌ها:</b>');
                     for (const w of st.wallets) {
-                        lines.push(
-                            `• <code>${w.donor}</code> (${w.network_id})` +
-                            ` — آزاد: ${w.unallocated}`
-                        );
+                        lines.push(`• <code>${w.donor}</code> (${w.network_id}) — آزاد: ${w.unallocated}`);
                     }
                 }
                 await this.bot.sendMessage(chatId, lines.join('\n'));
@@ -106,16 +122,12 @@ export class TelegramBotHandler {
                 `{ "telegram_user_id": "${userId}", "network_id": "polygon_amoy" }\n\n` +
                 `سپس پیام را با والت امضا کنید و\n` +
                 `<code>POST /api/link/verify</code> را بزنید.\n\n` +
-                `بعد از لینک موفق و واریز، با /status چک کنید؛ ` +
-                `sync بعدی شما را به گروه General دعوت می‌کند.`
+                `بعد از لینک موفق و واریز، sync بعدی شما را به گروه General دعوت می‌کند.`
             );
             return { ok: true, cmd: 'link' };
         }
 
-        await this.bot.sendMessage(
-            chatId,
-            `دستورات: /start /status /link`
-        );
+        await this.bot.sendMessage(chatId, `دستورات: /start /status /link`);
         return { ok: true, cmd: 'help' };
     }
 }
