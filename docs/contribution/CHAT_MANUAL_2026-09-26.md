@@ -492,4 +492,25 @@ Worker
 9. General Pool seed به صورت idempotent نگهداری می‌شود.
 10. Worker و D1 با نسخه نهایی هماهنگ می‌شوند.
 
+
+## پیوست — دستورات اجرایی موفق ثبت‌شده در چت
+
+دستورهای اجرایی که بخشی از مسیر نهایی بودند و نتیجه موردنظر را ایجاد کردند:
+
+```bash
+npx wrangler whoami
+npx wrangler deploy
+npx wrangler d1 migrations apply classchain-indexer --remote
+```
+
+اتصال Webhook نیز با الگوی زیر انجام شد؛ مقدار واقعی توکن عمداً مستند نشده است:
+
+```bash
+curl -X POST "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/setWebhook" \\
+  -d "url=https://classchain-indexer.classchain.workers.dev/telegram/webhook" \\
+  -d 'allowed_updates=["message","chat_member"]'
+```
+
+هیچ nonce، Telegram user ID، Bot token، signature یا مقدار محرمانه‌ای در این manual ثبت نمی‌شود.
+
 **تاریخ سند: 2026-09-26**
