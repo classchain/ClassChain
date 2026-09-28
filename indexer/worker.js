@@ -689,7 +689,9 @@ export default {
       }
       try {
         const repo = new TelegramGroupRepository(env.DB);
-        const group = await repo.getProjectGroup(projectId);
+        const group = String(projectId) === 'GENERAL_POOL'
+          ? await repo.getGeneral()
+          : await repo.getProjectGroup(projectId);
         if (!group) {
           return jsonResponse({ ok: false, error: 'not_found' }, 404);
         }
