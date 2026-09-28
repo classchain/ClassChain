@@ -693,9 +693,6 @@ export default {
         if (!group) {
           return jsonResponse({ ok: false, error: 'not_found' }, 404);
         }
-        if (group.invite_link) {
-          return jsonResponse({ ok: true, invite_link: group.invite_link, cached: true });
-        }
         if (!env.TELEGRAM_BOT_TOKEN) {
           return jsonResponse({ ok: false, error: 'telegram_bot_not_configured' }, 503);
         }
@@ -703,13 +700,6 @@ export default {
         const link = await bot.createChatInviteLink(group.chat_id, {
           memberLimit: 1,
           name: `payment-${String(projectId).slice(0, 16)}`,
-        });
-        await repo.upsertGroup({
-          kind: group.kind,
-          projectId: group.project_id,
-          chatId: group.chat_id,
-          title: group.title,
-          inviteLink: link.invite_link,
         });
         return jsonResponse({ ok: true, invite_link: link.invite_link, cached: false });
       } catch (e) {
