@@ -1,7 +1,7 @@
 /**
  * Ops finance + visual (network-agnostic)
  */
-export async function createFinanceModule(ctx) {
+export function createFinanceModule(ctx) {
   const {
     $, api, getNetworks, networkIdsFromSync, fmtUsdt, usdtRaw, short,
     colorForNetwork, logOps, INDEXER, PROJECTS_URL
