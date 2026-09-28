@@ -627,7 +627,7 @@ function openTelegramAfterSuccessfulPayment(projectId) {
                 console.warn('[Donate] Telegram invite unavailable:', data?.error || 'unknown error');
                 return;
             }
-            window.location.href = data.invite_link;
+            window.open(data.invite_link, '_blank', 'noopener,noreferrer');
         })
         .catch(err => console.warn('[Donate] Telegram redirect failed:', err));
 }
