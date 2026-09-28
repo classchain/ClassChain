@@ -680,6 +680,42 @@ export default {
       }
     }
 
+    if (method === 'POST' && path === '/api/telegram/groups/project/invite') {
+      const body = await readJsonBody(request);
+      const projectId = body?.project_id || body?.projectId;
+      if (!projectId) {
+        return jsonResponse({ ok: false, error: 'project_id is required' }, 400);
+      }
+      try {
+        const repo = new TelegramGroupRepository(env.DB);
+        const group = await repo.getProjectGroup(projectId);
+        if (!group) {
+          return jsonResponse({ ok: false, error: 'not_found' }, 404);
+        }
+        if (group.invite_link) {
+          return jsonResponse({ ok: true, invite_link: group.invite_link, cached: true });
+        }
+        if (!env.TELEGRAM_BOT_TOKEN) {
+          return jsonResponse({ ok: false, error: 'telegram_bot_not_configured' }, 503);
+        }
+        const bot = new TelegramBotClient(env.TELEGRAM_BOT_TOKEN);
+        const link = await bot.createChatInviteLink(group.chat_id, {
+          memberLimit: 1,
+          name: `payment-${String(projectId).slice(0, 16)}`,
+        });
+        await repo.upsertGroup({
+          kind: group.kind,
+          projectId: group.project_id,
+          chatId: group.chat_id,
+          title: group.title,
+          inviteLink: link.invite_link,
+        });
+        return jsonResponse({ ok: true, invite_link: link.invite_link, cached: false });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 502);
+      }
+    }
+
     if (method === 'GET' && path === '/api/telegram/groups') {
       try {
         const repo = new TelegramGroupRepository(env.DB);
