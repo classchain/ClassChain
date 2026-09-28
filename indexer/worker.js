@@ -55,6 +55,7 @@ import { CommunityStatusService } from './services/CommunityStatusService.js';
 import { DisbursementService } from './services/DisbursementService.js';
 import { TelegramSyncService } from './services/TelegramSyncService.js';
 import { TelegramBotHandler } from './services/TelegramBotHandler.js';
+import { TelegramBotClient } from './services/TelegramBotClient.js';
 import { TelegramGroupRepository } from './db/TelegramGroupRepository.js';
 import { createAdapter } from './adapters/createAdapter.js';
 
