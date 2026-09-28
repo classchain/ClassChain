@@ -12,6 +12,15 @@ const finance = createFinanceModule({
   colorForNetwork, logOps, INDEXER, PROJECTS_URL, runSync,
 });
 
+function showBootError(msg) {
+  const grid = $('projectsGrid');
+  if (grid) grid.innerHTML = `<p class="err" style="padding:12px">${msg}</p>`;
+  const bars = $('netBars');
+  if (bars) bars.innerHTML = `<p class="err">${msg}</p>`;
+  console.error('[ops]', msg);
+  try { logOps(msg); } catch (_) {}
+}
+
 let autoTimer = null;
 let syncCache = null;
 
@@ -35,18 +44,37 @@ async function fillNetworkSelects() {
 async function refreshAll() {
   $('btnRefresh').disabled = true;
   try {
+    if (!finance || typeof finance.loadProjects !== 'function') {
+      throw new Error('ماژول مالی لود نشد. از ریشه ریپو سرو کنید (نه file://).');
+    }
+    if (!window.ClassChainNetworkConfig) {
+      showBootError('network-config لود نشد. مسیر ../frontend/js را چک کنید.');
+    } else {
+      try { await window.ClassChainNetworkConfig.ready; }
+      catch (e) { showBootError('network-config failed: ' + (e.message || e)); }
+    }
+    if (!window.ClassChainRaisedReader) {
+      console.warn('RaisedReader missing — balances may be 0');
+    }
+
     await finance.loadProjects();
-    const [, status] = await Promise.all([
-      finance.loadRaisedForAll(finance.projectsCache),
-      loadIndexerHealth(finance.getNetworkFilter()),
-    ]);
+    if (!finance.projectsCache.length) {
+      showBootError('Projects.json خالی یا مسیر ../frontend/data/Projects.json اشتباه است.');
+    }
+
+    const raisedPromise = finance.loadRaisedForAll(finance.projectsCache).catch((e) => {
+      console.warn('raised load', e);
+      return null;
+    });
+    const status = await loadIndexerHealth(finance.getNetworkFilter());
+    await raisedPromise;
     syncCache = status;
     await fillNetworkSelects();
     finance.renderFinancialUI(finance.projectsCache);
     $('lastUpdated').textContent = 'آخرین بروزرسانی: ' + new Date().toLocaleString('fa-IR');
   } catch (e) {
     console.error(e);
-    logOps('refresh error: ' + e.message);
+    showBootError('خطا در بروزرسانی: ' + (e.message || e));
   } finally {
     $('btnRefresh').disabled = false;
   }
