@@ -1,1 +1,192 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ClassChain — راهبری Indexer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *{box-sizing:border-box}body{margin:0;font-family:Vazirmatn,Tahoma,sans-serif;background:#f0f2f5;color:#2c3e50}
+    header{background:#1a1a2e;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+    header h1{margin:0;font-size:18px}nav{display:flex;gap:8px;flex-wrap:wrap;padding:12px 16px;background:#fff;border-bottom:1px solid #e5e5e5}
+    nav button{border:1px solid #ddd;background:#f8f9fa;padding:8px 14px;border-radius:8px;cursor:pointer;font-family:inherit}
+    nav button.active{background:#6c5ce7;color:#fff;border-color:#6c5ce7}
+    main{padding:20px;max-width:1100px;margin:0 auto}.panel{display:none}.panel.active{display:block}
+    .card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);margin-bottom:16px}
+    input,select,button.primary,button.secondary{font-family:inherit;padding:8px 12px;border-radius:8px;border:1px solid #ddd}
+    button.primary{background:#6c5ce7;color:#fff;border:none;cursor:pointer}
+    button.secondary{background:#ecf0f1;cursor:pointer}
+    table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 10px;border-bottom:1px solid #eee;text-align:right}th{background:#f8f9fa}
+    .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+    pre{background:#f8f9fa;padding:12px;border-radius:8px;overflow:auto;font-size:12px;max-height:180px}
+    .err{color:#e74c3c}.muted{color:#888;font-size:13px}
+    .badge{display:inline-block;padding:2px 8px;border-radius:6px;color:#fff;font-size:12px}
+    a{color:#a29bfe;font-size:13px}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>راهبری پروژه — ClassChain Indexer</h1>
+    <div class="row">
+      <input id="secret" type="password" placeholder="Indexer Secret" style="width:180px" />
+      <button class="secondary" id="saveSecret" type="button">ذخیره</button>
+      <a href="index.html">پنل اصلی</a>
+    </div>
+  </header>
+  <nav>
+    <button type="button" class="active" data-tab="ops">راهبری / Indexer</button>
+    <button type="button" data-tab="community">جامعه / FIFO</button>
+    <button type="button" data-tab="voting">رای‌گیری</button>
+    <button type="button" data-tab="disburse">تخصیص خزانه</button>
+  </nav>
+  <main>
+    <section id="tab-ops" class="panel active">
+      <div class="card">
+        <div class="row">
+          <button class="primary" id="opsRefresh" type="button">بروزرسانی وضعیت</button>
+          <label class="muted"><input type="checkbox" id="opsAuto" /> auto 30s</label>
+          <span class="muted" id="opsMeta">—</span>
+        </div>
+        <div class="row" id="opsKpis" style="gap:12px;margin:12px 0"></div>
+        <div id="opsTable" class="muted">…</div>
+        <div class="row" style="margin-top:12px">
+          <input id="syncProject" placeholder="projectId (8207 / GENERAL_POOL)" style="flex:1;min-width:180px" />
+          <button class="primary" id="syncOne" type="button">Sync پروژه</button>
+          <button class="secondary" id="syncAll" type="button">Sync همه</button>
+        </div>
+        <pre id="opsLog">آماده.</pre>
+      </div>
+      <div class="card">
+        <h3>چک‌لیست مدیر پروژه</h3>
+        <ol class="muted" style="line-height:1.9">
+          <li>Indexer: جدول بالا — FAILED/Lag را با Sync پروژه جبران کنید.</li>
+          <li>صف FIFO (تب جامعه): مانده آزاد برای تخصیص.</li>
+          <li>رأی: راند باز → رأی → بستن → Allocate.</li>
+          <li>تخصیص خزانه: pending تأیید → بعد از on-chain، EXECUTED.</li>
+        </ol>
+      </div>
+    </section>
+    <section id="tab-community" class="panel">
+      <div class="card">
+        <div class="row">
+          <select id="cNet"><option value="">همه</option><option value="polygon_amoy">polygon_amoy</option><option value="tron_nile">tron_nile</option></select>
+          <button class="secondary" id="cRefresh" type="button">بروزرسانی</button>
+        </div>
+        <h3>Contributors</h3><div id="cList" class="muted">…</div>
+        <h3>صف FIFO</h3><div id="cQueue" class="muted">…</div>
+      </div>
+    </section>
+    <section id="tab-voting" class="panel">
+      <div class="card">
+        <button class="secondary" id="vRefresh" type="button">لیست راندها</button>
+        <div id="vRounds" style="margin-top:12px"></div>
+        <div id="vDetail" style="margin-top:12px"></div>
+      </div>
+      <div class="card">
+        <h3>باز کردن راند</h3>
+        <div class="row">
+          <input id="vTitle" placeholder="عنوان" style="flex:1" />
+          <input id="vCands" placeholder="1004,1005" style="flex:1" />
+          <button class="primary" id="vOpen" type="button">باز کن</button>
+        </div>
+        <input type="hidden" id="vRoundId" />
+        <div class="row">
+          <input id="vDonor" placeholder="donor" style="flex:1" />
+          <input id="vProject" placeholder="project_id" style="width:100px" />
+          <button class="secondary" id="vVote" type="button">رای</button>
+          <input id="vCloseProject" placeholder="selected" style="width:100px" />
+          <button class="secondary" id="vClose" type="button">بستن</button>
+          <button class="primary" id="vAlloc" type="button">Allocate</button>
+        </div>
+      </div>
+    </section>
+    <section id="tab-disburse" class="panel">
+      <div class="card">
+        <div class="row">
+          <button class="secondary" id="dRefresh" type="button">pending</button>
+          <input id="dApprover" placeholder="approver" style="flex:1" />
+        </div>
+        <div id="dList" class="muted">…</div>
+        <div id="dDetail"></div>
+      </div>
+    </section>
+  </main>
+  <script type="module">
+    import { initOpsPanel } from './js/ops-panel.js';
+    const INDEXER = 'https://classchain-indexer.classchain.workers.dev';
+    function secret(){return sessionStorage.getItem('classchain_indexer_secret')||'';}
+    async function api(path,opts={}){
+      const headers={Accept:'application/json',...(opts.body?{'Content-Type':'application/json'}:{})};
+      const s=secret(); if(s) headers['X-Indexer-Secret']=s;
+      const res=await fetch(INDEXER+path,{...opts,headers});
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok&&data.ok!==true) throw new Error(data.error||('HTTP '+res.status));
+      return data;
+    }
+    function usdt(raw){try{const n=BigInt(String(raw||'0'));const w=n/1000000n,f=n%1000000n;return f===0n?w.toString():w+'.'+f.toString().padStart(6,'0').replace(/0+$/,'');}catch{return String(raw);}}
+    function short(a){if(!a||a.length<12)return a||'—';return a.slice(0,6)+'…'+a.slice(-4);}
+    function badge(st){const c={PENDING_APPROVAL:'#f39c12',APPROVED:'#3498db',EXECUTED:'#27ae60',OPEN:'#27ae60',CLOSED:'#7f8c8d',ALLOCATED:'#9b59b6',SUCCESS:'#27ae60',FAILED:'#e74c3c'}[st]||'#95a5a6';return `<span class="badge" style="background:${c}">${st}</span>`;}
+    document.querySelectorAll('nav button').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+        if(btn.dataset.tab==='ops'&&window.__loadOps) window.__loadOps();
+        if(btn.dataset.tab==='community') loadCommunity();
+        if(btn.dataset.tab==='voting') loadRounds();
+        if(btn.dataset.tab==='disburse') loadDisburse();
+      });
+    });
+    document.getElementById('saveSecret').onclick=()=>{const v=document.getElementById('secret').value.trim();if(v){sessionStorage.setItem('classchain_indexer_secret',v);alert('ذخیره شد');}};
+    async function loadCommunity(){
+      const net=document.getElementById('cNet').value;
+      const q=net?`?network_id=${encodeURIComponent(net)}&limit=100`:'?limit=100';
+      const list=document.getElementById('cList'), queue=document.getElementById('cQueue');
+      try{
+        const [c,qdata]=await Promise.all([api('/api/contributors'+q),api('/api/queue'+(net?`?network_id=${encodeURIComponent(net)}`:''))]);
+        const rows=c.contributors||[];
+        list.innerHTML=rows.length?`<table><thead><tr><th>Donor</th><th>شبکه</th><th>آزاد</th><th>کل</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${short(r.donor)}</td><td>${r.network_id}</td><td><b>${usdt(r.unallocated)}</b></td><td>${usdt(r.total_contributed)}</td></tr>`).join('')}</tbody></table>`:'<p class="muted">خالی</p>';
+        const qr=qdata.queue||[];
+        queue.innerHTML=qr.length?`<table><thead><tr><th>#</th><th>Donor</th><th>باقی</th><th>وضعیت</th></tr></thead><tbody>${qr.map(r=>`<tr><td>${r.id}</td><td>${short(r.donor)}</td><td>${usdt(r.remaining_raw)}</td><td>${r.status}</td></tr>`).join('')}</tbody></table>`:'<p class="muted">صف خالی</p>';
+      }catch(e){list.innerHTML=`<p class="err">${e.message}</p>`;}
+    }
+    async function loadRounds(){
+      const box=document.getElementById('vRounds');
+      try{
+        const data=await api('/api/voting/rounds');
+        const rounds=data.rounds||[];
+        box.innerHTML=rounds.length?`<table><thead><tr><th>ID</th><th>عنوان</th><th>وضعیت</th><th></th></tr></thead><tbody>${rounds.map(r=>`<tr><td>${r.id}</td><td>${r.title||''}</td><td>${badge(r.status)}</td><td><button class="secondary" data-rid="${r.id}">جزئیات</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted">راندی نیست</p>';
+        box.querySelectorAll('[data-rid]').forEach(b=>b.onclick=()=>showRound(b.dataset.rid));
+      }catch(e){box.innerHTML=`<p class="err">${e.message}</p>`;}
+    }
+    async function showRound(id){
+      document.getElementById('vRoundId').value=id;
+      try{const data=await api('/api/voting/rounds/'+id);document.getElementById('vDetail').innerHTML=`<pre>${JSON.stringify(data.round,null,2)}</pre>`;}
+      catch(e){document.getElementById('vDetail').innerHTML=`<p class="err">${e.message}</p>`;}
+    }
+    document.getElementById('vOpen').onclick=async()=>{
+      try{const title=document.getElementById('vTitle').value.trim();const cands=document.getElementById('vCands').value.split(/[,\s]+/).filter(Boolean);
+        const data=await api('/api/voting/rounds',{method:'POST',body:JSON.stringify({title,candidate_projects:cands})});alert('راند #'+data.round?.id);loadRounds();}catch(e){alert(e.message);}
+    };
+    document.getElementById('vVote').onclick=async()=>{try{const id=document.getElementById('vRoundId').value;await api('/api/voting/rounds/'+id+'/vote',{method:'POST',body:JSON.stringify({donor:document.getElementById('vDonor').value.trim(),project_id:document.getElementById('vProject').value.trim()})});alert('ok');showRound(id);}catch(e){alert(e.message);}};
+    document.getElementById('vClose').onclick=async()=>{try{const id=document.getElementById('vRoundId').value;await api('/api/voting/rounds/'+id+'/close',{method:'POST',body:JSON.stringify({selected_project_id:document.getElementById('vCloseProject').value.trim()})});alert('بسته شد');loadRounds();}catch(e){alert(e.message);}};
+    document.getElementById('vAlloc').onclick=async()=>{try{const id=document.getElementById('vRoundId').value;const data=await api('/api/voting/rounds/'+id+'/allocate',{method:'POST',body:'{}'});alert(JSON.stringify(data).slice(0,400));}catch(e){alert(e.message);}};
+    async function loadDisburse(){
+      const box=document.getElementById('dList');
+      try{const data=await api('/api/disburse/pending');const rows=data.pending||[];
+        box.innerHTML=rows.length?`<table><thead><tr><th>ID</th><th>پروژه</th><th>مبلغ</th><th>وضعیت</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td>${r.id}</td><td>${r.project_id}</td><td>${usdt(r.amount_raw)}</td><td>${badge(r.status)}</td><td><button class="secondary" data-a="${r.id}">تأیید</button> <button class="secondary" data-d="${r.id}">جزئیات</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted">خالی</p>';
+        box.querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{const approver=document.getElementById('dApprover').value.trim();if(!approver)return alert('approver');try{await api('/api/disburse/'+b.dataset.a+'/approve',{method:'POST',body:JSON.stringify({approver})});loadDisburse();}catch(e){alert(e.message);}});
+        box.querySelectorAll('[data-d]').forEach(b=>b.onclick=async()=>{try{const data=await api('/api/disburse/'+b.dataset.d);document.getElementById('dDetail').innerHTML=`<pre>${JSON.stringify(data.disbursement,null,2)}</pre>`;}catch(e){alert(e.message);}});
+      }catch(e){box.innerHTML=`<p class="err">${e.message}</p>`;}
+    }
+    document.getElementById('cRefresh').onclick=loadCommunity;
+    document.getElementById('cNet').onchange=loadCommunity;
+    document.getElementById('vRefresh').onclick=loadRounds;
+    document.getElementById('dRefresh').onclick=loadDisburse;
+    const ops=await initOpsPanel({api,badge});
+    window.__loadOps=ops.loadOps;
+    ops.loadOps();
+  </script>
+</body>
+</html>
