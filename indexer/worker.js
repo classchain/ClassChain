@@ -663,6 +663,23 @@ export default {
       }
     }
 
+    if (method === 'GET' && path === '/api/telegram/groups/project') {
+      const projectId = url.searchParams.get('project_id');
+      if (!projectId) {
+        return jsonResponse({ ok: false, error: 'project_id is required' }, 400);
+      }
+      try {
+        const repo = new TelegramGroupRepository(env.DB);
+        const group = await repo.getProjectGroup(projectId);
+        if (!group) {
+          return jsonResponse({ ok: false, error: 'not_found' }, 404);
+        }
+        return jsonResponse({ ok: true, group });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 500);
+      }
+    }
+
     if (method === 'GET' && path === '/api/telegram/groups') {
       try {
         const repo = new TelegramGroupRepository(env.DB);
