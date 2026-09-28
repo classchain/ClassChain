@@ -24,6 +24,9 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: npx --yes wrangler@4.142.0 d1 migrations apply classchain-indexer --remote --config wrangler.jsonc
 
+      - name: Install Worker dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+
       - name: Deploy indexer Worker
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
