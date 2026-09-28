@@ -105,6 +105,10 @@ export class TronAdapter {
             );
         }
 
+        // TronGrid cannot resolve timestamp for genesis block 0.
+        if (fromBlock === 0) {
+            fromBlock = 1;
+        }
 
         const fromTimestamp =
             await this.client.getBlockTimestamp(
