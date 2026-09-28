@@ -613,6 +613,25 @@ function saveEmail() {
     alert(_t('email.saved', null, 'Your email was saved!'));
 }
 
+function openTelegramAfterSuccessfulPayment(projectId) {
+    if (!projectId || String(projectId) === 'GENERAL_POOL') return;
+
+    fetch(`${INDEXER_API}/api/telegram/groups/project/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ project_id: String(projectId) }),
+    })
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok || !data?.invite_link) {
+                console.warn('[Donate] Telegram invite unavailable:', data?.error || 'unknown error');
+                return;
+            }
+            window.location.href = data.invite_link;
+        })
+        .catch(err => console.warn('[Donate] Telegram redirect failed:', err));
+}
+
 // ==================== مشارکت‌کنندگان از Indexer API ====================
 function shortDonorAddr(addr) {
     if (!addr || typeof addr !== 'string') return '—';
@@ -913,6 +932,7 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
 			                </p>
 			                <p>
 								${_t('payment.thanks', null, 'ClassChain thanks you for your support! ❤️')}
+                        <p>${_t('payment.telegramRedirect', null, 'Redirecting you to the project Telegram group...')}</p>
 			                </p>
 			            `;
 			        }
@@ -924,6 +944,7 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
 			            connectBtn.style.display = 'none';
 			        }
 
+			        openTelegramAfterSuccessfulPayment(projects?.ProjectID);
 			        optimisticProgressUpdate(selectedAmount);
 			        setTimeout(() => {
 			            loadProjectFinancials(projects?.['targetAmount(USDT)'] || 0);
@@ -1147,6 +1168,7 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
                             </a>
                         </p>
                         <p>${_t('payment.thanks', null, 'ClassChain thanks you for your support! ❤️')}</p>
+                        <p>${_t('payment.telegramRedirect', null, 'Redirecting you to the project Telegram group...')}</p>
                     `;
                 }
 
@@ -1154,6 +1176,7 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
                     connectBtn.disabled = true;
                 }
 
+                openTelegramAfterSuccessfulPayment(projects?.ProjectID);
                 optimisticProgressUpdate(selectedAmount);
                 setTimeout(() => {
                     loadProjectFinancials(projects?.['targetAmount(USDT)'] || 0);
