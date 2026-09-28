@@ -614,7 +614,7 @@ function saveEmail() {
 }
 
 function openTelegramAfterSuccessfulPayment(projectId) {
-    if (!projectId || String(projectId) === 'GENERAL_POOL') return;
+    if (!projectId) return;
 
     fetch(`${INDEXER_API}/api/telegram/groups/project/invite`, {
         method: 'POST',
