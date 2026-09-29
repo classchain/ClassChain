@@ -6,39 +6,60 @@
  */
 
 (function () {
+
     const api = {
+
         status: 'loading',
+
         error: null,
+
         NETWORKS: {},
+
         DEPLOYMENTS: {},
+
         ready: null
+
     };
 
+
     function buildNetworks(shared) {
+
         api.NETWORKS = {};
 
-        const networks = shared.NETWORKS || {};
-        const deployments = shared.DEPLOYMENTS || {};
+        api.DEPLOYMENTS =
+            shared.DEPLOYMENTS || {};
 
-        for (const networkId of Object.keys(networks)) {
-            const network = networks[networkId];
-            const deployment = deployments[networkId] || {};
+
+        for (
+            const networkId of
+            Object.keys(
+                shared.NETWORKS || {}
+            )
+        ) {
+
+            const network =
+                shared.NETWORKS[
+                    networkId
+                ];
+
+            const deployment =
+                shared.DEPLOYMENTS[
+                    networkId
+                ] || {};
+
+            const usdt =
+                deployment.tokens?.USDT ||
+                deployment.tokens?.usdt ||
+                {};
 
             const explorerBase =
                 network.explorerUrl ||
                 network.explorer ||
                 '';
 
-            const tokens =
-                deployment.tokens ||
-                {};
-
-            const usdt =
-                tokens.USDT ||
-                tokens.usdt ||
-                {};
 
             api.NETWORKS[networkId] = {
+
                 id:
                     network.id,
 
@@ -54,7 +75,7 @@
                 rpcUrl:
                     network.rpcUrl,
 
-                // Compatibility alias for older consumers (e.g. dashboard.js)
+                // Compatibility alias for older consumers (dashboard / manage-fund)
                 rpc:
                     network.rpcUrl,
 
@@ -83,29 +104,36 @@
                 icon:
                     network.icon,
 
-                status:
-                    deployment.status || 'inactive',
-
-                enabled:
-                    deployment.enabled !== false &&
-                    deployment.status === 'active',
 
                 factoryAddress:
-                    deployment.factoryAddress || null,
+                    deployment.factoryAddress ||
+                    null,
 
                 usdtAddress:
-                    usdt.address || null,
+                    usdt.address ||
+                    null,
 
                 tokenDecimals:
                     usdt.decimals != null
                         ? usdt.decimals
                         : 6,
 
+                status:
+                    deployment.status ||
+                    'pending',
+
+                enabled:
+                    deployment.enabled !== false &&
+                    deployment.status ===
+                    'active',
+
+
                 /*
                  * فقط یک Canonical key
                  */
                 fundsKey:
                     networkId,
+
 
                 /*
                  * Compatibility موقت.
@@ -116,6 +144,7 @@
                 fundsKeys: [
                     networkId
                 ],
+
 
                 /*
                  * UI metadata
@@ -132,7 +161,8 @@
                         ? 'MetaMask'
                         : 'TronLink'
 
-                // buttonLabel intentionally omitted — UI uses DonateI18n (_t) so it stays multi-language
+                // buttonLabel intentionally omitted —
+                // donate UI uses DonateI18n (_t) so it stays multi-language
             };
         }
     }
@@ -174,6 +204,36 @@
         );
 
 
+    api.getNetwork =
+        function (id) {
+
+            return (
+                api.NETWORKS[id] ||
+                null
+            );
+        };
+
+
+    /**
+     * شبکه‌های active.
+     * مورد استفاده داشبورد و manage-fund.
+     */
+    api.getActiveNetworks =
+        function () {
+
+            return Object.values(
+                api.NETWORKS
+            )
+            .filter(
+                network =>
+                    network.status ===
+                    'active' &&
+                    network.enabled &&
+                    network.factoryAddress
+            );
+        };
+
+
     api.getReadNetworks =
         function () {
 
@@ -199,35 +259,6 @@
         };
 
 
-    /**
-     * شبکه‌های active که factory دارند.
-     * مورد استفاده داشبورد برای فیلتر خزانه‌ها.
-     */
-    api.getActiveNetworks =
-        function () {
-
-            return Object.values(
-                api.NETWORKS
-            )
-            .filter(
-                network =>
-                    network.status === 'active' &&
-                    network.enabled &&
-                    network.factoryAddress
-            );
-        };
-
-
-    api.getNetwork =
-        function (id) {
-
-            return (
-                api.NETWORKS[id] ||
-                null
-            );
-        };
-
-
     api.getTokenAddress =
         function (
             networkId,
@@ -235,13 +266,20 @@
         ) {
 
             const network =
-                api.NETWORKS[networkId];
+                api.NETWORKS[
+                    networkId
+                ];
 
-            if (!network) {
+            if (
+                symbol !== 'USDT'
+            ) {
                 return null;
             }
 
-            return network.usdtAddress || null;
+            return (
+                network?.usdtAddress ||
+                null
+            );
         };
 
 
@@ -252,9 +290,13 @@
         ) {
 
             const network =
-                api.NETWORKS[networkId];
+                api.NETWORKS[
+                    networkId
+                ];
 
-            if (symbol !== 'USDT') {
+            if (
+                symbol !== 'USDT'
+            ) {
                 return 18;
             }
 
@@ -271,7 +313,9 @@
         ) {
 
             const network =
-                api.NETWORKS[networkId];
+                api.NETWORKS[
+                    networkId
+                ];
 
             if (!network) {
                 return [];
@@ -280,7 +324,8 @@
             return [
                 network.rpcUrl,
                 ...(network.rpcFallbacks || [])
-            ].filter(Boolean);
+            ]
+            .filter(Boolean);
         };
 
 
@@ -290,7 +335,9 @@
         ) {
 
             const network =
-                api.NETWORKS[networkId];
+                api.NETWORKS[
+                    networkId
+                ];
 
             return network
                 ? { ...network }
@@ -300,14 +347,11 @@
 
     /**
      * Absolute explorer URL for a transaction hash.
-     * EVM: {explorer}/tx/{hash}
-     * TVM: {explorer}/#/transaction/{hash}
+     * EVM:  {explorer}/tx/{hash}
+     * TVM:  {explorer}/#/transaction/{hash}
      */
     api.getTxUrl =
-        function (
-            networkId,
-            txHash
-        ) {
+        function (networkId, txHash) {
 
             const network =
                 api.NETWORKS[networkId];
@@ -318,17 +362,17 @@
 
             const base =
                 (network.explorerUrl || network.explorer || '')
-                    .replace(/\\/$/, '');
+                    .replace(/\/$/, '');
 
             if (!base) {
                 return null;
             }
 
             if (network.type === 'TVM') {
-                return base + '/#/transaction/' + txHash;
+                return `${base}/#/transaction/${txHash}`;
             }
 
-            return base + '/tx/' + txHash;
+            return `${base}/tx/${txHash}`;
         };
 
 
@@ -338,14 +382,10 @@
             txHash
         ) {
 
-            const network =
-                api.NETWORKS[networkId];
-
-            if (!network || !network.explorer) {
-                return null;
-            }
-
-            return `${network.explorer}/tx/${txHash}`;
+            return api.getTxUrl(
+                networkId,
+                txHash
+            );
         };
 
 
