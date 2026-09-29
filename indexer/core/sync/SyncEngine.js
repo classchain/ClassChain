@@ -270,13 +270,50 @@ export class SyncEngine {
 
         } catch (error) {
 
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : String(error);
+
+            // Cloudflare Worker subrequest budget exhausted mid-run.
+            // Do NOT mark FAILED — last SUCCESS block is still valid;
+            // next invocation (or projectId= filter) can continue.
+            if (
+                /too many subrequests/i.test(message)
+            ) {
+                return {
+                    treasuryId:
+                        treasury.id,
+
+                    projectId:
+                        treasury.projectId,
+
+                    networkId:
+                        treasury.networkId,
+
+                    address:
+                        treasury.address,
+
+                    fromBlock,
+
+                    toBlock,
+
+                    transfers: 0,
+
+                    inserted: 0,
+
+                    status:
+                        'SKIPPED_BUDGET',
+
+                    error:
+                        message
+                };
+            }
+
             await this.syncStateRepository
                 .markFailed(
                     treasury.id,
-
-                    error instanceof Error
-                        ? error.message
-                        : String(error)
+                    message
                 );
 
             throw error;
