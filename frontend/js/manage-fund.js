@@ -713,8 +713,19 @@ async function connectSelectedNetwork() {
             const wm =
                 new window.ClassChainWalletManager();
 
-            connection =
-                await wm.connect(selectedNetCfg);
+            connection = await wm.connect(selectedNetCfg, {
+                returnUrl: (function () {
+                    if (selectedNetCfg.type !== "TVM") return undefined;
+                    if (wm.buildTronLinkReturnUrl) {
+                        return wm.buildTronLinkReturnUrl({
+                            project: projectId || ""
+                        });
+                    }
+                    const u = new URL(window.location.href);
+                    u.searchParams.set("tron_resume", "1");
+                    return u.toString();
+                })()
+            });
         } else {
             if (selectedNetCfg.type === "TVM") {
                 if (!window.tronWeb) {
@@ -4031,5 +4042,91 @@ if (
 
 document.addEventListener(
     "DOMContentLoaded",
-    init
+    async function () {
+        await init();
+
+        // بازگشت از deep-link ترون‌لینک یا باز شدن داخل اپ
+        try {
+            const params =
+                new URLSearchParams(
+                    window.location.search
+                );
+
+            const shouldResume =
+                params.get("tron_resume") === "1" ||
+                (
+                    typeof window.tronWeb !== "undefined" &&
+                    window.tronWeb?.defaultAddress?.base58
+                );
+
+            if (!shouldResume) {
+                return;
+            }
+
+            try {
+                const u =
+                    new URL(
+                        window.location.href
+                    );
+                u.searchParams.delete(
+                    "tron_resume"
+                );
+                window.history.replaceState(
+                    {},
+                    "",
+                    u.toString()
+                );
+            } catch (_) {}
+
+            const select =
+                getElement("networkSelect");
+
+            if (!select) {
+                return;
+            }
+
+            const tvmOption =
+                Array.from(
+                    select.options
+                ).find(opt => {
+                    if (!opt.value) {
+                        return false;
+                    }
+
+                    const cfg =
+                        window
+                            .ClassChainNetworkConfig
+                            ?.NETWORKS
+                            ?.[opt.value];
+
+                    return (
+                        cfg &&
+                        cfg.type === "TVM"
+                    );
+                });
+
+            if (!tvmOption) {
+                return;
+            }
+
+            select.value =
+                tvmOption.value;
+
+            select.dispatchEvent(
+                new Event("change")
+            );
+
+            setTimeout(
+                function () {
+                    connectSelectedNetwork();
+                },
+                300
+            );
+        } catch (e) {
+            console.warn(
+                "[ManageFund] Tron auto-resume failed:",
+                e
+            );
+        }
+    }
 );
