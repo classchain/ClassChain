@@ -270,9 +270,15 @@ async function connectTronLink() {
         }
 
         const wm = new window.ClassChainWalletManager();
-        const conn = await wm.connect(net, {
-            returnUrl: window.location.href
-        });
+        const returnUrl = wm.buildTronLinkReturnUrl
+            ? wm.buildTronLinkReturnUrl({})
+            : (function () {
+                  const u = new URL(window.location.href);
+                  u.searchParams.set("tron_resume", "1");
+                  return u.toString();
+              })();
+        
+        const conn = await wm.connect(net, { returnUrl });
 
         userAddress = normalizeAddress(conn.account);
         userAddressType = "TVM";
