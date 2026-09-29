@@ -487,13 +487,13 @@ async function checkOwnershipOnNetwork(
     if (
         addrType === "EVM" &&
         netCfg.type === "EVM" &&
-        netCfg.rpcUrl
+        netCfg.rpc
     ) {
         for (const { fundInfo } of fundEntries) {
             const fundAddr = fundInfo.address;
 
             try {
-                const web3 = new Web3(netCfg.rpcUrl);
+                const web3 = new Web3(netCfg.rpc);
 
                 const fundContract =
                     new web3.eth.Contract(
