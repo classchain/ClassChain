@@ -163,104 +163,68 @@ async function connectMetaMask() {
 
     console.log("[Dashboard] MetaMask clicked");
 
-    if (
-        typeof window.ethereum === "undefined"
-    ) {
-        alert(
-            "لطفاً افزونه MetaMask را نصب کنید."
-        );
-
-        return;
-    }
-
     try {
 
-        let accounts =
-            await window.ethereum.request({
-                method: "eth_accounts"
-            });
+        const config = window.ClassChainNetworkConfig;
 
-        if (
-            !accounts ||
-            accounts.length === 0
-        ) {
-
-            accounts =
-                await window.ethereum.request({
-                    method: "eth_requestAccounts"
-                });
-        }
-
-        if (
-            !accounts ||
-            accounts.length === 0
-        ) {
-
-            alert(
-                "هیچ حسابی انتخاب نشد."
-            );
-
+        if (!config) {
+            alert("تنظیمات شبکه لود نشده است.");
             return;
         }
 
-        userAddress =
-            normalizeAddress(accounts[0]);
+        await config.ready;
 
-        userAddressType =
-            "EVM";
+        const net = Object.values(config.NETWORKS || {})
+            .find(n =>
+                n.type === "EVM" &&
+                n.status === "active" &&
+                n.enabled
+            );
 
-        const accountDisplay =
-            getElement("accountDisplay");
+        if (!net) {
+            alert("هیچ شبکه EVM فعالی تنظیم نشده است.");
+            return;
+        }
 
+        if (!window.ClassChainWalletManager) {
+            alert("wallet-manager لود نشده است. صفحه را رفرش کنید.");
+            return;
+        }
+
+        const wm = new window.ClassChainWalletManager();
+        const conn = await wm.connect(net);
+
+        userAddress = normalizeAddress(conn.account);
+        userAddressType = "EVM";
+
+        const accountDisplay = getElement("accountDisplay");
         if (accountDisplay) {
-
             accountDisplay.textContent =
-                `وصل شد (MetaMask): ${shortAddress(
-                    userAddress,
-                    8,
-                    6
-                )}`;
+                `وصل شد (MetaMask): ${shortAddress(userAddress, 8, 6)}`;
         }
 
-        const connectSection =
-            getElement("connectSection");
-
+        const connectSection = getElement("connectSection");
         if (connectSection) {
-            connectSection.style.display =
-                "none";
+            connectSection.style.display = "none";
         }
 
-        const loading =
-            getElement("loading");
-
+        const loading = getElement("loading");
         if (loading) {
-            loading.style.display =
-                "block";
+            loading.style.display = "block";
         }
 
         await loadProjects();
 
     } catch (error) {
 
-        console.error(
-            "[Dashboard] MetaMask error:",
-            error
-        );
+        console.error("[Dashboard] MetaMask error:", error);
 
         if (error?.code === 4001) {
-
-            alert(
-                "اتصال MetaMask لغو شد."
-            );
-
+            alert("اتصال MetaMask لغو شد.");
         } else {
-
             alert(
                 "خطا در اتصال MetaMask: " +
-                (
-                    error?.message ||
-                    "مشکل ناشناخته"
-                )
+                (error?.message || "مشکل ناشناخته")
             );
         }
     }
@@ -277,122 +241,85 @@ async function connectTronLink() {
 
     console.log("[Dashboard] TronLink clicked");
 
-    const tronWeb =
-        window.tronWeb;
-
-    if (!tronWeb) {
-
-        alert(
-            "لطفاً افزونه TronLink را نصب و فعال کنید."
-        );
-
-        return;
-    }
-
     try {
 
-        if (
-            typeof tronWeb.request ===
-            "function"
-        ) {
+        const config = window.ClassChainNetworkConfig;
 
-            await tronWeb.request({
-                method:
-                    "tron_requestAccounts"
-            });
-        }
-
-        /*
-         * TronLink ممکن است بعد از request
-         * کمی زمان لازم داشته باشد تا
-         * defaultAddress به‌روزرسانی شود.
-         */
-
-        await new Promise(
-            resolve =>
-                setTimeout(resolve, 300)
-        );
-
-        const account =
-            tronWeb
-                .defaultAddress
-                ?.base58;
-
-        if (!account) {
-
-            alert(
-                "TronLink قفل است یا هیچ حسابی انتخاب نشده است."
-            );
-
+        if (!config) {
+            alert("تنظیمات شبکه لود نشده است.");
             return;
         }
 
-        userAddress =
-            normalizeAddress(account);
+        await config.ready;
 
-        userAddressType =
-            "TVM";
+        const net = Object.values(config.NETWORKS || {})
+            .find(n =>
+                n.type === "TVM" &&
+                n.status === "active" &&
+                n.enabled
+            );
 
-        const accountDisplay =
-            getElement("accountDisplay");
+        if (!net) {
+            alert("هیچ شبکه TRON فعالی تنظیم نشده است.");
+            return;
+        }
 
+        if (!window.ClassChainWalletManager) {
+            alert("wallet-manager لود نشده است. صفحه را رفرش کنید.");
+            return;
+        }
+
+        const wm = new window.ClassChainWalletManager();
+        const conn = await wm.connect(net, {
+            returnUrl: window.location.href
+        });
+
+        userAddress = normalizeAddress(conn.account);
+        userAddressType = "TVM";
+
+        const accountDisplay = getElement("accountDisplay");
         if (accountDisplay) {
-
             accountDisplay.textContent =
-                `وصل شد (TronLink): ${shortAddress(
-                    userAddress,
-                    6,
-                    4
-                )}`;
+                `وصل شد (TronLink): ${shortAddress(userAddress, 6, 4)}`;
         }
 
-        const connectSection =
-            getElement("connectSection");
-
+        const connectSection = getElement("connectSection");
         if (connectSection) {
-            connectSection.style.display =
-                "none";
+            connectSection.style.display = "none";
         }
 
-        const loading =
-            getElement("loading");
-
+        const loading = getElement("loading");
         if (loading) {
-            loading.style.display =
-                "block";
+            loading.style.display = "block";
         }
 
         await loadProjects();
 
     } catch (error) {
 
-        console.error(
-            "[Dashboard] TronLink error:",
-            error
-        );
+        console.error("[Dashboard] TronLink error:", error);
+
+        // deep-link موبایل: پیام «در حال باز کردن…» را نشان بده، نه خطا
+        if (
+            error?.message &&
+            error.message.includes("در حال باز کردن")
+        ) {
+            alert(error.message);
+            return;
+        }
 
         if (
             error?.code === 4001 ||
             (
                 error?.message &&
-                error.message
-                    .toLowerCase()
-                    .includes("cancel")
+                error.message.toLowerCase().includes("cancel")
             )
         ) {
-
-            alert(
-                "اتصال TronLink لغو شد."
-            );
-
+            alert("اتصال TronLink لغو شد.");
         } else {
-
             alert(
                 "خطا در اتصال TronLink: " +
-                (
-                    error?.message ||
-                    "مشکل ناشناخته"
-                )
+                (error?.message || "مشکل ناشناخته")
             );
         }
     }
