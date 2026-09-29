@@ -591,6 +591,9 @@ async function checkOwnershipOnNetwork(
             const fundAddr = fundInfo.address;
 
             try {
+                // ------------------------------------------------
+                // ساخت صحیح قرارداد TRON
+                // ------------------------------------------------
                 const fundContract =
                     await tronWeb.contract(
                         tronFundABI,
@@ -614,6 +617,9 @@ async function checkOwnershipOnNetwork(
                         .owner()
                         .call();
 
+                // ------------------------------------------------
+                // مالک مستقیم خزانه
+                // ------------------------------------------------
                 if (
                     actualOwner &&
                     String(actualOwner)
@@ -633,6 +639,9 @@ async function checkOwnershipOnNetwork(
                     };
                 }
 
+                // ------------------------------------------------
+                // اگر owner خزانه یک Multisig باشد
+                // ------------------------------------------------
                 if (actualOwner) {
                     try {
                         const multisigContract =
@@ -816,6 +825,10 @@ async function loadProjects() {
         }
 
 
+        /*
+         * Projects.json
+         */
+
         const response =
             await fetch(
                 "data/Projects.json"
@@ -841,6 +854,10 @@ async function loadProjects() {
                 : [];
 
 
+        /*
+         * فقط شبکه‌های active
+         */
+
         const activeNetworks =
             config.getActiveNetworks();
 
@@ -849,6 +866,12 @@ async function loadProjects() {
 
         let checkedCount = 0;
 
+
+        /*
+         * ====================================================
+         * بررسی پروژه‌ها
+         * ====================================================
+         */
 
         for (
             const feature of features
@@ -881,12 +904,22 @@ async function loadProjects() {
             checkedCount++;
 
 
+            /*
+             * شبکه‌هایی که این کاربر
+             * مالک خزانه آن‌هاست.
+             */
+
             const ownedNetworks = [];
 
 
             for (
                 const net of activeNetworks
             ) {
+
+                /*
+                 * جلوگیری از بررسی شبکه
+                 * نامرتبط با کیف پول
+                 */
 
                 if (
                     net.type === "EVM" &&
@@ -939,12 +972,24 @@ async function loadProjects() {
             }
 
 
+            /*
+             * این پروژه متعلق به این کیف پول نیست.
+             */
+
             if (
                 ownedNetworks.length === 0
             ) {
                 continue;
             }
 
+
+            /*
+             * =================================================
+             * موجودی
+             *
+             * فقط Reader مشترک
+             * =================================================
+             */
 
             let totalRaised = 0;
             let breakdown = [];
@@ -1016,10 +1061,18 @@ async function loadProjects() {
         }
 
 
+        /*
+         * نمایش نتیجه
+         */
+
         displayProjects(
             myProjects
         );
 
+
+        /*
+         * هیچ پروژه‌ای پیدا نشد
+         */
 
         if (
             myProjects.length === 0
@@ -1165,6 +1218,10 @@ function displayProjects(
                 "project-card";
 
 
+            /*
+             * Breakdown شبکه‌ها
+             */
+
             let breakdownHtml =
                 "";
 
@@ -1185,32 +1242,75 @@ function displayProjects(
                         )
                         .map(
                             item =>
-                                `${item.networkName || item.networkId}: ${Number(item.amount).toFixed(2)} USDT`
+                                `<span style="font-size:0.8em;opacity:0.85;">` +
+                                `${item.network}: ` +
+                                `${Number(item.amount).toFixed(2)}` +
+                                `</span>`
                         );
 
-                if (parts.length) {
+
+                if (
+                    parts.length > 0
+                ) {
+
                     breakdownHtml =
-                        `<div class="breakdown">${parts.join(" · ")}</div>`;
+                        `
+                        <div
+                            class="project-info"
+                            style="margin-top:4px;"
+                        >
+                            ${parts.join(" | ")}
+                        </div>
+                        `;
                 }
             }
 
 
-            const networksHtml =
-                (project.ownedNetworks || [])
+            /*
+             * شبکه‌های تحت مالکیت
+             */
+
+            const networksLabel =
+                project.ownedNetworks
                     .map(
-                        n =>
-                            `<span class="network-badge">${n.networkName || n.networkId}</span>`
+                        network =>
+                            network.networkName
                     )
-                    .join(" ");
+                    .join("، ");
 
 
             card.innerHTML = `
-                <h3>${project.name}</h3>
-                <p class="project-id">ID: ${project.id}</p>
-                <p class="raised">جمع‌آوری‌شده: ${Number(project.totalRaised || 0).toFixed(2)} USDT</p>
+
+                <div class="project-title">
+                    ${project.name}
+                </div>
+
+                <div class="project-info">
+                    آیدی: ${project.id}
+                </div>
+
+                <div class="project-info">
+                    شبکه‌های تحت مالکیت شما:
+                    ${networksLabel}
+                </div>
+
+                <div class="project-balance">
+                    ${Number(
+                        project.totalRaised
+                    ).toFixed(2)}
+                    USDT
+                    (مجموع همه شبکه‌ها)
+                </div>
+
                 ${breakdownHtml}
-                <div class="owned-networks">${networksHtml}</div>
-                <a class="btn" href="manage-fund.html?project=${encodeURIComponent(project.id)}">مدیریت خزانه</a>
+
+                <a
+                    href="manage-fund.html?project=${project.id}"
+                    class="manage-btn"
+                >
+                    مدیریت خزانه‌ها
+                </a>
+
             `;
 
 
@@ -1224,7 +1324,7 @@ function displayProjects(
 
 /*
  * ============================================================
- * راه‌اندازی
+ * اتصال دکمه‌ها
  * ============================================================
  */
 
@@ -1266,3 +1366,91 @@ document.addEventListener(
         );
     }
 );
+
+
+/*
+ * ============================================================
+ * particles.js
+ * ============================================================
+ */
+
+if (
+    typeof particlesJS ===
+    "function"
+) {
+
+    particlesJS(
+        "particles-js",
+        {
+            "particles": {
+                "number": {
+                    "value": 100
+                },
+
+                "color": {
+                    "value": [
+                        "#4cc9f0",
+                        "#8b5cf6",
+                        "#7209b7"
+                    ]
+                },
+
+                "shape": {
+                    "type": "circle"
+                },
+
+                "opacity": {
+                    "value": 0.5
+                },
+
+                "size": {
+                    "value": 3
+                },
+
+                "line_linked": {
+                    "enable": true,
+                    "distance": 150,
+                    "color": "#4cc9f0",
+                    "opacity": 0.3,
+                    "width": 1
+                },
+
+                "move": {
+                    "enable": true,
+                    "speed": 2
+                }
+            },
+
+            "interactivity": {
+                "detect_on": "canvas",
+
+                "events": {
+                    "onhover": {
+                        "enable": true,
+                        "mode": "grab"
+                    },
+
+                    "onclick": {
+                        "enable": true,
+                        "mode": "push"
+                    }
+                },
+
+                "modes": {
+                    "grab": {
+                        "distance": 140,
+                        "line_linked": {
+                            "opacity": 0.7
+                        }
+                    },
+
+                    "push": {
+                        "particles_nb": 4
+                    }
+                }
+            },
+
+            "retina_detect": true
+        }
+    );
+}
