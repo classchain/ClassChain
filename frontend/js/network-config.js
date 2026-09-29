@@ -218,6 +218,16 @@
         };
 
 
+    api.getNetwork =
+        function (id) {
+
+            return (
+                api.NETWORKS[id] ||
+                null
+            );
+        };
+
+
     api.getTokenAddress =
         function (
             networkId,
@@ -232,6 +242,93 @@
             }
 
             return network.usdtAddress || null;
+        };
+
+
+    api.getTokenDecimals =
+        function (
+            networkId,
+            symbol = 'USDT'
+        ) {
+
+            const network =
+                api.NETWORKS[networkId];
+
+            if (symbol !== 'USDT') {
+                return 18;
+            }
+
+            return (
+                network?.tokenDecimals ??
+                18
+            );
+        };
+
+
+    api.getRpcUrls =
+        function (
+            networkId
+        ) {
+
+            const network =
+                api.NETWORKS[networkId];
+
+            if (!network) {
+                return [];
+            }
+
+            return [
+                network.rpcUrl,
+                ...(network.rpcFallbacks || [])
+            ].filter(Boolean);
+        };
+
+
+    api.getFullNetwork =
+        function (
+            networkId
+        ) {
+
+            const network =
+                api.NETWORKS[networkId];
+
+            return network
+                ? { ...network }
+                : null;
+        };
+
+
+    /**
+     * Absolute explorer URL for a transaction hash.
+     * EVM: {explorer}/tx/{hash}
+     * TVM: {explorer}/#/transaction/{hash}
+     */
+    api.getTxUrl =
+        function (
+            networkId,
+            txHash
+        ) {
+
+            const network =
+                api.NETWORKS[networkId];
+
+            if (!network || !txHash) {
+                return null;
+            }
+
+            const base =
+                (network.explorerUrl || network.explorer || '')
+                    .replace(/\\/$/, '');
+
+            if (!base) {
+                return null;
+            }
+
+            if (network.type === 'TVM') {
+                return base + '/#/transaction/' + txHash;
+            }
+
+            return base + '/tx/' + txHash;
         };
 
 
