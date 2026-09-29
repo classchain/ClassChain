@@ -54,6 +54,10 @@
                 rpcUrl:
                     network.rpcUrl,
 
+                // Compatibility alias for older consumers (e.g. dashboard.js)
+                rpc:
+                    network.rpcUrl,
+
                 rpcFallbacks:
                     network.rpcFallbacks || [],
 
@@ -191,6 +195,25 @@
 
             return Object.values(
                 api.NETWORKS
+            );
+        };
+
+
+    /**
+     * شبکه‌های active که factory دارند.
+     * مورد استفاده داشبورد برای فیلتر خزانه‌ها.
+     */
+    api.getActiveNetworks =
+        function () {
+
+            return Object.values(
+                api.NETWORKS
+            )
+            .filter(
+                network =>
+                    network.status === 'active' &&
+                    network.enabled &&
+                    network.factoryAddress
             );
         };
 
