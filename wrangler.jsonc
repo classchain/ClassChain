@@ -23,7 +23,7 @@
     "NETWORK_IDS": "polygon_amoy,tron_nile",
     "SAFE_CONFIRMATIONS": "20",
     "OVERLAP": "10",
-    "PROJECTS_JSON_URL": "https://raw.githubusercontent.com/classchain/ClassChain/Donation/frontend/data/Projects.json"
+    "PROJECTS_JSON_URL": "https://raw.githubusercontent.com/classchain/ClassChain/Mobile/frontend/data/Projects.json"
   }
 
   // Secret (set via CLI, do not commit):

@@ -5,6 +5,11 @@
   "scripts": {
     "test:indexer": "node indexer/core/discovery/Discovery.integration.test.js"
   },
+  "dependencies": {
+    "@noble/hashes": "^2.0.1",
+    "@noble/secp256k1": "^3.0.0",
+    "bs58": "^6.0.0"
+  },
   "devDependencies": {
     "wrangler": "^4.0.0"
   }

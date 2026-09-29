@@ -4,6 +4,7 @@ let currentContract = null;
 let userAddress = null;
 let web3 = null;
 let projects = {};
+let telegramWindow = null;
 
 function _t(key, vars, fallback) {
     try {
@@ -613,6 +614,47 @@ function saveEmail() {
     alert(_t('email.saved', null, 'Your email was saved!'));
 }
 
+function prepareTelegramWindow() {
+    if (telegramWindow && !telegramWindow.closed) return;
+    telegramWindow = window.open('about:blank', '_blank');
+}
+
+function closePendingTelegramWindow() {
+    if (telegramWindow && !telegramWindow.closed) {
+        telegramWindow.close();
+    }
+    telegramWindow = null;
+}
+
+function openTelegramAfterSuccessfulPayment(projectId) {
+    if (!projectId) return;
+
+    fetch(`${INDEXER_API}/api/telegram/groups/project/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ project_id: String(projectId) }),
+    })
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok || !data?.invite_link) {
+                console.warn('[Donate] Telegram invite unavailable:', data?.error || 'unknown error');
+                closePendingTelegramWindow();
+                return;
+            }
+
+            if (telegramWindow && !telegramWindow.closed) {
+                telegramWindow.location.href = data.invite_link;
+                telegramWindow = null;
+            } else {
+                window.location.href = data.invite_link;
+            }
+        })
+        .catch(err => {
+            closePendingTelegramWindow();
+            console.warn('[Donate] Telegram redirect failed:', err);
+        });
+}
+
 // ==================== مشارکت‌کنندگان از Indexer API ====================
 function shortDonorAddr(addr) {
     if (!addr || typeof addr !== 'string') return '—';
@@ -771,6 +813,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
+            // Open the Telegram tab synchronously from the user's click so browsers do not block it as a popup.
+            prepareTelegramWindow();
+
             let connection = null;
             const txHash = document.getElementById('txHash');
             const successMsg = document.getElementById('successMessage');
@@ -796,6 +841,7 @@ _t('payment.connecting', { wallet: net.walletName || 'wallet' }, 'Connecting to 
                 });
                 updateWalletInfo(connection);
             } catch (err) {
+                closePendingTelegramWindow();
                 if (successMsg) successMsg.style.display = 'none';
                 alert(err.message || _t('payment.walletError', null, 'Wallet connection error'));
                 return;
@@ -913,6 +959,7 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
 			                </p>
 			                <p>
 								${_t('payment.thanks', null, 'ClassChain thanks you for your support! ❤️')}
+                        <p>${_t('payment.telegramRedirect', null, 'Redirecting you to the project Telegram group...')}</p>
 			                </p>
 			            `;
 			        }
@@ -924,12 +971,14 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
 			            connectBtn.style.display = 'none';
 			        }
 
+			        openTelegramAfterSuccessfulPayment(projects?.ProjectID);
 			        optimisticProgressUpdate(selectedAmount);
 			        setTimeout(() => {
 			            loadProjectFinancials(projects?.['targetAmount(USDT)'] || 0);
 			        }, 8000);
 
 			    } catch (err) {
+			        closePendingTelegramWindow();
 			        console.error('[Donate] TRON transaction error:', err);
 
 			        let userMessage = _t('errors.title', null, 'Transaction error:') + '\n';
@@ -1147,6 +1196,7 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
                             </a>
                         </p>
                         <p>${_t('payment.thanks', null, 'ClassChain thanks you for your support! ❤️')}</p>
+                        <p>${_t('payment.telegramRedirect', null, 'Redirecting you to the project Telegram group...')}</p>
                     `;
                 }
 
@@ -1154,12 +1204,14 @@ _t('payment.waitingDeposit', null, 'Waiting for deposit confirmation...');
                     connectBtn.disabled = true;
                 }
 
+                openTelegramAfterSuccessfulPayment(projects?.ProjectID);
                 optimisticProgressUpdate(selectedAmount);
                 setTimeout(() => {
                     loadProjectFinancials(projects?.['targetAmount(USDT)'] || 0);
                 }, 8000);
 
             } catch (err) {
+                closePendingTelegramWindow();
                 console.error("خطا در تراکنش:", err);
                 handleTransactionError(err, approveTxHash, depositTxHash, net);
             }

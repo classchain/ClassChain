@@ -78,6 +78,11 @@ export class IndexerRunner {
         const discovery =
             this.discoveryService.discover();
 
+        const projectIdFilter =
+            options.projectId
+                ? String(options.projectId)
+                : null;
+
         const summary = {
             discovered:
                 discovery.valid.length +
@@ -109,8 +114,45 @@ export class IndexerRunner {
         const engine =
             this._createSyncEngine();
 
+        // GENERAL_POOL first so shared treasury is not starved by project treasuries
+        // under Cloudflare subrequest limits in a full cron pass.
+        const ordered = [...discovery.valid].sort((a, b) => {
+            const ag = String(a.projectId).toUpperCase() === 'GENERAL_POOL' ? 0 : 1;
+            const bg = String(b.projectId).toUpperCase() === 'GENERAL_POOL' ? 0 : 1;
+            if (ag !== bg) return ag - bg;
+            const pc = String(a.projectId).localeCompare(String(b.projectId));
+            if (pc !== 0) return pc;
+            return String(a.networkId).localeCompare(String(b.networkId));
+        });
 
-        for (const treasury of discovery.valid) {
+        let budgetExhausted = false;
+
+        for (const treasury of ordered) {
+
+            if (
+                projectIdFilter &&
+                String(treasury.projectId) !== projectIdFilter
+            ) {
+                summary.skipped++;
+                summary.results.push({
+                    projectId: treasury.projectId,
+                    networkId: treasury.networkId,
+                    address: treasury.address,
+                    status: 'SKIPPED_PROJECT_FILTER'
+                });
+                continue;
+            }
+
+            if (budgetExhausted) {
+                summary.skipped++;
+                summary.results.push({
+                    projectId: treasury.projectId,
+                    networkId: treasury.networkId,
+                    address: treasury.address,
+                    status: 'SKIPPED_BUDGET'
+                });
+                continue;
+            }
 
             if (
                 !this._shouldSyncNetwork(
@@ -160,6 +202,13 @@ export class IndexerRunner {
                         options
                     );
 
+                if (result?.status === 'SKIPPED_BUDGET') {
+                    summary.skipped++;
+                    summary.results.push(result);
+                    budgetExhausted = true;
+                    continue;
+                }
+
                 summary.synced++;
 
                 summary.transfers +=
@@ -171,6 +220,24 @@ export class IndexerRunner {
                 summary.results.push(result);
 
             } catch (error) {
+                const msg =
+                    error instanceof Error
+                        ? error.message
+                        : String(error);
+
+                if (/too many subrequests/i.test(msg)) {
+                    budgetExhausted = true;
+                    summary.skipped++;
+                    summary.results.push({
+                        projectId: treasuryForResult.projectId,
+                        networkId: treasuryForResult.networkId,
+                        address: treasuryForResult.address,
+                        status: 'SKIPPED_BUDGET',
+                        error: msg
+                    });
+                    continue;
+                }
+
                 summary.failed++;
 
                 summary.results.push(
