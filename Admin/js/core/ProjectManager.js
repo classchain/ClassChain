@@ -198,7 +198,10 @@ export class ProjectManager {
       isMultisig: !!(
         fundData.multisigAddress ||
         (Array.isArray(fundData.owners) && fundData.owners.length > 1)
-      )
+      ),
+      ...(Number.isInteger(fundData.scanFromBlock) && fundData.scanFromBlock >= 0
+        ? { scanFromBlock: fundData.scanFromBlock }
+        : {})
     };
 
     console.log(`✅ خزانه پروژه ${projectId} در شبکه ${networkId} به‌روز شد`);
