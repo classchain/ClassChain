@@ -685,6 +685,7 @@
           },
           "tron_nile": {
             "address": "TNpH6AyKJRLip6NEp6wjaTw3FbbduFD1hJ",
+            "scanFromBlock": 71179889,
             "multisigAddress": null,
             "owners": [
               "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1",
