@@ -115,7 +115,7 @@ async function runIndexer(env, options = {}) {
     maxRunMs: readNumber(env, 'INDEXER_MAX_RUN_MS', 45_000),
     maxTransactionInfoPerRun: Math.max(
       1,
-      Math.floor(readNumber(env, 'INDEXER_MAX_TRON_TXINFO_PER_RUN', 20))
+      Math.floor(readNumber(env, 'INDEXER_MAX_TRON_TXINFO_PER_RUN', 6))
     ),
     ...options,
   });
