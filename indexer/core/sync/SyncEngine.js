@@ -121,54 +121,46 @@ export class SyncEngine {
         const lastFinalizedBlock =
             Math.max(
                 0,
-                latestBlock -
-                safeConfirmations
+                latestBlock - safeConfirmations
             );
 
 
         const overlap =
             options.overlap ?? 10;
 
-        const maxBlocksPerRun =
+
+        let fromBlock =
+            Math.max(
+                0,
+                (state.last_scanned_block || 0) -
+                overlap +
+                1
+            );
+
+
+        if (
+            Number.isInteger(treasury.scanFromBlock) &&
+            treasury.scanFromBlock > fromBlock
+        ) {
+            fromBlock = treasury.scanFromBlock;
+        }
+
+
+        const maxBlocks =
             this._maxBlocksPerRun(
                 treasury.networkId,
                 options
             );
 
 
-        let fromBlock;
+        let toBlock =
+            Math.min(
+                lastFinalizedBlock,
+                fromBlock + maxBlocks - 1
+            );
 
 
-        if (
-            state.last_scanned_block &&
-            state.last_scanned_block > 0
-        ) {
-
-            fromBlock =
-                Math.max(
-                    0,
-                    state.last_scanned_block -
-                    overlap +
-                    1
-                );
-
-        } else {
-
-            fromBlock =
-                state.scan_from_block || 0;
-        }
-
-
-        // Block 0 is not reliably timestamp-resolvable on Tron (and is useless to scan).
-        // Clamp so first-run ranges never call getBlockTimestamp(0).
-        if (fromBlock === 0) {
-            fromBlock = 1;
-        }
-
-        if (
-            fromBlock >
-            lastFinalizedBlock
-        ) {
+        if (fromBlock > toBlock) {
 
             return {
 
@@ -178,7 +170,7 @@ export class SyncEngine {
                 fromBlock,
 
                 toBlock:
-                    lastFinalizedBlock,
+                    state.last_scanned_block || 0,
 
                 transfers: 0,
 
@@ -188,12 +180,6 @@ export class SyncEngine {
                     'UP_TO_DATE'
             };
         }
-
-
-        const toBlock = Math.min(
-            lastFinalizedBlock,
-            fromBlock + maxBlocksPerRun - 1
-        );
 
 
         try {
@@ -295,14 +281,24 @@ export class SyncEngine {
 
         } catch (error) {
 
-            await this.syncStateRepository
-                .markFailed(
-                    treasury.id,
+            const msg =
+                error instanceof Error
+                    ? error.message
+                    : String(error);
 
-                    error instanceof Error
-                        ? error.message
-                        : String(error)
-                );
+            if (/too many subrequests|subrequest limit/i.test(msg)) {
+                await this.syncStateRepository
+                    .markDeferred(
+                        treasury.id,
+                        msg
+                    );
+            } else {
+                await this.syncStateRepository
+                    .markFailed(
+                        treasury.id,
+                        msg
+                    );
+            }
 
             throw error;
         }

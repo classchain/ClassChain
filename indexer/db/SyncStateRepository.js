@@ -3,7 +3,7 @@ export class SyncStateRepository {
     constructor(db) {
 
         if (!db) {
-            throw new Error('Database is required');
+            throw new Error('D1 database is required');
         }
 
         this.db = db;
@@ -12,14 +12,18 @@ export class SyncStateRepository {
 
     async get(treasuryId) {
 
-        return this.db
-            .prepare(`
-                SELECT *
-                FROM sync_state
-                WHERE treasury_id = ?
-            `)
-            .bind(treasuryId)
-            .first();
+        const result =
+            await this.db
+                .prepare(`
+                    SELECT *
+                    FROM sync_state
+                    WHERE treasury_id = ?
+                    LIMIT 1
+                `)
+                .bind(treasuryId)
+                .first();
+
+        return result || null;
     }
 
 
@@ -28,29 +32,27 @@ export class SyncStateRepository {
         scanFromBlock = 0
     ) {
 
-        const start =
-            Number.isInteger(scanFromBlock) &&
-            scanFromBlock >= 0
-                ? scanFromBlock
-                : 0;
-
         await this.db
             .prepare(`
-                INSERT OR IGNORE INTO sync_state (
+                INSERT INTO sync_state (
                     treasury_id,
+                    scan_from_block,
                     last_scanned_block,
                     last_finalized_block,
                     last_sync_at,
                     status,
                     error
-                ) VALUES (?, ?, ?, NULL, 'PENDING', NULL)
+                )
+                VALUES (?, ?, 0, 0, NULL, 'PENDING', NULL)
+                ON CONFLICT (treasury_id)
+                DO NOTHING
             `)
             .bind(
                 treasuryId,
-                Math.max(0, start - 1),
-                Math.max(0, start - 1)
+                scanFromBlock
             )
             .run();
+
 
         return this.get(treasuryId);
     }
