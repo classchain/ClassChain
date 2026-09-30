@@ -90,4 +90,10 @@
   "footer.admin": "Admin",
   "footer.copy": "© ClassChain — همه حقوق محفوظ است.",
   "footer.motto": "با هم، آینده را می‌سازیم؛ کلاس به کلاس."
+  "payment.telegramHint": "اختیاری — افتخار بدهید و به جامعه ما بپیوندید:",
+  "payment.telegramJoin": "عضویت در گروه تلگرام",
+  "payment.telegramProjectLabel": "گروه تلگرام پروژه",
+  "payment.telegramPoolLabel": "گروه تلگرام استخر عمومی",
+  "payment.telegramLoading": "در حال بارگذاری لینک گروه تلگرام...",
+  "payment.telegramUnavailable": "لینک گروه تلگرام برای این پروژه هنوز در دسترس نیست."
 }
