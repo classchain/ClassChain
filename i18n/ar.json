@@ -90,4 +90,10 @@
   "footer.admin": "Admin",
   "footer.copy": "© ClassChain — جميع الحقوق محفوظة.",
   "footer.motto": "معًا نبني المستقبل، فصلًا دراسيًا بعد فصل."
+  "payment.telegramHint": "اختياري — انضم إلى مجموعة المجتمع إن رغبت:",
+  "payment.telegramJoin": "الانضمام إلى مجموعة تيليغرام",
+  "payment.telegramProjectLabel": "مجموعة تيليغرام المشروع",
+  "payment.telegramPoolLabel": "مجموعة تيليغرام الصندوق العام",
+  "payment.telegramLoading": "جاري تحميل رابط مجموعة تيليغرام...",
+  "payment.telegramUnavailable": "رابط مجموعة تيليغرام غير متاح لهذا المشروع بعد."
 }
