@@ -113,6 +113,10 @@ async function runIndexer(env, options = {}) {
     safeConfirmations: readNumber(env, 'SAFE_CONFIRMATIONS', 20),
     overlap: readNumber(env, 'OVERLAP', 10),
     maxRunMs: readNumber(env, 'INDEXER_MAX_RUN_MS', 45_000),
+    maxTransactionInfoPerRun: Math.max(
+      1,
+      Math.floor(readNumber(env, 'INDEXER_MAX_TRON_TXINFO_PER_RUN', 20))
+    ),
     ...options,
   });
 }
