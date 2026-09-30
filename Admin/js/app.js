@@ -237,6 +237,10 @@ async function createFund() {
             tx = await contractManager.createMultisigFund(projectId, owners, requiredSigs);
         }
 
+        // بلوک تراکنش ساخت خزانه = مبدا canonical اسکن
+        const scanFromBlock = await contractManager.getTransactionBlock(tx);
+        console.log(`🔎 scanFromBlock = ${scanFromBlock}`);
+        
         // ============================================
         // 🔍 استخراج آدرس خزانه از تراکنش
         // ============================================
@@ -354,7 +358,8 @@ async function createFund() {
             address: fundAddress,
             multisigAddress: isMultisig ? ownerOrMultisig : null,
             owners: owners,
-            requiredSignatures: requiredSigs
+            requiredSignatures: requiredSigs,
+            scanFromBlock
         };
 
         await projectManager.updateProjectFunds(projectId, selectedNetwork, fundData);
@@ -637,6 +642,10 @@ async function createFundFromCheck() {
             tx = await contractManager.createMultisigFund(projectId, owners, requiredSigs);
         }
 
+        // بلوک تراکنش ساخت خزانه = مبدا canonical اسکن
+        const scanFromBlock = await contractManager.getTransactionBlock(tx);
+        console.log(`🔎 scanFromBlock = ${scanFromBlock}`);
+
         // ============================================
         // 🔍 استخراج آدرس خزانه (همان کد بالا)
         // ============================================
@@ -710,7 +719,8 @@ async function createFundFromCheck() {
             address: fundAddress,
             multisigAddress: isMultisig ? ownerOrMultisig : null,
             owners: owners,
-            requiredSignatures: requiredSigs
+            requiredSignatures: requiredSigs,
+            scanFromBlock
         };
 
         await projectManager.updateProjectFunds(projectId, selectedNetwork, fundData);
