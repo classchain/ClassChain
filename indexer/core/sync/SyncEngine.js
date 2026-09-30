@@ -100,7 +100,9 @@ export class SyncEngine {
                 await this.syncStateRepository
                     .initialize(
                         treasury.id,
-                        options.scanFromBlock || 0
+                        Number.isInteger(treasury.scanFromBlock)
+                            ? treasury.scanFromBlock
+                            : (options.scanFromBlock || 0)
                     );
         }
 
