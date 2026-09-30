@@ -106,4 +106,25 @@ export class SyncStateRepository {
             )
             .run();
     }
+
+
+    async markDeferred(
+        treasuryId,
+        error
+    ) {
+
+        await this.db
+            .prepare(`
+                UPDATE sync_state
+                SET
+                    status = 'DEFERRED',
+                    error = ?
+                WHERE treasury_id = ?
+            `)
+            .bind(
+                String(error),
+                treasuryId
+            )
+            .run();
+    }
 }

@@ -94,6 +94,12 @@ export class TronClient {
             } catch (error) {
 
                 lastError = error;
+                const msg = String(error?.message || error || '');
+                if (/too many subrequests|subrequest limit/i.test(msg)) {
+                    throw new Error(
+                        `All RPC endpoints failed for ${this.networkId}: ${msg}`
+                    );
+                }
             }
         }
 
