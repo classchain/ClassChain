@@ -124,14 +124,42 @@ export class ContractManager {
         throw new Error('شناسه تراکنش برای دریافت blockNumber یافت نشد');
       }
 
-      const info = await connection.tronWeb.trx.getTransactionInfo(transactionId);
-      const blockNumber = Number(info?.blockNumber);
+      // TronWeb may return the txid before the transaction is included in a
+      // solidified block. getTransactionInfo() returns {} until then.
+      // Poll instead of failing immediately so scanFromBlock is canonical.
+      const timeoutMs = 120000;
+      const pollIntervalMs = 3000;
+      const deadline = Date.now() + timeoutMs;
 
-      if (!Number.isInteger(blockNumber) || blockNumber < 0) {
-        throw new Error('blockNumber تراکنش Tron دریافت نشد');
+      while (Date.now() < deadline) {
+        try {
+          const info = await connection.tronWeb.trx.getTransactionInfo(transactionId);
+
+          if (info && Object.keys(info).length > 0) {
+            const blockNumber = Number(info.blockNumber);
+
+            if (Number.isInteger(blockNumber) && blockNumber >= 0) {
+              if (info.receipt?.result && info.receipt.result !== 'SUCCESS') {
+                throw new Error(
+                  `تراکنش ساخت خزانه در Tron با وضعیت ${info.receipt.result} نهایی شد`
+                );
+              }
+
+              return blockNumber;
+            }
+          }
+        } catch (error) {
+          if (error?.message?.includes('با وضعیت')) {
+            throw error;
+          }
+        }
+
+        await new Promise(resolve => setTimeout(resolve, pollIntervalMs));
       }
 
-      return blockNumber;
+      throw new Error(
+        `تراکنش Tron هنوز در یک بلاک تأییدشده قرار نگرفته است. شناسه تراکنش: ${transactionId}`
+      );
     }
 
     throw new Error(`دریافت block تراکنش برای شبکه ${this.networkManager.getCurrentNetwork()?.name || 'نامشخص'} پشتیبانی نمی‌شود`);
