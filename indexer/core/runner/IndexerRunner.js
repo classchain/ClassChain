@@ -114,6 +114,16 @@ export class IndexerRunner {
         const engine =
             this._createSyncEngine();
 
+        /*
+         * Fair scheduler:
+         * - new/never-synced treasuries first
+         * - then the treasury that was synced longest ago
+         * - lag is only a tie-breaker
+         *
+         * This prevents the first treasuries in Projects.json from
+         * consuming every run and starving the rest.
+         */
+        const candidates = [];
 
         for (const treasury of discovery.valid) {
 
@@ -147,10 +157,8 @@ export class IndexerRunner {
                 continue;
             }
 
-
             let treasuryForResult =
                 treasury;
-
 
             try {
                 await this._ensureAdapter(
@@ -173,9 +181,82 @@ export class IndexerRunner {
                 treasuryForResult =
                     treasuryForSync;
 
+                const state =
+                    await this.syncStateRepository
+                        .get(treasuryForSync.id);
+
+                candidates.push({
+                    treasury:
+                        treasuryForSync,
+
+                    state,
+
+                    lag:
+                        this._calculateLag(
+                            state,
+                            treasuryForSync
+                        )
+                });
+
+            } catch (error) {
+                summary.failed++;
+
+                summary.results.push(
+                    this._createFailedResult(
+                        treasuryForResult,
+                        error
+                    )
+                );
+            }
+        }
+
+        candidates.sort(
+            (a, b) =>
+                this._compareScheduleCandidates(a, b)
+        );
+
+        const maxRunMs =
+            this._readPositiveNumber(
+                options.maxRunMs,
+                45_000
+            );
+
+        const startedAt =
+            Date.now();
+
+        for (const candidate of candidates) {
+
+            if (
+                Date.now() - startedAt >=
+                maxRunMs
+            ) {
+                summary.results.push({
+                    treasuryId:
+                        candidate.treasury.id,
+
+                    projectId:
+                        candidate.treasury.projectId,
+
+                    networkId:
+                        candidate.treasury.networkId,
+
+                    address:
+                        candidate.treasury.address,
+
+                    status:
+                        'DEFERRED_RUN_BUDGET'
+                });
+
+                continue;
+            }
+
+            let treasuryForResult =
+                candidate.treasury;
+
+            try {
                 const result =
                     await engine.syncTreasury(
-                        treasuryForSync,
+                        candidate.treasury,
                         options
                     );
 
@@ -203,6 +284,72 @@ export class IndexerRunner {
 
 
         return summary;
+    }
+
+
+    _calculateLag(state, treasury) {
+
+        if (!state) {
+            return Number.MAX_SAFE_INTEGER;
+        }
+
+        const lastScanned =
+            Number(state.last_scanned_block || 0);
+
+        const scanFrom =
+            Number.isInteger(treasury.scanFromBlock)
+                ? treasury.scanFromBlock
+                : 0;
+
+        return Math.max(
+            0,
+            Math.max(lastScanned, scanFrom - 1)
+        );
+    }
+
+
+    _compareScheduleCandidates(a, b) {
+
+        const aLast =
+            a.state?.last_sync_at
+                ? Date.parse(a.state.last_sync_at)
+                : 0;
+
+        const bLast =
+            b.state?.last_sync_at
+                ? Date.parse(b.state.last_sync_at)
+                : 0;
+
+        if (aLast !== bLast) {
+            return aLast - bLast;
+        }
+
+        if (a.lag !== b.lag) {
+            return b.lag - a.lag;
+        }
+
+        return (
+            String(a.treasury.projectId)
+                .localeCompare(
+                    String(b.treasury.projectId)
+                ) ||
+            String(a.treasury.networkId)
+                .localeCompare(
+                    String(b.treasury.networkId)
+                )
+        );
+    }
+
+
+    _readPositiveNumber(value, fallback) {
+
+        const number =
+            Number(value);
+
+        return Number.isFinite(number) &&
+            number > 0
+            ? number
+            : fallback;
     }
 
 
