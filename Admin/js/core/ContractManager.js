@@ -118,7 +118,10 @@ export class ContractManager {
             tx.txID ||
             tx.id ||
             tx.transactionHash ||
-            tx.hash;
+            tx.hash ||
+            tx.transaction?.txID ||
+            tx.transaction?.txid ||
+            tx.transaction?.transactionId;
 
       if (!transactionId) {
         throw new Error('شناسه تراکنش برای دریافت blockNumber یافت نشد');
