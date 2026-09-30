@@ -262,7 +262,7 @@ export class SyncEngine {
                 .markSuccess(
                     treasury.id,
 
-                    toBlock,
+                    scannedToBlock,
 
                     scannedToBlock
                 );
