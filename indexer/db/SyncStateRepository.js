@@ -94,11 +94,13 @@ export class SyncStateRepository {
             .prepare(`
                 UPDATE sync_state
                 SET
+                    last_sync_at = ?,
                     status = 'FAILED',
                     error = ?
                 WHERE treasury_id = ?
             `)
             .bind(
+                new Date().toISOString(),
                 String(error),
                 treasuryId
             )
