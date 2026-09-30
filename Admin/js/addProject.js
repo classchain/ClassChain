@@ -76,7 +76,7 @@ export function setupAddProject(projectManager, loadProjectsTable) {
       }
 
       if (typeof loadProjectsTable === 'function') {
-        await loadProjectsTable();
+        await loadProjectsTable(false);
       }
     } catch (error) {
       console.error('❌ خطا در افزودن پروژه:', error);
