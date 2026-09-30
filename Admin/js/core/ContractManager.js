@@ -78,6 +78,65 @@ export class ContractManager {
     }
   }
 
+  // Block containing the confirmed treasury-creation transaction.
+  // This is the canonical starting point for indexer scanning.
+  async getTransactionBlock(tx) {
+    if (tx == null) {
+      throw new Error('اطلاعات تراکنش ساخت خزانه دریافت نشد');
+    }
+
+    if (this.networkManager.isEVM()) {
+      const connection = this.networkManager.getConnection();
+      const receipt = tx.receipt || tx;
+
+      if (receipt?.blockNumber != null) {
+        return Number(receipt.blockNumber);
+      }
+
+      const transactionHash =
+        tx.transactionHash || tx.tx || tx.hash || receipt?.transactionHash;
+
+      if (!transactionHash) {
+        throw new Error('هش تراکنش برای دریافت blockNumber یافت نشد');
+      }
+
+      const fetchedReceipt = await connection.web3.eth.getTransactionReceipt(transactionHash);
+      if (fetchedReceipt?.blockNumber == null) {
+        throw new Error('receipt تراکنش هنوز blockNumber ندارد');
+      }
+
+      return Number(fetchedReceipt.blockNumber);
+    }
+
+    if (this.networkManager.isTVM()) {
+      const connection = this.networkManager.getConnection();
+      const transactionId =
+        typeof tx === 'string'
+          ? tx
+          : tx.txid ||
+            tx.transactionId ||
+            tx.txID ||
+            tx.id ||
+            tx.transactionHash ||
+            tx.hash;
+
+      if (!transactionId) {
+        throw new Error('شناسه تراکنش برای دریافت blockNumber یافت نشد');
+      }
+
+      const info = await connection.tronWeb.trx.getTransactionInfo(transactionId);
+      const blockNumber = Number(info?.blockNumber);
+
+      if (!Number.isInteger(blockNumber) || blockNumber < 0) {
+        throw new Error('blockNumber تراکنش Tron دریافت نشد');
+      }
+
+      return blockNumber;
+    }
+
+    throw new Error(`دریافت block تراکنش برای شبکه ${this.networkManager.getCurrentNetwork()?.name || 'نامشخص'} پشتیبانی نمی‌شود`);
+  }
+
   async getFundAddress(projectId) {
     await this._ensureContract();
 
