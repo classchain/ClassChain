@@ -410,8 +410,10 @@ async function checkProject() {
     }
 
     try {
-        // بارگذاری پروژه‌ها
-        await projectManager.loadProjects();
+        // بارگذاری پروژه‌ها فقط در صورت نیاز؛ پروژه‌ی تازه‌ساخته‌شده ممکن است هنوز روی GitHub نباشد
+        if (!projectManager.projects) {
+            await projectManager.loadProjects();
+        }
         const project = await projectManager.getProjectById(projectId);
 
         if (!project) {
@@ -828,9 +830,11 @@ function scrollToCreate() {
 // ============================================
 // توابع بارگذاری جدول
 // ============================================
-async function loadProjectsTable() {
+async function loadProjectsTable(forceReload = true) {
     try {
-        await projectManager.loadProjects();
+        if (forceReload || !projectManager.projects) {
+            await projectManager.loadProjects();
+        }
         const projects = projectManager.projects;
         const tbody = document.querySelector('#projectsTable tbody');
         const thead = document.querySelector('#projectsTable thead');
