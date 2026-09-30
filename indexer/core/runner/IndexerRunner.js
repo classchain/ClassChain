@@ -271,6 +271,61 @@ export class IndexerRunner {
                 summary.results.push(result);
 
             } catch (error) {
+                const msg =
+                    error instanceof Error
+                        ? error.message
+                        : String(error);
+
+                if (/too many subrequests|subrequest limit/i.test(msg)) {
+                    summary.results.push({
+                        treasuryId:
+                            treasuryForResult.id || null,
+
+                        projectId:
+                            treasuryForResult.projectId,
+
+                        networkId:
+                            treasuryForResult.networkId,
+
+                        address:
+                            treasuryForResult.address,
+
+                        status:
+                            'DEFERRED_SUBREQUEST',
+
+                        error: msg
+                    });
+
+                    for (
+                        let i =
+                            candidates.indexOf(candidate) + 1;
+                        i < candidates.length;
+                        i++
+                    ) {
+                        const rest =
+                            candidates[i];
+
+                        summary.results.push({
+                            treasuryId:
+                                rest.treasury.id,
+
+                            projectId:
+                                rest.treasury.projectId,
+
+                            networkId:
+                                rest.treasury.networkId,
+
+                            address:
+                                rest.treasury.address,
+
+                            status:
+                                'DEFERRED_SUBREQUEST'
+                        });
+                    }
+
+                    break;
+                }
+
                 summary.failed++;
 
                 summary.results.push(
