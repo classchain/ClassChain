@@ -67,6 +67,11 @@ export class DiscoveryService {
                     createdAt:
                         treasury.createdAt,
 
+                    // Preserve the per-treasury starting block
+                    // so SyncEngine can use it for the first sync.
+                    scanFromBlock:
+                        treasury.scanFromBlock,
+
                     network,
 
                     token
