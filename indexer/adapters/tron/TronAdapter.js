@@ -73,7 +73,8 @@ export class TronAdapter {
     async getTransfers(
         treasury,
         fromBlock,
-        toBlock
+        toBlock,
+        options = {}
     ) {
 
         if (!treasury?.id) {
@@ -157,11 +158,21 @@ export class TronAdapter {
         const transfers = [];
         const seenTx = new Set();
 
+        // Bound expensive transaction-info lookups per treasury.
+        // A dense treasury must yield and continue on the next cron run.
+        const maxTransactionInfo = Number.isInteger(options?.maxTransactionInfoPerRun)
+            ? Math.max(1, options.maxTransactionInfoPerRun)
+            : 20;
+        let transactionInfoCount = 0;
 
-        for (
-            const candidate of
-            (result.data || [])
-        ) {
+
+        const candidates = [...(result.data || [])]
+            .sort((a, b) =>
+                (Number.isInteger(a?.block_number) ? a.block_number : Number.MAX_SAFE_INTEGER) -
+                (Number.isInteger(b?.block_number) ? b.block_number : Number.MAX_SAFE_INTEGER)
+            );
+
+        for (const candidate of candidates) {
 
             const txHash =
                 candidate.transaction_id;
@@ -171,6 +182,20 @@ export class TronAdapter {
             }
 
             seenTx.add(txHash);
+
+            if (transactionInfoCount >= maxTransactionInfo) {
+                const nextBlock = Number.isInteger(candidate.block_number)
+                    ? candidate.block_number
+                    : fromBlock;
+
+                return {
+                    transfers,
+                    partial: true,
+                    scannedToBlock: Math.max(fromBlock - 1, nextBlock - 1)
+                };
+            }
+
+            transactionInfoCount++;
 
             const txInfo =
                 await this.client.getTransactionInfo(
@@ -292,7 +317,11 @@ export class TronAdapter {
         }
 
 
-        return transfers;
+        return {
+            transfers,
+            partial: false,
+            scannedToBlock: toBlock
+        };
     }
 
 
