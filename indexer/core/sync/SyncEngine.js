@@ -198,12 +198,29 @@ export class SyncEngine {
 
         try {
 
-            const discoveredTransfers =
+            const rawResult =
                 await adapter.getTransfers(
                     treasury,
                     fromBlock,
-                    toBlock
+                    toBlock,
+                    options
                 );
+
+            const discoveredTransfers =
+                Array.isArray(rawResult)
+                    ? rawResult
+                    : (rawResult?.transfers || []);
+
+            const scannedToBlock =
+                Array.isArray(rawResult)
+                    ? toBlock
+                    : Number.isInteger(rawResult?.scannedToBlock)
+                        ? rawResult.scannedToBlock
+                        : toBlock;
+
+            const partial =
+                !Array.isArray(rawResult) &&
+                rawResult?.partial === true;
 
 
             let inserted = 0;
@@ -243,7 +260,7 @@ export class SyncEngine {
 
                     toBlock,
 
-                    toBlock
+                    scannedToBlock
                 );
 
 
@@ -254,7 +271,9 @@ export class SyncEngine {
 
                 fromBlock,
 
-                toBlock,
+                toBlock: scannedToBlock,
+
+                requestedToBlock: toBlock,
 
                 transfers:
                     (
@@ -264,7 +283,7 @@ export class SyncEngine {
                 inserted,
 
                 status:
-                    toBlock < lastFinalizedBlock
+                    partial || scannedToBlock < lastFinalizedBlock
                         ? 'PARTIAL'
                         : 'SUCCESS'
             };
