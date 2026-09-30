@@ -384,6 +384,187 @@ assert.equal(
 }
 
 
+
+/*
+ * Scheduler fairness:
+ * an older sync must be processed before a newer sync,
+ * regardless of discovery order.
+ */
+{
+    const order = [];
+
+    const fairRunner =
+        new IndexerRunner({
+            projectRegistry:
+                new ProjectRegistry({
+                    features: [
+                        {
+                            attributes: {
+                                ProjectID: '4000',
+                                funds: {
+                                    tron_nile: {
+                                        address:
+                                            'TOld'
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            attributes: {
+                                ProjectID: '4001',
+                                funds: {
+                                    tron_nile: {
+                                        address:
+                                            'TNew'
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }),
+            networkResolver,
+            treasuryRepository: {
+                async upsert(treasury) {
+                    return {
+                        id: treasury.projectId,
+                        project_id: treasury.projectId,
+                        network_id: treasury.networkId,
+                        address: treasury.address,
+                        active: 1
+                    };
+                }
+            },
+            transferRepository,
+            syncStateRepository: {
+                async get(id) {
+                    return id === '4000'
+                        ? {
+                            last_scanned_block: 100,
+                            last_sync_at: '2026-01-01T00:00:00.000Z'
+                        }
+                        : {
+                            last_scanned_block: 120,
+                            last_sync_at: '2026-09-30T00:00:00.000Z'
+                        };
+                },
+                async markSuccess() {},
+                async markFailed() {}
+            },
+            adapters: {
+                tron_nile: {
+                    async getLatestBlock() {
+                        return 140;
+                    },
+                    async getTransfers(treasury) {
+                        order.push(treasury.projectId);
+                        return [];
+                    }
+                }
+            },
+            networkIds: ['tron_nile']
+        });
+
+    await fairRunner.runOnce({
+        safeConfirmations: 20,
+        overlap: 10,
+        maxRunMs: 10_000
+    });
+
+    assert.deepEqual(
+        order,
+        ['4000', '4001']
+    );
+}
+
+
+/*
+ * Runtime budget:
+ * once the budget is exhausted, remaining treasuries are deferred
+ * instead of allowing the invocation to grow without bound.
+ */
+{
+    const budgetRunner =
+        new IndexerRunner({
+            projectRegistry:
+                new ProjectRegistry({
+                    features: [
+                        {
+                            attributes: {
+                                ProjectID: '5000',
+                                funds: {
+                                    tron_nile: {
+                                        address:
+                                            'TBudget1'
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            attributes: {
+                                ProjectID: '5001',
+                                funds: {
+                                    tron_nile: {
+                                        address:
+                                            'TBudget2'
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }),
+            networkResolver,
+            treasuryRepository: {
+                async upsert(treasury) {
+                    return {
+                        id: treasury.projectId,
+                        project_id: treasury.projectId,
+                        network_id: treasury.networkId,
+                        address: treasury.address,
+                        active: 1
+                    };
+                }
+            },
+            transferRepository,
+            syncStateRepository: {
+                async get() {
+                    return {
+                        last_scanned_block: 100,
+                        last_sync_at: '2026-01-01T00:00:00.000Z'
+                    };
+                },
+                async markSuccess() {},
+                async markFailed() {}
+            },
+            adapters: {
+                tron_nile: {
+                    async getLatestBlock() {
+                        return 140;
+                    },
+                    async getTransfers() {
+                        return [];
+                    }
+                }
+            },
+            networkIds: ['tron_nile']
+        });
+
+    const budgetSummary =
+        await budgetRunner.runOnce({
+            maxRunMs: 0.0001
+        });
+
+    assert.equal(
+        budgetSummary.results
+            .filter(
+                result =>
+                    result.status ===
+                    'DEFERRED_RUN_BUDGET'
+            )
+            .length,
+        2
+    );
+}
+
 console.log(
     'IndexerRunner test: PASS'
 );
