@@ -86,7 +86,7 @@ function requireAdmin(request, env) {
 
 async function loadProjectsRegistry(env) {
   const url = env.PROJECTS_JSON_URL ||
-    'https://raw.githubusercontent.com/classchain/ClassChain/Mobile/frontend/data/Projects.json';
+    'https://raw.githubusercontent.com/classchain/ClassChain/admin/frontend/data/Projects.json';
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
   if (!res.ok) throw new Error(`Failed to load Projects.json: ${res.status}`);
   return await res.json();
