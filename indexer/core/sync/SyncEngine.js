@@ -203,7 +203,11 @@ export class SyncEngine {
                     treasury,
                     fromBlock,
                     toBlock,
-                    options
+                    {
+                        ...options,
+                        lastScannedBlock:
+                            state.last_scanned_block || 0
+                    }
                 );
 
             const discoveredTransfers =
