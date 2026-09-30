@@ -61,6 +61,12 @@ export class EvmClient {
         return payload.result;
       } catch (error) {
         lastError = error;
+        const msg = String(error?.message || error || '');
+        if (/too many subrequests|subrequest limit/i.test(msg)) {
+          throw new Error(
+            `All EVM RPCs failed for ${this.networkId}: ${msg}`
+          );
+        }
       }
     }
 

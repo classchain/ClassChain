@@ -3,7 +3,7 @@ export class SyncStateRepository {
     constructor(db) {
 
         if (!db) {
-            throw new Error('D1 database is required');
+            throw new Error('Database is required');
         }
 
         this.db = db;
@@ -12,18 +12,14 @@ export class SyncStateRepository {
 
     async get(treasuryId) {
 
-        const result =
-            await this.db
-                .prepare(`
-                    SELECT *
-                    FROM sync_state
-                    WHERE treasury_id = ?
-                    LIMIT 1
-                `)
-                .bind(treasuryId)
-                .first();
-
-        return result || null;
+        return this.db
+            .prepare(`
+                SELECT *
+                FROM sync_state
+                WHERE treasury_id = ?
+            `)
+            .bind(treasuryId)
+            .first();
     }
 
 
@@ -32,27 +28,29 @@ export class SyncStateRepository {
         scanFromBlock = 0
     ) {
 
+        const start =
+            Number.isInteger(scanFromBlock) &&
+            scanFromBlock >= 0
+                ? scanFromBlock
+                : 0;
+
         await this.db
             .prepare(`
-                INSERT INTO sync_state (
+                INSERT OR IGNORE INTO sync_state (
                     treasury_id,
-                    scan_from_block,
                     last_scanned_block,
                     last_finalized_block,
                     last_sync_at,
                     status,
                     error
-                )
-                VALUES (?, ?, 0, 0, NULL, 'PENDING', NULL)
-                ON CONFLICT (treasury_id)
-                DO NOTHING
+                ) VALUES (?, ?, ?, NULL, 'PENDING', NULL)
             `)
             .bind(
                 treasuryId,
-                scanFromBlock
+                Math.max(0, start - 1),
+                Math.max(0, start - 1)
             )
             .run();
-
 
         return this.get(treasuryId);
     }
@@ -101,6 +99,27 @@ export class SyncStateRepository {
             `)
             .bind(
                 new Date().toISOString(),
+                String(error),
+                treasuryId
+            )
+            .run();
+    }
+
+
+    async markDeferred(
+        treasuryId,
+        error
+    ) {
+
+        await this.db
+            .prepare(`
+                UPDATE sync_state
+                SET
+                    status = 'DEFERRED',
+                    error = ?
+                WHERE treasury_id = ?
+            `)
+            .bind(
                 String(error),
                 treasuryId
             )
