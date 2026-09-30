@@ -176,6 +176,31 @@ for (const treasury of result.valid) {
         typeof treasury.token.decimals,
         'number'
     );
+
+
+    /*
+     * A per-treasury scanFromBlock configured in
+     * Projects.json must survive discovery unchanged.
+     */
+
+    const registryTreasury =
+        registryTreasuries.find(
+            candidate =>
+                candidate.projectId === treasury.projectId &&
+                candidate.networkId === treasury.networkId &&
+                candidate.address === treasury.address
+        );
+
+    assert.ok(
+        registryTreasury,
+        `Valid treasury is missing from registry: ${treasury.projectId}/${treasury.networkId}`
+    );
+
+    assert.equal(
+        treasury.scanFromBlock,
+        registryTreasury.scanFromBlock,
+        `scanFromBlock was not preserved: ${treasury.projectId}/${treasury.networkId}`
+    );
 }
 
 
