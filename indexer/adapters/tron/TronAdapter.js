@@ -166,7 +166,16 @@ export class TronAdapter {
         let transactionInfoCount = 0;
 
 
+        const lastScannedBlock = Number.isInteger(options?.lastScannedBlock)
+            ? options.lastScannedBlock
+            : 0;
+
         const candidates = [...(result.data || [])]
+            .filter(candidate =>
+                Number.isInteger(candidate?.block_number)
+                    ? candidate.block_number > lastScannedBlock
+                    : false
+            )
             .sort((a, b) =>
                 (Number.isInteger(a?.block_number) ? a.block_number : Number.MAX_SAFE_INTEGER) -
                 (Number.isInteger(b?.block_number) ? b.block_number : Number.MAX_SAFE_INTEGER)
