@@ -112,7 +112,14 @@ export class ProjectRegistry {
                     active: true,
 
                     createdAt:
-                        fund.createdAt || null
+                        fund.createdAt || null,
+
+                    // Optional per-treasury starting block.
+                    // Used for first sync only; subsequent runs use sync_state.
+                    scanFromBlock:
+                        Number.isInteger(fund.scanFromBlock)
+                            ? fund.scanFromBlock
+                            : null
 
                 });
 
