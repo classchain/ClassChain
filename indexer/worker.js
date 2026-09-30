@@ -112,6 +112,7 @@ async function runIndexer(env, options = {}) {
     scanFromBlock: readNumber(env, 'SCAN_FROM_BLOCK', 0),
     safeConfirmations: readNumber(env, 'SAFE_CONFIRMATIONS', 20),
     overlap: readNumber(env, 'OVERLAP', 10),
+    maxRunMs: readNumber(env, 'INDEXER_MAX_RUN_MS', 45_000),
     ...options,
   });
 }
