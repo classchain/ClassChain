@@ -3,6 +3,9 @@
  * Eligibility: donor has unallocated balance on at least one network.
  * Voting is network-agnostic; network selection belongs only to financial allocation.
  * Rule: only one OPEN round at a time.
+ *
+ * Vote Preference ≠ Financial Allocation.
+ * Close requires selectedProjectId (admin decision); allocation is a separate step.
  */
 
 import { VotingRepository } from '../db/VotingRepository.js';
@@ -72,8 +75,8 @@ export class VotingService {
         if (!round) throw new Error('round not found');
         if (round.status !== 'OPEN') throw new Error('round is not open');
 
-        const candidates = round.candidate_projects || [];
-        if (!candidates.includes(projectId)) {
+        const candidates = (round.candidate_projects || []).map(String);
+        if (!candidates.includes(String(projectId))) {
             throw new Error('projectId is not a candidate in this round');
         }
 
@@ -87,24 +90,31 @@ export class VotingService {
         await this.votingRepo.castVote({
             roundId,
             donor,
-            projectId,
+            projectId: String(projectId),
             telegramUserId
         });
 
-        return { ok: true, round_id: roundId, donor, project_id: projectId };
+        return { ok: true, round_id: roundId, donor, project_id: String(projectId) };
     }
 
     /**
      * Close round with admin-selected project + required amount.
      * Does NOT allocate yet — allocation is a separate explicit step.
+     * selectedProjectId is mandatory; empty/missing is rejected.
+     * resultTally is optional for admin-only close (zeros filled for missing candidates).
      */
     async closeRound({ roundId, selectedProjectId, resultTally = [] }) {
         const round = await this.votingRepo.getRound(roundId);
         if (!round) throw new Error('round not found');
         if (round.status !== 'OPEN') throw new Error('round is not open');
 
-        const candidates = round.candidate_projects || [];
-        if (!candidates.includes(selectedProjectId)) {
+        if (selectedProjectId === undefined || selectedProjectId === null || String(selectedProjectId).trim() === '') {
+            throw new Error('selectedProjectId is required to close a round');
+        }
+        const selectedId = String(selectedProjectId).trim();
+
+        const candidates = (round.candidate_projects || []).map(String);
+        if (!candidates.includes(selectedId)) {
             throw new Error('selectedProjectId is not a candidate');
         }
 
@@ -112,43 +122,51 @@ export class VotingService {
             throw new Error('Projects registry loader is required for voting');
         }
         const registry = await this.loadProjects();
-        const project = this._findProject(registry, selectedProjectId);
+        const project = this._findProject(registry, selectedId);
         if (!project) {
-            throw new Error(`project ${selectedProjectId} not found in Projects.json`);
+            throw new Error(`project ${selectedId} not found in Projects.json`);
         }
 
         const targetAmount = project['targetAmount(USDT)'];
         if (targetAmount === undefined || targetAmount === null || String(targetAmount).trim() === '') {
-            throw new Error(`project ${selectedProjectId} has no targetAmount(USDT) in Projects.json`);
+            throw new Error(`project ${selectedId} has no targetAmount(USDT) in Projects.json`);
         }
 
         const targetText = String(targetAmount).replace(/,/g, '').trim();
         if (!/^\d+(\.\d+)?$/.test(targetText)) {
-            throw new Error(`invalid targetAmount(USDT) for project ${selectedProjectId}`);
+            throw new Error(`invalid targetAmount(USDT) for project ${selectedId}`);
         }
         const [whole, fraction = ''] = targetText.split('.');
         const fractionPadded = (fraction + '000000').slice(0, 6);
         const requiredAmountRaw = (BigInt(whole) * 1000000n + BigInt(fractionPadded)).toString();
         if (requiredAmountRaw === '0') {
-            throw new Error(`project ${selectedProjectId} has zero targetAmount(USDT)`);
+            throw new Error(`project ${selectedId} has zero targetAmount(USDT)`);
         }
 
-        const tally = Array.isArray(resultTally) ? resultTally : [];
-        const candidateSet = new Set(candidates.map(String));
-        const seen = new Set();
-        for (const item of tally) {
+        // Normalize tally: if empty/partial, fill missing candidates with 0
+        const inputTally = Array.isArray(resultTally) ? resultTally : [];
+        const counts = new Map();
+        for (const item of inputTally) {
             const projectId = String(item?.project_id ?? item?.projectId ?? '');
             const voteCount = Number(item?.vote_count ?? item?.voteCount);
-            if (!candidateSet.has(projectId)) throw new Error('result contains non-candidate project ' + projectId);
-            if (seen.has(projectId)) throw new Error('duplicate result for project ' + projectId);
-            if (!Number.isInteger(voteCount) || voteCount < 0) throw new Error('invalid vote count for project ' + projectId);
-            seen.add(projectId);
+            if (!projectId) continue;
+            if (!candidates.includes(projectId)) {
+                throw new Error('result contains non-candidate project ' + projectId);
+            }
+            if (counts.has(projectId)) {
+                throw new Error('duplicate result for project ' + projectId);
+            }
+            if (!Number.isInteger(voteCount) || voteCount < 0) {
+                throw new Error('invalid vote count for project ' + projectId);
+            }
+            counts.set(projectId, voteCount);
         }
-        if (seen.size !== candidateSet.size) {
-            throw new Error('result_tally must contain every candidate project exactly once');
-        }
+        const tally = candidates.map((pid) => ({
+            project_id: pid,
+            vote_count: counts.has(pid) ? counts.get(pid) : 0,
+        }));
 
-        return this.votingRepo.closeRound(roundId, selectedProjectId, requiredAmountRaw, tally);
+        return this.votingRepo.closeRound(roundId, selectedId, requiredAmountRaw, tally);
     }
 
     /**
