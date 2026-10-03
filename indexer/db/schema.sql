@@ -80,6 +80,10 @@ CREATE TABLE IF NOT EXISTS sync_state (
 
     error TEXT,
 
+    tron_cursor TEXT,
+    tron_cursor_min_timestamp INTEGER,
+    tron_cursor_max_timestamp INTEGER,
+
     FOREIGN KEY (treasury_id)
         REFERENCES treasuries(id)
 );
