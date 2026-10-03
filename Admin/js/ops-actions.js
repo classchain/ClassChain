@@ -93,18 +93,10 @@ export async function loadRounds() {
         const rid = b.dataset.rid;
         if ($('vRoundId')) $('vRoundId').value = rid;
         if ($('vRoundIdShow')) $('vRoundIdShow').value = rid;
-        if ($('dAllocRoundId') && !($('dAllocRoundId').value || '').trim()) {
-          // فقط اگر خالی باشد پیشنهاد می‌کنیم
-        }
         try {
           const d = await api('/api/voting/rounds/' + rid);
           const r = d.round;
           $('vDetail').innerHTML = `<pre>${JSON.stringify(r, null, 2)}</pre>`;
-          // اگر CLOSED است، برای Allocate در تب تخصیص پیشنهاد بده
-          if (r?.status === 'CLOSED' && $('dAllocRoundId')) {
-            $('dAllocRoundId').value = String(rid);
-          }
-          // اگر OPEN است و منتخب خالی، فیلد بستن را آماده نگه دار
           if (r?.status === 'OPEN' && $('vCloseProject') && r.selected_project_id) {
             $('vCloseProject').value = r.selected_project_id;
           }
@@ -114,23 +106,140 @@ export async function loadRounds() {
   } catch (e) { $('vRounds').innerHTML = `<p class="err">${e.message}</p>`; }
 }
 
-export async function loadDisburse() {
+function phaseLabel(status) {
+  if (status === 'OPEN') return 'رأی باز — هنوز بسته نشده';
+  if (status === 'CLOSED') return 'منتظر Allocate';
+  if (status === 'ALLOCATED') return 'تخصیص حسابداری شده';
+  return status || '—';
+}
+
+/** لیست همه راندها در تب تخصیص + اکشن Allocate برای CLOSED */
+export async function loadDisburseRounds() {
+  const box = $('dRounds');
+  if (!box) return;
+  box.innerHTML = '<p class="muted">…</p>';
+  try {
+    const data = await api('/api/voting/rounds');
+    const rounds = data.rounds || [];
+    if (!rounds.length) {
+      box.innerHTML = '<p class="muted">راندی نیست</p>';
+      return;
+    }
+    box.innerHTML = `<div class="table-wrap"><table class="ops-table">
+      <thead><tr>
+        <th>ID</th><th>عنوان</th><th>وضعیت</th><th>فاز</th><th>منتخب</th><th>مبلغ هدف</th><th>batch</th><th></th>
+      </tr></thead><tbody>${rounds.map((r) => {
+        const canAlloc = r.status === 'CLOSED';
+        const action = canAlloc
+          ? `<button type="button" class="primary" data-alloc="${r.id}">Allocate</button>`
+          : (r.status === 'ALLOCATED'
+            ? `<button type="button" class="ghost" data-round-detail="${r.id}">جزئیات</button>`
+            : `<button type="button" class="ghost" data-round-detail="${r.id}">جزئیات</button>`);
+        return `<tr>
+          <td>${r.id}</td>
+          <td>${r.title || ''}</td>
+          <td>${badge(r.status)}</td>
+          <td style="font-size:12px">${phaseLabel(r.status)}</td>
+          <td>${r.selected_project_id || '—'}</td>
+          <td>${r.required_amount_raw ? usdtRaw(r.required_amount_raw) : '—'}</td>
+          <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis" title="${r.allocation_batch_id || ''}">${r.allocation_batch_id ? short(r.allocation_batch_id) : '—'}</td>
+          <td>${action}</td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+
+    box.querySelectorAll('[data-alloc]').forEach((btn) => {
+      btn.onclick = () => allocateRoundById(btn.dataset.alloc, btn);
+    });
+    box.querySelectorAll('[data-round-detail]').forEach((btn) => {
+      btn.onclick = async () => {
+        try {
+          const d = await api('/api/voting/rounds/' + btn.dataset.roundDetail);
+          const result = $('dAllocResult');
+          if (result) result.innerHTML = `<pre style="white-space:pre-wrap;font-size:12px">${JSON.stringify(d.round, null, 2)}</pre>`;
+        } catch (e) { alert(e.message); }
+      };
+    });
+  } catch (e) {
+    box.innerHTML = `<p class="err">${e.message}</p>`;
+  }
+}
+
+export async function allocateRoundById(roundId, btnEl) {
+  const box = $('dAllocResult');
+  if (!roundId) return alert('شناسه راند لازم است');
+  if (!confirm('Allocate حسابداری FIFO برای راند #' + roundId + '؟\n(پول on-chain هنوز منتقل نمی‌شود — فقط ledger + درخواست انتقال per-network)')) return;
+  if (btnEl) btnEl.disabled = true;
+  if (box) box.textContent = 'در حال Allocate راند #' + roundId + '…';
+  try {
+    const data = await api('/api/voting/rounds/' + roundId + '/allocate', {
+      method: 'POST',
+      body: '{}',
+    });
+    const disb = data.disbursement?.disbursements || data.disbursement || [];
+    const summary = {
+      round_id: data.round_id || roundId,
+      project_id: data.project_id,
+      allocation_batch_id: data.allocation_batch_id,
+      allocated_amount_raw: data.allocated_amount_raw,
+      shortfall_raw: data.shortfall_raw,
+      fully_funded: data.fully_funded,
+      slices_count: data.slices_count,
+      networks_in_slices: [...new Set((data.slices || []).map((s) => s.network_id))],
+      disbursements: disb,
+    };
+    if (box) {
+      box.innerHTML = '<pre style="white-space:pre-wrap;font-size:12px">' +
+        JSON.stringify(summary, null, 2).slice(0, 3000) + '</pre>';
+    }
+    alert(
+      'Allocate OK\n' +
+      'batch: ' + (data.allocation_batch_id || '—') + '\n' +
+      'allocated: ' + usdtRaw(data.allocated_amount_raw || '0') + ' USDT' +
+      (data.fully_funded ? '' : '\nکمبود: ' + usdtRaw(data.shortfall_raw || '0'))
+    );
+    await loadDisburseRounds();
+    await loadDisbursePending();
+  } catch (e) {
+    if (box) box.innerHTML = '<p class="err">' + e.message + '</p>';
+    alert(e.message);
+  } finally {
+    if (btnEl) btnEl.disabled = false;
+  }
+}
+
+export async function loadDisbursePending() {
   try {
     const data = await api('/api/disburse/pending');
     const rows = data.pending || [];
     $('dList').innerHTML = rows.length
-      ? `<div class="table-wrap"><table class="ops-table"><thead><tr><th>ID</th><th>پروژه</th><th>مبلغ</th><th>وضعیت</th><th></th></tr></thead><tbody>${
-          rows.map((r) => `<tr><td>${r.id}</td><td>${r.project_id}</td><td>${usdtRaw(r.amount_raw)}</td><td>${badge(r.status)}</td>
-          <td><button type="button" class="ghost" data-a="${r.id}">تأیید</button>
-          <button type="button" class="ghost" data-d="${r.id}">جزئیات</button></td></tr>`).join('')
-        }</tbody></table></div>` : '<p class="muted">در انتظار نیست</p>';
+      ? `<div class="table-wrap"><table class="ops-table"><thead><tr>
+          <th>ID</th><th>پروژه</th><th>شبکه</th><th>مبلغ</th><th>از</th><th>به</th><th>وضعیت</th><th></th>
+        </tr></thead><tbody>${
+          rows.map((r) => `<tr>
+            <td>${r.id}</td>
+            <td>${r.project_id}</td>
+            <td><b>${r.network_id || '—'}</b></td>
+            <td>${usdtRaw(r.amount_raw)}</td>
+            <td title="${r.from_address || ''}">${short(r.from_address || '')}</td>
+            <td title="${r.to_address || ''}">${short(r.to_address || '')}</td>
+            <td>${badge(r.status)}</td>
+            <td>
+              <button type="button" class="ghost" data-a="${r.id}">تأیید</button>
+              <button type="button" class="ghost" data-d="${r.id}">جزئیات</button>
+            </td>
+          </tr>`).join('')
+        }</tbody></table></div>` : '<p class="muted">درخواست انتقال در انتظار نیست</p>';
+
     $('dList').querySelectorAll('[data-a]').forEach((b) => {
       b.onclick = async () => {
-        const approver = $('dApprover').value.trim();
-        if (!approver) return alert('approver لازم است');
+        const approver = $('dApprover')?.value.trim();
+        if (!approver) return alert('آدرس approver لازم است');
         try {
-          await api('/api/disburse/' + b.dataset.a + '/approve', { method: 'POST', body: JSON.stringify({ approver }) });
-          loadDisburse();
+          await api('/api/disburse/' + b.dataset.a + '/approve', {
+            method: 'POST',
+            body: JSON.stringify({ approver }),
+          });
+          loadDisbursePending();
         } catch (e) { alert(e.message); }
       };
     });
@@ -138,9 +247,16 @@ export async function loadDisburse() {
       b.onclick = async () => {
         try {
           const d = await api('/api/disburse/' + b.dataset.d);
-          $('dDetail').innerHTML = `<pre>${JSON.stringify(d.disbursement, null, 2)}</pre>`;
+          $('dDetail').innerHTML = `<pre style="white-space:pre-wrap;font-size:12px">${JSON.stringify(d.disbursement || d, null, 2)}</pre>`;
         } catch (e) { alert(e.message); }
       };
     });
-  } catch (e) { $('dList').innerHTML = `<p class="err">${e.message}</p>`; }
+  } catch (e) {
+    $('dList').innerHTML = `<p class="err">${e.message}</p>`;
+  }
+}
+
+/** سازگاری با نام قبلی */
+export async function loadDisburse() {
+  await Promise.all([loadDisburseRounds(), loadDisbursePending()]);
 }
