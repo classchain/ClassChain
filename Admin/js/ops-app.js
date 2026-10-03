@@ -4,7 +4,7 @@ import {
 } from './ops-core.js';
 import { createFinanceModule } from './ops-finance.js';
 import {
-  loadIndexerHealth, runSync, loadCommunity, loadRounds, loadDisburse
+  loadIndexerHealth, runSync, loadCommunity, loadRounds, loadDisburse, connectApproverWallet
 } from './ops-actions.js';
 
 const finance = createFinanceModule({
@@ -123,6 +123,7 @@ function initEvents() {
   $('vRefresh').onclick = loadRounds;
   $('dRefresh').onclick = loadDisburse;
   $('dRoundsRefresh')?.addEventListener('click', () => loadDisburse());
+  $('dConnectWallet')?.addEventListener('click', () => connectApproverWallet());
 
   $('vOpen').onclick = async () => {
     try {
