@@ -100,6 +100,24 @@ export class SyncStateRepository {
     }
 
 
+    async markPartial(
+        treasuryId,
+        error
+    ) {
+        await this.db
+            .prepare(`
+                UPDATE sync_state
+                SET
+                    last_sync_at = ?,
+                    status = 'PARTIAL',
+                    error = ?
+                WHERE treasury_id = ?
+            `)
+            .bind(new Date().toISOString(), String(error), treasuryId)
+            .run();
+    }
+
+
     async markSuccess(
         treasuryId,
         lastScannedBlock,
