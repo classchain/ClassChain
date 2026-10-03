@@ -152,23 +152,32 @@
 
     <section id="tab-disburse" class="panel">
       <div class="card">
-        <h3>Allocate راند بسته‌شده (FIFO)</h3>
-        <p class="muted" style="margin:0 0 10px;font-size:0.85rem">
-          فقط راند با وضعیت CLOSED قابل Allocate است. بعد از موفقیت، وضعیت راند ALLOCATED می‌شود و در صورت نیاز disbursement آماده می‌شود.
-        </p>
-        <div class="row">
-          <input id="dAllocRoundId" placeholder="شناسه راند CLOSED" style="width:160px" />
-          <button type="button" class="primary" id="dAlloc">Allocate</button>
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3 style="margin:0">راندها — وضعیت تخصیص</h3>
+          <button type="button" class="ghost" id="dRoundsRefresh">بروزرسانی</button>
         </div>
+        <p class="muted" style="margin:8px 0 10px;font-size:0.85rem;line-height:1.6">
+          <strong>OPEN</strong> هنوز بسته نشده ·
+          <strong>CLOSED</strong> منتظر Allocate (حسابداری FIFO) ·
+          <strong>ALLOCATED</strong> حسابداری انجام شده — انتقال on-chain per-network در جدول پایین
+        </p>
+        <div id="dRounds" class="muted">…</div>
         <div id="dAllocResult" class="muted" style="margin-top:10px"></div>
       </div>
 
       <div class="card">
-        <div class="row">
-          <button type="button" class="ghost" id="dRefresh">pending</button>
-          <input id="dApprover" placeholder="approver" style="flex:1" />
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3 style="margin:0">درخواست‌های انتقال on-chain (per-network)</h3>
+          <button type="button" class="ghost" id="dRefresh">بروزرسانی pending</button>
         </div>
-        <div id="dList" class="muted">…</div>
+        <p class="muted" style="margin:8px 0 10px;font-size:0.85rem;line-height:1.6">
+          هر شبکه یک ردیف جدا: GENERAL_POOL[شبکه] → آدرس پروژه روی همان شبکه.
+          صاحب امضای خزانه هر شبکه باید TX را از کیف خود امضا/اجرا کند؛ Worker کلید خصوصی ندارد.
+        </p>
+        <div class="row">
+          <input id="dApprover" placeholder="آدرس approver (امضاکننده)" style="flex:1" />
+        </div>
+        <div id="dList" class="muted" style="margin-top:10px">…</div>
         <div id="dDetail"></div>
       </div>
     </section>
