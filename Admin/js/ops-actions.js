@@ -36,7 +36,7 @@ export async function loadIndexerHealth(networkFilter) {
       const err = (r.error || '').slice(0, 50);
       return `<tr class="${cls}"><td><b>${r.project_id}</b></td><td>${r.network_id}</td><td>${last.toLocaleString()}</td>
         <td>${lag ? lag.toLocaleString() : '0'}</td><td>${r.tx_count ?? '—'}</td><td>${badgeHtml}</td>
-        <td class="muted" title="${(r.error || '').replace(/"/g, '"')}">${err || '—'}</td>
+        <td class="muted" title="${(r.error || '').replace(/\"/g, '"')}">${err || '—'}</td>
         <td><button type="button" class="ghost" data-sync="${r.project_id}">Sync</button></td></tr>`;
     }).join('') || '<tr><td colspan="8" class="muted">خالی</td></tr>';
     tbody.querySelectorAll('[data-sync]').forEach((b) => { b.onclick = () => runSync(b.dataset.sync); });
@@ -113,7 +113,6 @@ function phaseLabel(status) {
   return status || '—';
 }
 
-/** لیست همه راندها در تب تخصیص + اکشن Allocate برای CLOSED */
 export async function loadDisburseRounds() {
   const box = $('dRounds');
   if (!box) return;
@@ -132,9 +131,7 @@ export async function loadDisburseRounds() {
         const canAlloc = r.status === 'CLOSED';
         const action = canAlloc
           ? `<button type="button" class="primary" data-alloc="${r.id}">Allocate</button>`
-          : (r.status === 'ALLOCATED'
-            ? `<button type="button" class="ghost" data-round-detail="${r.id}">جزئیات</button>`
-            : `<button type="button" class="ghost" data-round-detail="${r.id}">جزئیات</button>`);
+          : `<button type="button" class="ghost" data-round-detail="${r.id}">جزئیات</button>`;
         return `<tr>
           <td>${r.id}</td>
           <td>${r.title || ''}</td>
@@ -167,35 +164,56 @@ export async function loadDisburseRounds() {
 export async function allocateRoundById(roundId, btnEl) {
   const box = $('dAllocResult');
   if (!roundId) return alert('شناسه راند لازم است');
-  if (!confirm('Allocate حسابداری FIFO برای راند #' + roundId + '؟\n(پول on-chain هنوز منتقل نمی‌شود — فقط ledger + درخواست انتقال per-network)')) return;
+
+  let amountRaw = null;
+  const amountStr = ($('dAllocAmount')?.value || '').trim().replace(/,/g, '');
+  if (amountStr) {
+    if (!/^\d+(\.\d+)?$/.test(amountStr)) return alert('مبلغ نامعتبر است');
+    const [w, f = ''] = amountStr.split('.');
+    amountRaw = (BigInt(w) * 1000000n + BigInt((f + '000000').slice(0, 6))).toString();
+    if (amountRaw === '0') return alert('مبلغ باید بزرگ‌تر از صفر باشد');
+  }
+
+  const msg = amountRaw
+    ? ('Allocate راند #' + roundId + ' با مبلغ دستی ' + amountStr + ' USDT؟\n(FIFO قطعی؛ سقف = موجودی آزاد صف)')
+    : ('Allocate راند #' + roundId + ' با مبلغ target؟\n(FIFO قطعی؛ سقف = موجودی آزاد صف)');
+  if (!confirm(msg)) return;
+
   if (btnEl) btnEl.disabled = true;
   if (box) box.textContent = 'در حال Allocate راند #' + roundId + '…';
   try {
+    const body = amountRaw ? { required_amount_raw: amountRaw } : {};
     const data = await api('/api/voting/rounds/' + roundId + '/allocate', {
       method: 'POST',
-      body: '{}',
+      body: JSON.stringify(body),
     });
     const disb = data.disbursement?.disbursements || data.disbursement || [];
     const summary = {
       round_id: data.round_id || roundId,
       project_id: data.project_id,
       allocation_batch_id: data.allocation_batch_id,
+      requested_amount_raw: data.requested_amount_raw,
+      effective_amount_raw: data.effective_amount_raw,
+      queue_available_raw: data.queue_available_raw,
+      capped_to_queue: data.capped_to_queue,
+      by_network: data.by_network,
       allocated_amount_raw: data.allocated_amount_raw,
       shortfall_raw: data.shortfall_raw,
       fully_funded: data.fully_funded,
       slices_count: data.slices_count,
-      networks_in_slices: [...new Set((data.slices || []).map((s) => s.network_id))],
+      networks_in_slices: [...new Set((data.slices || []).map((x) => x.network_id))],
       disbursements: disb,
     };
     if (box) {
       box.innerHTML = '<pre style="white-space:pre-wrap;font-size:12px">' +
-        JSON.stringify(summary, null, 2).slice(0, 3000) + '</pre>';
+        JSON.stringify(summary, null, 2).slice(0, 4000) + '</pre>';
     }
     alert(
       'Allocate OK\n' +
       'batch: ' + (data.allocation_batch_id || '—') + '\n' +
       'allocated: ' + usdtRaw(data.allocated_amount_raw || '0') + ' USDT' +
-      (data.fully_funded ? '' : '\nکمبود: ' + usdtRaw(data.shortfall_raw || '0'))
+      (data.capped_to_queue ? '\n(سقف صف اعمال شد)' : '') +
+      (data.by_network ? '\nper-network: ' + JSON.stringify(data.by_network) : '')
     );
     await loadDisburseRounds();
     await loadDisbursePending();
@@ -205,6 +223,37 @@ export async function allocateRoundById(roundId, btnEl) {
   } finally {
     if (btnEl) btnEl.disabled = false;
   }
+}
+
+let connectedApprover = null;
+
+export function getConnectedApprover() {
+  return connectedApprover;
+}
+
+export function setConnectedApprover(addr) {
+  connectedApprover = addr ? String(addr) : null;
+  const el = $('dWalletStatus');
+  if (el) {
+    el.textContent = connectedApprover
+      ? ('متصل: ' + connectedApprover.slice(0, 8) + '…' + connectedApprover.slice(-4))
+      : 'کیف متصل نیست';
+  }
+}
+
+export async function connectApproverWallet() {
+  if (!window.ethereum) {
+    alert('MetaMask / کیف EVM پیدا نشد');
+    return null;
+  }
+  const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+  const account = accounts && accounts[0];
+  if (!account) {
+    alert('اتصال کیف لغو شد');
+    return null;
+  }
+  setConnectedApprover(account);
+  return account;
 }
 
 export async function loadDisbursePending() {
@@ -224,7 +273,7 @@ export async function loadDisbursePending() {
             <td title="${r.to_address || ''}">${short(r.to_address || '')}</td>
             <td>${badge(r.status)}</td>
             <td>
-              <button type="button" class="ghost" data-a="${r.id}">تأیید</button>
+              <button type="button" class="ghost" data-a="${r.id}">تأیید با کیف</button>
               <button type="button" class="ghost" data-d="${r.id}">جزئیات</button>
             </td>
           </tr>`).join('')
@@ -232,8 +281,10 @@ export async function loadDisbursePending() {
 
     $('dList').querySelectorAll('[data-a]').forEach((b) => {
       b.onclick = async () => {
-        const approver = $('dApprover')?.value.trim();
-        if (!approver) return alert('آدرس approver لازم است');
+        let approver = getConnectedApprover();
+        if (!approver) approver = await connectApproverWallet();
+        if (!approver) return alert('ابتدا کیف پول صاحب امضای GENERAL را متصل کنید');
+        if (!confirm('ثبت تأیید با کیف\n' + approver + '؟')) return;
         try {
           await api('/api/disburse/' + b.dataset.a + '/approve', {
             method: 'POST',
@@ -256,7 +307,6 @@ export async function loadDisbursePending() {
   }
 }
 
-/** سازگاری با نام قبلی */
 export async function loadDisburse() {
   await Promise.all([loadDisburseRounds(), loadDisbursePending()]);
 }
