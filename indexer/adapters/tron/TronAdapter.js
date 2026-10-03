@@ -155,6 +155,12 @@ export class TronAdapter {
         const queryMinTimestamp = cursorMinTimestamp ?? fromTimestamp;
         const queryMaxTimestamp = cursorMaxTimestamp ?? toTimestamp;
 
+        // Bound expensive transaction-info lookups per treasury.
+        // This value must be initialized before it is used as the page size.
+        const maxTransactionInfo = Number.isInteger(options?.maxTransactionInfoPerRun)
+            ? Math.max(1, options.maxTransactionInfoPerRun)
+            : 20;
+
         const result =
             await this.client.getTRC20Transfers(
                 this.tokenAddress,
@@ -172,11 +178,6 @@ export class TronAdapter {
         const transfers = [];
         const seenTx = new Set();
 
-        // Bound expensive transaction-info lookups per treasury.
-        // A dense treasury must yield and continue on the next cron run.
-        const maxTransactionInfo = Number.isInteger(options?.maxTransactionInfoPerRun)
-            ? Math.max(1, options.maxTransactionInfoPerRun)
-            : 20;
         let transactionInfoCount = 0;
 
 
