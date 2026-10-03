@@ -268,12 +268,20 @@ export class SyncEngine {
                     .clearTronCursor(treasury.id);
             }
 
-            await this.syncStateRepository
-                .markSuccess(
-                    treasury.id,
-                    scannedToBlock,
-                    scannedToBlock
-                );
+            if (partial) {
+                await this.syncStateRepository
+                    .markPartial(
+                        treasury.id,
+                        `TRON pagination incomplete; cursor=${rawResult.nextFingerprint || 'none'}`
+                    );
+            } else {
+                await this.syncStateRepository
+                    .markSuccess(
+                        treasury.id,
+                        scannedToBlock,
+                        scannedToBlock
+                    );
+            }
 
 
             return {
