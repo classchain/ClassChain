@@ -163,7 +163,8 @@ export class TronAdapter {
                 queryMaxTimestamp,
                 {
                     fingerprint: options?.tronCursor || null,
-                    pageSize: maxTransactionInfo
+                    pageSize: maxTransactionInfo,
+                    maxPagesPerRun: 1
                 }
             );
 
