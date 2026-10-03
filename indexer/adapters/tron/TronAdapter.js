@@ -146,12 +146,22 @@ export class TronAdapter {
          * Every candidate MUST be confirmed via receipt logs
          * for a real ERC20/TRC20 Transfer event to the treasury.
          */
+        const cursorMinTimestamp = Number.isInteger(options?.tronCursorMinTimestamp)
+            ? options.tronCursorMinTimestamp
+            : null;
+        const cursorMaxTimestamp = Number.isInteger(options?.tronCursorMaxTimestamp)
+            ? options.tronCursorMaxTimestamp
+            : null;
+        const queryMinTimestamp = cursorMinTimestamp ?? fromTimestamp;
+        const queryMaxTimestamp = cursorMaxTimestamp ?? toTimestamp;
+
         const result =
             await this.client.getTRC20Transfers(
                 this.tokenAddress,
                 treasuryAddress,
-                fromTimestamp,
-                toTimestamp
+                queryMinTimestamp,
+                queryMaxTimestamp,
+                { fingerprint: options?.tronCursor || null }
             );
 
 
@@ -326,10 +336,17 @@ export class TronAdapter {
         }
 
 
+        const paginationComplete =
+            result.paginationComplete !== false;
+
         return {
             transfers,
-            partial: false,
-            scannedToBlock: toBlock
+            partial: !paginationComplete,
+            scannedToBlock: toBlock,
+            paginationComplete,
+            nextFingerprint: result.nextFingerprint || null,
+            cursorMinTimestamp: paginationComplete ? null : queryMinTimestamp,
+            cursorMaxTimestamp: paginationComplete ? null : queryMaxTimestamp
         };
     }
 
