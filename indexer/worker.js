@@ -39,6 +39,10 @@
  *
  * Sync filter:
  *   POST /sync?projectId=GENERAL_POOL
+ *
+ * Reliability (fix/nile-indexer-reliability):
+ *   POST /api/sync/rewind   (admin) — body: { projectId, networkId?, toBlock }
+ *   POST /sync then re-indexes from rewound cursor
  */
 
 import { ProjectRegistry } from './core/discovery/ProjectRegistry.js';
@@ -58,6 +62,7 @@ import { TelegramBotHandler } from './services/TelegramBotHandler.js';
 import { TelegramBotClient } from './services/TelegramBotClient.js';
 import { TelegramGroupRepository } from './db/TelegramGroupRepository.js';
 import { createAdapter } from './adapters/createAdapter.js';
+import { handleExtendedRoutes } from './worker-extended-routes.js';
 
 const DEFAULT_NETWORK_IDS = ['polygon_amoy', 'tron_nile'];
 
@@ -115,7 +120,7 @@ async function runIndexer(env, options = {}) {
     maxRunMs: readNumber(env, 'INDEXER_MAX_RUN_MS', 45_000),
     maxTransactionInfoPerRun: Math.max(
       1,
-      Math.floor(readNumber(env, 'INDEXER_MAX_TRON_TXINFO_PER_RUN', 6))
+      Math.floor(readNumber(env, 'INDEXER_MAX_TRON_TXINFO_PER_RUN', 25))
     ),
     ...options,
   });
@@ -185,12 +190,93 @@ export default {
       }
     }
 
+    if (method === 'POST' && path === '/api/sync/rewind') {
+      if (!requireAdmin(request, env)) {
+        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
+      }
+      const body = await readJsonBody(request);
+      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
+
+      const projectId = body.projectId || body.project_id;
+      if (!projectId) {
+        return jsonResponse({ ok: false, error: 'projectId is required' }, 400);
+      }
+
+      const networkId = body.networkId || body.network_id || null;
+      const toBlockRaw = body.toBlock ?? body.to_block;
+      const toBlock = toBlockRaw === undefined || toBlockRaw === null
+        ? 0
+        : Number(toBlockRaw);
+
+      if (!Number.isInteger(toBlock) || toBlock < 0) {
+        return jsonResponse({ ok: false, error: 'toBlock must be a non-negative integer' }, 400);
+      }
+
+      try {
+        let query = `
+          SELECT t.id, t.project_id, t.network_id, t.address,
+                 s.last_scanned_block AS previous_scanned
+          FROM treasuries t
+          LEFT JOIN sync_state s ON s.treasury_id = t.id
+          WHERE t.project_id = ?
+        `;
+        const binds = [String(projectId)];
+        if (networkId) {
+          query += ` AND t.network_id = ?`;
+          binds.push(String(networkId));
+        }
+
+        const found = await env.DB.prepare(query).bind(...binds).all();
+        const rows = found?.results || [];
+        if (!rows.length) {
+          return jsonResponse({
+            ok: false,
+            error: 'no_treasuries',
+            projectId,
+            networkId,
+          }, 404);
+        }
+
+        const syncState = new SyncStateRepository(env.DB);
+        const rewound = [];
+
+        for (const row of rows) {
+          if (!row.id) continue;
+          let state = await syncState.get(row.id);
+          if (!state) {
+            state = await syncState.initialize(row.id, toBlock);
+          }
+          const updated = await syncState.rewind(row.id, toBlock);
+          rewound.push({
+            treasuryId: row.id,
+            projectId: row.project_id,
+            networkId: row.network_id,
+            address: row.address,
+            previousScanned: row.previous_scanned ?? null,
+            last_scanned_block: updated?.last_scanned_block ?? toBlock,
+            status: updated?.status ?? 'PENDING',
+          });
+        }
+
+        return jsonResponse({
+          ok: true,
+          projectId: String(projectId),
+          networkId,
+          toBlock,
+          rewound,
+          next: 'POST /sync?projectId=' + encodeURIComponent(String(projectId)),
+        });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 500);
+      }
+    }
+
     if (method === 'GET' && path === '/api/donors') {
       const projectId = url.searchParams.get('projectId');
       if (!projectId) return jsonResponse({ ok: false, error: 'projectId is required' }, 400);
 
       const rows = await env.DB.prepare(`
-        SELECT donor, amount, amount_raw, tx_hash, timestamp
+        SELECT donor, amount, amount_raw, tx_hash, timestamp, network_id, block_number
         FROM transfers
         WHERE project_id = ?
         ORDER BY block_number DESC, event_index DESC
@@ -226,503 +312,20 @@ export default {
       return jsonResponse({ status: 'ok', treasuries: rows.results });
     }
 
-    if (method === 'GET' && path === '/api/contributor') {
-      const donor = url.searchParams.get('donor');
-      const networkId = url.searchParams.get('network_id');
-      if (!donor || !networkId) {
-        return jsonResponse({ ok: false, error: 'donor and network_id are required' }, 400);
-      }
-
-      const ledger = new ContributionLedgerService(env.DB);
-      const data = await ledger.getContributor(donor, networkId);
-      return jsonResponse({ ok: true, contributor: data });
-    }
-
-    if (method === 'GET' && path === '/api/queue') {
-      const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 200);
-      const networkId = url.searchParams.get('network_id') || null;
-
-      const ledger = new ContributionLedgerService(env.DB);
-      const queue = await ledger.getQueue(limit, networkId);
-      return jsonResponse({ ok: true, queue });
-    }
-
-    if (method === 'GET' && path === '/api/contributors') {
-      const limit = Math.min(Number(url.searchParams.get('limit')) || 100, 500);
-      const networkId = url.searchParams.get('network_id') || null;
-
-      const ledger = new ContributionLedgerService(env.DB);
-      const contributors = await ledger.listContributors(networkId, limit);
-      return jsonResponse({ ok: true, contributors });
-    }
-
-    if (method === 'GET' && path === '/api/voting/rounds') {
-      const voting = new VotingService(env.DB);
-      const rounds = await voting.listRounds(50);
-      return jsonResponse({ ok: true, rounds });
-    }
-
-    const roundMatch = path.match(/^\/api\/voting\/rounds\/(\d+)$/);
-    if (method === 'GET' && roundMatch) {
-      const voting = new VotingService(env.DB);
-      const round = await voting.getRound(Number(roundMatch[1]));
-      if (!round) return jsonResponse({ ok: false, error: 'not_found' }, 404);
-      return jsonResponse({ ok: true, round });
-    }
-
-    if (method === 'POST' && path === '/api/voting/rounds') {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
-      const body = await readJsonBody(request);
-      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
-      try {
-        const voting = new VotingService(env.DB, {
-          loadProjects: () => loadProjectsRegistry(env),
-        });
-        const round = await voting.openRound({
-          title: body.title,
-          candidateProjects: body.candidate_projects || body.candidateProjects,
-        });
-        return jsonResponse({ ok: true, round });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    const voteMatch = path.match(/^\/api\/voting\/rounds\/(\d+)\/vote$/);
-    if (method === 'POST' && voteMatch) {
-      const body = await readJsonBody(request);
-      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
-      try {
-        const voting = new VotingService(env.DB);
-        const result = await voting.castVote({
-          roundId: Number(voteMatch[1]),
-          donor: body.donor,
-          projectId: body.project_id || body.projectId,
-          telegramUserId: body.telegram_user_id || body.telegramUserId || null,
-        });
-        return jsonResponse({ ok: true, ...result });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    const closeMatch = path.match(/^\/api\/voting\/rounds\/(\d+)\/close$/);
-    if (method === 'POST' && closeMatch) {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
-      const body = await readJsonBody(request);
-      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
-      try {
-        const voting = new VotingService(env.DB, {
-          loadProjects: () => loadProjectsRegistry(env),
-        });
-        const round = await voting.closeRound({
-          roundId: Number(closeMatch[1]),
-          selectedProjectId: body.selected_project_id || body.selectedProjectId,
-          resultTally: body.result_tally || body.resultTally || [],
-        });
-        return jsonResponse({ ok: true, round });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    const allocateMatch = path.match(/^\/api\/voting\/rounds\/(\d+)\/allocate$/);
-    if (method === 'POST' && allocateMatch) {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
-      try {
-        const voting = new VotingService(env.DB, {
-          loadProjects: () => loadProjectsRegistry(env),
-        });
-        const result = await voting.allocateRound(Number(allocateMatch[1]));
-        let disbursement = null;
-        try {
-          const disb = new DisbursementService(env.DB, {
-            loadProjects: () => loadProjectsRegistry(env),
-          });
-          disbursement = await disb.prepareFromBatch(
-            result.allocation_batch_id,
-            result.project_id
-          );
-        } catch (de) {
-          disbursement = { ok: false, error: de.message };
-        }
-        let telegram = null;
-        try {
-          const donors = (result.slices || result.allocations || [])
-            .map((s) => s.donor)
-            .filter(Boolean);
-          const unique = [...new Set(donors)];
-          if (unique.length) {
-            const sync = new TelegramSyncService(env.DB, env);
-            telegram = await sync.onAllocated({
-              projectId: result.project_id,
-              donors: unique,
-            });
-          }
-        } catch (te) {
-          telegram = { ok: false, error: te.message };
-        }
-        return jsonResponse({ ok: true, ...result, disbursement, telegram });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    if (method === 'POST' && path === '/api/allocate') {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
-      const body = await readJsonBody(request);
-      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
-      try {
-        const engine = new AllocationEngine(env.DB);
-        const projectId = body.project_id || body.projectId;
-        const result = await engine.allocate({
-          projectId,
-          requiredAmountRaw: body.required_amount_raw || body.requiredAmountRaw,
-          networkId: body.network_id || body.networkId || null,
-        });
-        let disbursement = null;
-        try {
-          const disb = new DisbursementService(env.DB, {
-            loadProjects: () => loadProjectsRegistry(env),
-          });
-          disbursement = await disb.prepareFromBatch(
-            result.allocation_batch_id,
-            projectId
-          );
-        } catch (de) {
-          disbursement = { ok: false, error: de.message };
-        }
-        let telegram = null;
-        try {
-          const donors = (result.slices || result.allocations || [])
-            .map((s) => s.donor)
-            .filter(Boolean);
-          const unique = [...new Set(donors)];
-          if (unique.length) {
-            const sync = new TelegramSyncService(env.DB, env);
-            telegram = await sync.onAllocated({
-              projectId,
-              donors: unique,
-            });
-          }
-        } catch (te) {
-          telegram = { ok: false, error: te.message };
-        }
-        return jsonResponse({ ...result, disbursement, telegram });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    if (method === 'POST' && path === '/api/link/request') {
-      const body = await readJsonBody(request);
-      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
-      try {
-        const svc = new WalletLinkService(env.DB);
-        const data = await svc.requestLink({
-          telegramUserId: body.telegram_user_id || body.telegramUserId,
-          networkId: body.network_id || body.networkId,
-        });
-        return jsonResponse({ ok: true, ...data });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    if (method === 'POST' && path === '/api/link/verify') {
-      const body = await readJsonBody(request);
-      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
-      try {
-        const svc = new WalletLinkService(env.DB);
-        const data = await svc.verifyLink({
-          telegramUserId: body.telegram_user_id || body.telegramUserId,
-          networkId: body.network_id || body.networkId,
-          donor: body.donor,
-          signature: body.signature,
-          message: body.message,
-          nonce: body.nonce,
-        });
-        return jsonResponse(data);
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    if (method === 'GET' && path === '/api/link/status') {
-      const telegramUserId = url.searchParams.get('telegram_user_id');
-      if (!telegramUserId) {
-        return jsonResponse({ ok: false, error: 'telegram_user_id is required' }, 400);
-      }
-      try {
-        const svc = new WalletLinkService(env.DB);
-        const data = await svc.getStatus(telegramUserId);
-        return jsonResponse({ ok: true, ...data });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    if (method === 'POST' && path === '/api/link/unlink') {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
-      const body = await readJsonBody(request);
-      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
-      try {
-        const svc = new WalletLinkService(env.DB);
-        await svc.unlink({
-          telegramUserId: body.telegram_user_id || body.telegramUserId,
-          networkId: body.network_id || body.networkId,
-          donor: body.donor || null,
-        });
-        return jsonResponse({ ok: true });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    if (method === 'GET' && path === '/api/community/status') {
-      const telegramUserId = url.searchParams.get('telegram_user_id');
-      const donor = url.searchParams.get('donor');
-      const networkId = url.searchParams.get('network_id') || null;
-
-      if (!telegramUserId && !donor) {
-        return jsonResponse({
-          ok: false,
-          error: 'telegram_user_id or donor is required',
-        }, 400);
-      }
-
-      try {
-        const svc = new CommunityStatusService(env.DB);
-        const data = telegramUserId
-          ? await svc.statusByTelegram(telegramUserId)
-          : await svc.statusByDonor(donor, networkId);
-        return jsonResponse({ ok: true, ...data });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    if (method === 'GET' && path === '/api/community/members') {
-      const type = url.searchParams.get('type');
-      const limit = Math.min(Number(url.searchParams.get('limit')) || 500, 1000);
-
-      try {
-        const svc = new CommunityStatusService(env.DB);
-        if (type === 'contributor') {
-          const members = await svc.listContributorMembers(limit);
-          return jsonResponse({ ok: true, type: 'contributor', members });
-        }
-        if (type === 'project') {
-          const projectId = url.searchParams.get('project_id');
-          if (!projectId) {
-            return jsonResponse({ ok: false, error: 'project_id is required' }, 400);
-          }
-          const members = await svc.listProjectMembers(projectId, limit);
-          return jsonResponse({ ok: true, type: 'project', project_id: projectId, members });
-        }
-        return jsonResponse({
-          ok: false,
-          error: 'type must be contributor or project',
-        }, 400);
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    if (method === 'GET' && path === '/api/disburse/pending') {
-      const networkId = url.searchParams.get('network_id') || null;
-      const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 200);
-      const svc = new DisbursementService(env.DB, {
-        loadProjects: () => loadProjectsRegistry(env),
-      });
-      const rows = await svc.listPending(networkId, limit);
-      return jsonResponse({ ok: true, pending: rows });
-    }
-
-    const disburseGet = path.match(/^\/api\/disburse\/(\d+)$/);
-    if (method === 'GET' && disburseGet) {
-      const svc = new DisbursementService(env.DB);
-      const row = await svc.get(Number(disburseGet[1]));
-      if (!row) return jsonResponse({ ok: false, error: 'not_found' }, 404);
-      return jsonResponse({ ok: true, disbursement: row });
-    }
-
-    const disburseApprove = path.match(/^\/api\/disburse\/(\d+)\/approve$/);
-    if (method === 'POST' && disburseApprove) {
-      const body = await readJsonBody(request);
-      if (!body?.approver) {
-        return jsonResponse({ ok: false, error: 'approver is required' }, 400);
-      }
-      try {
-        const svc = new DisbursementService(env.DB);
-        const row = await svc.approve(Number(disburseApprove[1]), body.approver);
-        return jsonResponse({ ok: true, disbursement: row });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    const disburseExecuted = path.match(/^\/api\/disburse\/(\d+)\/executed$/);
-    if (method === 'POST' && disburseExecuted) {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
-      const body = await readJsonBody(request);
-      const txHash = body?.execute_tx_hash || body?.executeTxHash;
-      if (!txHash) {
-        return jsonResponse({ ok: false, error: 'execute_tx_hash is required' }, 400);
-      }
-      try {
-        const svc = new DisbursementService(env.DB);
-        const row = await svc.markExecuted(
-          Number(disburseExecuted[1]),
-          txHash,
-          body.onchain_tx_index ?? body.onchainTxIndex ?? null
-        );
-        return jsonResponse({ ok: true, disbursement: row });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    if (method === 'POST' && path === '/api/disburse/prepare') {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
-      const body = await readJsonBody(request);
-      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
-      try {
-        const svc = new DisbursementService(env.DB, {
-          loadProjects: () => loadProjectsRegistry(env),
-        });
-        const result = await svc.prepareFromBatch(
-          body.allocation_batch_id || body.allocationBatchId,
-          body.project_id || body.projectId
-        );
-        return jsonResponse(result);
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    // ---- Phase 5: Telegram ----
-    if (method === 'POST' && path === '/telegram/webhook') {
-      const secret = env.TELEGRAM_WEBHOOK_SECRET;
-      if (secret) {
-        const hdr = request.headers.get('X-Telegram-Bot-Api-Secret-Token');
-        if (hdr !== secret) {
-          return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-        }
-      }
-      try {
-        const update = await readJsonBody(request);
-        if (!update) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
-        const handler = new TelegramBotHandler(env.DB, env);
-        const result = await handler.handleUpdate(update);
-        return jsonResponse({ ok: true, ...result });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 500);
-      }
-    }
-
-    if (method === 'POST' && path === '/api/telegram/sync-general') {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
-      try {
-        const sync = new TelegramSyncService(env.DB, env);
-        const summary = await sync.syncGeneral();
-        return jsonResponse({ ok: true, summary });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 500);
-      }
-    }
-
-    if (method === 'POST' && path === '/api/telegram/groups') {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
-      const body = await readJsonBody(request);
-      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
-      try {
-        const repo = new TelegramGroupRepository(env.DB);
-        const row = await repo.upsertGroup({
-          kind: body.kind,
-          projectId: body.project_id || body.projectId || null,
-          chatId: body.chat_id || body.chatId,
-          title: body.title || null,
-          inviteLink: body.invite_link || body.inviteLink || null,
-        });
-        return jsonResponse({ ok: true, group: row });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    if (method === 'GET' && path === '/api/telegram/groups/project') {
-      const projectId = url.searchParams.get('project_id');
-      if (!projectId) {
-        return jsonResponse({ ok: false, error: 'project_id is required' }, 400);
-      }
-      try {
-        const repo = new TelegramGroupRepository(env.DB);
-        const group = await repo.getProjectGroup(projectId);
-        if (!group) {
-          return jsonResponse({ ok: false, error: 'not_found' }, 404);
-        }
-        return jsonResponse({ ok: true, group });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 500);
-      }
-    }
-
-    if (method === 'POST' && path === '/api/telegram/groups/project/invite') {
-      const body = await readJsonBody(request);
-      const projectId = body?.project_id || body?.projectId;
-      if (!projectId) {
-        return jsonResponse({ ok: false, error: 'project_id is required' }, 400);
-      }
-      try {
-        const repo = new TelegramGroupRepository(env.DB);
-        const group = String(projectId) === 'GENERAL_POOL'
-          ? await repo.getGeneral()
-          : await repo.getProjectGroup(projectId);
-        if (!group) {
-          return jsonResponse({ ok: false, error: 'not_found' }, 404);
-        }
-        if (!env.TELEGRAM_BOT_TOKEN) {
-          return jsonResponse({ ok: false, error: 'telegram_bot_not_configured' }, 503);
-        }
-        const bot = new TelegramBotClient(env.TELEGRAM_BOT_TOKEN);
-        const link = await bot.createChatInviteLink(group.chat_id, {
-          memberLimit: 1,
-          name: `payment-${String(projectId).slice(0, 16)}`,
-        });
-        return jsonResponse({ ok: true, invite_link: link.invite_link, cached: false });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 502);
-      }
-    }
-
-    if (method === 'GET' && path === '/api/telegram/groups') {
-      try {
-        const repo = new TelegramGroupRepository(env.DB);
-        const groups = await repo.listActive();
-        return jsonResponse({ ok: true, groups });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 500);
-      }
-    }
+    // Extended routes (voting, link, community, disburse, telegram)
+    const extended = await handleExtendedRoutes({
+      request,
+      env,
+      path,
+      method,
+      url,
+      jsonResponse,
+      requireAdmin,
+      readJsonBody,
+      loadProjectsRegistry,
+      runIndexer,
+    });
+    if (extended) return extended;
 
     return jsonResponse({ ok: false, error: 'not_found' }, 404);
   },
