@@ -157,10 +157,13 @@
           <button type="button" class="ghost" id="dRoundsRefresh">بروزرسانی</button>
         </div>
         <p class="muted" style="margin:8px 0 10px;font-size:0.85rem;line-height:1.6">
-          <strong>OPEN</strong> هنوز بسته نشده ·
-          <strong>CLOSED</strong> منتظر Allocate (حسابداری FIFO) ·
-          <strong>ALLOCATED</strong> حسابداری انجام شده — انتقال on-chain per-network در جدول پایین
+          تخصیص از <strong>صف FIFO قطعی</strong> است (نه تصادفی): به ترتیب واریز donors و فقط روی شبکه‌هایی که پروژه خزانه دارد.
+          مبلغ پیش‌فرض = target پروژه؛ می‌توانید مبلغ دستی (USDT) وارد کنید. سیستم از موجودی آزاد صف بیشتر برنمی‌دارد.
         </p>
+        <div class="row" style="margin-bottom:10px">
+          <label class="muted" style="font-size:12px">مبلغ تخصیص (USDT، خالی = target راند)</label>
+          <input id="dAllocAmount" placeholder="مثلاً 11050 یا خالی برای target" style="flex:1;min-width:180px" />
+        </div>
         <div id="dRounds" class="muted">…</div>
         <div id="dAllocResult" class="muted" style="margin-top:10px"></div>
       </div>
@@ -171,11 +174,12 @@
           <button type="button" class="ghost" id="dRefresh">بروزرسانی pending</button>
         </div>
         <p class="muted" style="margin:8px 0 10px;font-size:0.85rem;line-height:1.6">
-          هر شبکه یک ردیف جدا: GENERAL_POOL[شبکه] → آدرس پروژه روی همان شبکه.
-          صاحب امضای خزانه هر شبکه باید TX را از کیف خود امضا/اجرا کند؛ Worker کلید خصوصی ندارد.
+          هر شبکه یک ردیف: GENERAL_POOL → پروژه. تأیید فقط با <strong>اتصال کیف پول</strong> صاحب امضای GENERAL روی همان شبکه.
+          آدرس دستی قبول نیست؛ Worker کلید ندارد و بدون امضای کیف تراکنش on-chain ساخته نمی‌شود.
         </p>
         <div class="row">
-          <input id="dApprover" placeholder="آدرس approver (امضاکننده)" style="flex:1" />
+          <button type="button" class="primary" id="dConnectWallet">اتصال کیف پول امضاکننده</button>
+          <span id="dWalletStatus" class="muted" style="font-size:13px">کیف متصل نیست</span>
         </div>
         <div id="dList" class="muted" style="margin-top:10px">…</div>
         <div id="dDetail"></div>
