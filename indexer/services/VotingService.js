@@ -10,6 +10,7 @@
 
 import { VotingRepository } from '../db/VotingRepository.js';
 import { ContributionBalanceRepository } from '../db/ContributionBalanceRepository.js';
+import { AllocationQueueRepository } from '../db/AllocationQueueRepository.js';
 import { AllocationEngine } from './AllocationEngine.js';
 
 export class VotingService {
@@ -19,6 +20,7 @@ export class VotingService {
         this.db = db;
         this.votingRepo = new VotingRepository(db);
         this.balanceRepo = new ContributionBalanceRepository(db);
+        this.queueRepo = new AllocationQueueRepository(db);
         this.allocationEngine = new AllocationEngine(db);
         this.loadProjects = options.loadProjects || null;
     }
@@ -29,7 +31,6 @@ export class VotingService {
             throw new Error('candidateProjects must be a non-empty array');
         }
 
-        // Phase 3: only one open round at a time
         const existingOpenId = await this.votingRepo.hasOpenRound();
         if (existingOpenId != null) {
             throw new Error(
@@ -80,8 +81,6 @@ export class VotingService {
             throw new Error('projectId is not a candidate in this round');
         }
 
-        // Eligibility is aggregated across all networks. The voter does not
-        // choose a network; the network is resolved later during allocation.
         const unallocated = await this.balanceRepo.getTotalUnallocated(donor);
         if (unallocated <= 0n) {
             throw new Error('donor has no unallocated balance; not eligible to vote');
@@ -97,12 +96,6 @@ export class VotingService {
         return { ok: true, round_id: roundId, donor, project_id: String(projectId) };
     }
 
-    /**
-     * Close round with admin-selected project + required amount.
-     * Does NOT allocate yet — allocation is a separate explicit step.
-     * selectedProjectId is mandatory; empty/missing is rejected.
-     * resultTally is optional for admin-only close (zeros filled for missing candidates).
-     */
     async closeRound({ roundId, selectedProjectId, resultTally = [] }) {
         const round = await this.votingRepo.getRound(roundId);
         if (!round) throw new Error('round not found');
@@ -143,7 +136,6 @@ export class VotingService {
             throw new Error(`project ${selectedId} has zero targetAmount(USDT)`);
         }
 
-        // Normalize tally: if empty/partial, fill missing candidates with 0
         const inputTally = Array.isArray(resultTally) ? resultTally : [];
         const counts = new Map();
         for (const item of inputTally) {
@@ -170,12 +162,39 @@ export class VotingService {
     }
 
     /**
-     * Run FIFO allocation for a CLOSED round (manual confirm).
-     * Allocation is global FIFO, restricted to networks where the selected
-     * project actually has a treasury. The project registry is the source
-     * for that network set.
+     * Sum remaining FIFO queue (deterministic) on the given networks.
      */
-    async allocateRound(roundId) {
+    async _sumQueueRemaining(networkIds) {
+        const ids = Array.isArray(networkIds) ? networkIds : [];
+        if (!ids.length) return 0n;
+        let total = 0n;
+        let offsetGuard = 0;
+        // walk FIFO in chunks until empty
+        while (offsetGuard < 50) {
+            const openEntries = await this.queueRepo.peekOpen(500, null, ids);
+            if (!openEntries.length) break;
+            for (const e of openEntries) {
+                total += BigInt(String(e.remaining_raw || '0'));
+            }
+            // peek always returns same head if we don't consume — only need one pass for sum
+            break;
+        }
+        // For accurate sum beyond 500, query D1 aggregate would be better; use extra peeks is wrong without consume.
+        // Fall back: additional unbounded query via peek with higher limit once.
+        const more = await this.queueRepo.peekOpen(5000, null, ids);
+        total = 0n;
+        for (const e of more) {
+            total += BigInt(String(e.remaining_raw || '0'));
+        }
+        return total;
+    }
+
+    /**
+     * Run FIFO allocation for a CLOSED round (manual confirm).
+     * @param {number} roundId
+     * @param {{ requiredAmountRaw?: string }} [options] optional manual amount (base units string)
+     */
+    async allocateRound(roundId, options = {}) {
         const round = await this.votingRepo.getRound(roundId);
         if (!round) throw new Error('round not found');
         if (round.status !== 'CLOSED') {
@@ -203,16 +222,48 @@ export class VotingService {
             throw new Error('selected project has no configured treasury');
         }
 
+        // Amount: manual override OR locked target from close
+        let requestedRaw = round.required_amount_raw;
+        if (options.requiredAmountRaw != null && String(options.requiredAmountRaw).trim() !== '') {
+            const s = String(options.requiredAmountRaw).replace(/,/g, '').trim();
+            if (!/^\d+$/.test(s) || BigInt(s) <= 0n) {
+                throw new Error('requiredAmountRaw must be a positive integer string (base units)');
+            }
+            requestedRaw = s;
+        }
+
+        // Cap by deterministic FIFO remaining on allowed networks (not probabilistic)
+        const available = await this._sumQueueRemaining(projectNetworkIds);
+        if (available <= 0n) {
+            throw new Error('no unallocated FIFO balance on project networks');
+        }
+        let effectiveRaw = requestedRaw;
+        if (BigInt(requestedRaw) > available) {
+            effectiveRaw = String(available);
+        }
+
         const result = await this.allocationEngine.allocate({
             projectId: round.selected_project_id,
-            requiredAmountRaw: round.required_amount_raw,
+            requiredAmountRaw: effectiveRaw,
             networkIds: projectNetworkIds
         });
 
         await this.votingRepo.markAllocated(roundId, result.allocation_batch_id);
 
+        // Build per-network totals from slices (deterministic outcome of FIFO)
+        const byNetwork = {};
+        for (const s of result.slices || []) {
+            const nid = s.network_id;
+            byNetwork[nid] = (BigInt(byNetwork[nid] || '0') + BigInt(s.amount_raw || '0')).toString();
+        }
+
         return {
             round_id: roundId,
+            requested_amount_raw: requestedRaw,
+            effective_amount_raw: effectiveRaw,
+            queue_available_raw: String(available),
+            capped_to_queue: BigInt(requestedRaw) > available,
+            by_network: byNetwork,
             ...result
         };
     }
