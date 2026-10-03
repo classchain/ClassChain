@@ -36,7 +36,7 @@ export async function loadIndexerHealth(networkFilter) {
       const err = (r.error || '').slice(0, 50);
       return `<tr class="${cls}"><td><b>${r.project_id}</b></td><td>${r.network_id}</td><td>${last.toLocaleString()}</td>
         <td>${lag ? lag.toLocaleString() : '0'}</td><td>${r.tx_count ?? '—'}</td><td>${badgeHtml}</td>
-        <td class="muted" title="${(r.error || '').replace(/"/g, '&quot;')}">${err || '—'}</td>
+        <td class="muted" title="${(r.error || '').replace(/"/g, '"')}">${err || '—'}</td>
         <td><button type="button" class="ghost" data-sync="${r.project_id}">Sync</button></td></tr>`;
     }).join('') || '<tr><td colspan="8" class="muted">خالی</td></tr>';
     tbody.querySelectorAll('[data-sync]').forEach((b) => { b.onclick = () => runSync(b.dataset.sync); });
@@ -85,15 +85,29 @@ export async function loadRounds() {
     const data = await api('/api/voting/rounds');
     const rounds = data.rounds || [];
     $('vRounds').innerHTML = rounds.length
-      ? `<div class="table-wrap"><table class="ops-table"><thead><tr><th>ID</th><th>عنوان</th><th>وضعیت</th><th></th></tr></thead><tbody>${
-          rounds.map((r) => `<tr><td>${r.id}</td><td>${r.title || ''}</td><td>${badge(r.status)}</td><td><button type="button" class="ghost" data-rid="${r.id}">جزئیات</button></td></tr>`).join('')
+      ? `<div class="table-wrap"><table class="ops-table"><thead><tr><th>ID</th><th>عنوان</th><th>وضعیت</th><th>منتخب</th><th></th></tr></thead><tbody>${
+          rounds.map((r) => `<tr><td>${r.id}</td><td>${r.title || ''}</td><td>${badge(r.status)}</td><td>${r.selected_project_id || '—'}</td><td><button type="button" class="ghost" data-rid="${r.id}">جزئیات</button></td></tr>`).join('')
         }</tbody></table></div>` : '<p class="muted">راندی نیست</p>';
     $('vRounds').querySelectorAll('[data-rid]').forEach((b) => {
       b.onclick = async () => {
-        $('vRoundId').value = b.dataset.rid;
+        const rid = b.dataset.rid;
+        if ($('vRoundId')) $('vRoundId').value = rid;
+        if ($('vRoundIdShow')) $('vRoundIdShow').value = rid;
+        if ($('dAllocRoundId') && !($('dAllocRoundId').value || '').trim()) {
+          // فقط اگر خالی باشد پیشنهاد می‌کنیم
+        }
         try {
-          const d = await api('/api/voting/rounds/' + b.dataset.rid);
-          $('vDetail').innerHTML = `<pre>${JSON.stringify(d.round, null, 2)}</pre>`;
+          const d = await api('/api/voting/rounds/' + rid);
+          const r = d.round;
+          $('vDetail').innerHTML = `<pre>${JSON.stringify(r, null, 2)}</pre>`;
+          // اگر CLOSED است، برای Allocate در تب تخصیص پیشنهاد بده
+          if (r?.status === 'CLOSED' && $('dAllocRoundId')) {
+            $('dAllocRoundId').value = String(rid);
+          }
+          // اگر OPEN است و منتخب خالی، فیلد بستن را آماده نگه دار
+          if (r?.status === 'OPEN' && $('vCloseProject') && r.selected_project_id) {
+            $('vCloseProject').value = r.selected_project_id;
+          }
         } catch (e) { $('vDetail').innerHTML = `<p class="err">${e.message}</p>`; }
       };
     });
