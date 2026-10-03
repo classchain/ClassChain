@@ -161,7 +161,10 @@ export class TronAdapter {
                 treasuryAddress,
                 queryMinTimestamp,
                 queryMaxTimestamp,
-                { fingerprint: options?.tronCursor || null }
+                {
+                    fingerprint: options?.tronCursor || null,
+                    pageSize: maxTransactionInfo
+                }
             );
 
 
