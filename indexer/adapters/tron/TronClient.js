@@ -213,7 +213,8 @@ export class TronClient {
         tokenAddress,
         treasuryAddress,
         minTimestamp,
-        maxTimestamp
+        maxTimestamp,
+        options = {}
     ) {
 
         if (!tokenAddress) {
@@ -244,11 +245,18 @@ export class TronClient {
 
         const seen = new Set();
 
-        let fingerprint = null;
+        let fingerprint =
+            typeof options.fingerprint === 'string' && options.fingerprint
+                ? options.fingerprint
+                : null;
 
-        // Hard cap pages per treasury per call (safety).
+        // Bound pages per invocation, but never treat the page budget
+        // as proof that pagination is complete.
         let pages = 0;
-        const maxPages = 5;
+        const maxPages = Number.isInteger(options.maxPagesPerRun)
+            ? Math.max(1, options.maxPagesPerRun)
+            : 5;
+        let paginationComplete = false;
 
 
         while (pages < maxPages) {
@@ -397,6 +405,7 @@ export class TronClient {
                 !nextFingerprint ||
                 response.data.length === 0
             ) {
+                paginationComplete = true;
                 break;
             }
 
@@ -404,6 +413,7 @@ export class TronClient {
             if (
                 nextFingerprint === fingerprint
             ) {
+                paginationComplete = true;
                 break;
             }
 
@@ -414,7 +424,9 @@ export class TronClient {
 
 
         return {
-            data: transfers
+            data: transfers,
+            paginationComplete,
+            nextFingerprint: paginationComplete ? null : fingerprint
         };
     }
 }
