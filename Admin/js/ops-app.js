@@ -122,6 +122,7 @@ function initEvents() {
   $('cNet').onchange = loadCommunity;
   $('vRefresh').onclick = loadRounds;
   $('dRefresh').onclick = loadDisburse;
+  $('dRoundsRefresh')?.addEventListener('click', () => loadDisburse());
 
   $('vOpen').onclick = async () => {
     try {
@@ -147,8 +148,6 @@ function initEvents() {
       if (!id) return alert('ابتدا از لیست راندها «جزئیات» یک راند باز را بزنید');
       if (!selected) return alert('پروژه منتخب الزامی است — بدون آن راند بسته نمی‌شود');
 
-      // برای بستن دستی: tally را از کاندیداهای راند با صفر می‌سازیم
-      // (رأی واقعی فعلاً از تلگرام خوانده نمی‌شود)
       let resultTally = [];
       try {
         const d = await api('/api/voting/rounds/' + id);
@@ -172,26 +171,6 @@ function initEvents() {
       $('vCloseProject').value = '';
       loadRounds();
     } catch (e) { alert(e.message); }
-  };
-
-  $('dAlloc').onclick = async () => {
-    const box = $('dAllocResult');
-    try {
-      const id = ($('dAllocRoundId').value || '').trim();
-      if (!id) return alert('شناسه راند CLOSED را وارد کنید');
-      if (box) box.textContent = 'در حال Allocate…';
-      const data = await api('/api/voting/rounds/' + id + '/allocate', {
-        method: 'POST',
-        body: '{}',
-      });
-      if (box) box.innerHTML = '<pre style="white-space:pre-wrap;font-size:12px">' +
-        JSON.stringify(data, null, 2).slice(0, 2000) + '</pre>';
-      alert('Allocate انجام شد · batch: ' + (data.allocation_batch_id || '—'));
-      loadDisburse();
-    } catch (e) {
-      if (box) box.innerHTML = '<p class="err">' + e.message + '</p>';
-      alert(e.message);
-    }
   };
 }
 
