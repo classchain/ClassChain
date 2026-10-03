@@ -129,6 +129,11 @@ export class SyncEngine {
             options.overlap ?? 10;
 
 
+        const hasTronCursor =
+            treasury.networkId === 'tron_nile' &&
+            typeof state.tron_cursor === 'string' &&
+            state.tron_cursor.length > 0;
+
         let fromBlock =
             Math.max(
                 0,
@@ -192,7 +197,13 @@ export class SyncEngine {
                     {
                         ...options,
                         lastScannedBlock:
-                            state.last_scanned_block || 0
+                            state.last_scanned_block || 0,
+                        tronCursor:
+                            hasTronCursor ? state.tron_cursor : null,
+                        tronCursorMinTimestamp:
+                            hasTronCursor ? state.tron_cursor_min_timestamp : null,
+                        tronCursorMaxTimestamp:
+                            hasTronCursor ? state.tron_cursor_max_timestamp : null
                     }
                 );
 
@@ -244,12 +255,23 @@ export class SyncEngine {
             }
 
 
+            if (rawResult?.paginationComplete === false) {
+                await this.syncStateRepository
+                    .markTronCursor(
+                        treasury.id,
+                        rawResult.nextFingerprint,
+                        rawResult.cursorMinTimestamp,
+                        rawResult.cursorMaxTimestamp
+                    );
+            } else if (hasTronCursor) {
+                await this.syncStateRepository
+                    .clearTronCursor(treasury.id);
+            }
+
             await this.syncStateRepository
                 .markSuccess(
                     treasury.id,
-
                     scannedToBlock,
-
                     scannedToBlock
                 );
 
