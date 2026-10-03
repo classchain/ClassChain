@@ -41,9 +41,12 @@ export class SyncStateRepository {
                     last_finalized_block,
                     last_sync_at,
                     status,
-                    error
+                    error,
+                    tron_cursor,
+                    tron_cursor_min_timestamp,
+                    tron_cursor_max_timestamp
                 )
-                VALUES (?, ?, 0, 0, NULL, 'PENDING', NULL)
+                VALUES (?, ?, 0, 0, NULL, 'PENDING', NULL, NULL, NULL)
                 ON CONFLICT (treasury_id)
                 DO NOTHING
             `)
@@ -55,6 +58,41 @@ export class SyncStateRepository {
 
 
         return this.get(treasuryId);
+    }
+
+
+    async markTronCursor(
+        treasuryId,
+        fingerprint,
+        minTimestamp,
+        maxTimestamp
+    ) {
+        await this.db
+            .prepare(`
+                UPDATE sync_state
+                SET
+                    tron_cursor = ?,
+                    tron_cursor_min_timestamp = ?,
+                    tron_cursor_max_timestamp = ?
+                WHERE treasury_id = ?
+            `)
+            .bind(fingerprint, minTimestamp, maxTimestamp, treasuryId)
+            .run();
+    }
+
+
+    async clearTronCursor(treasuryId) {
+        await this.db
+            .prepare(`
+                UPDATE sync_state
+                SET
+                    tron_cursor = NULL,
+                    tron_cursor_min_timestamp = NULL,
+                    tron_cursor_max_timestamp = NULL
+                WHERE treasury_id = ?
+            `)
+            .bind(treasuryId)
+            .run();
     }
 
 
