@@ -117,30 +117,52 @@
 
     <section id="tab-voting" class="panel">
       <div class="card">
-        <button type="button" class="ghost" id="vRefresh">لیست راندها</button>
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3 style="margin:0">راندهای رأی‌گیری</h3>
+          <button type="button" class="ghost" id="vRefresh">بروزرسانی لیست</button>
+        </div>
         <div id="vRounds" style="margin-top:12px"></div>
         <div id="vDetail" style="margin-top:12px"></div>
       </div>
+
       <div class="card">
-        <h3>باز کردن راند</h3>
+        <h3>باز کردن راند جدید</h3>
+        <p class="muted" style="margin:0 0 10px;font-size:0.85rem">فقط یک راند باز همزمان مجاز است. کاندیداها را با کاما بنویسید.</p>
         <div class="row">
-          <input id="vTitle" placeholder="عنوان" style="flex:1" />
-          <input id="vCands" placeholder="1004,1005" style="flex:1" />
+          <input id="vTitle" placeholder="عنوان راند" style="flex:1" />
+          <input id="vCands" placeholder="مثلاً 1004,1005" style="flex:1" />
           <button type="button" class="primary" id="vOpen">باز کن</button>
         </div>
+      </div>
+
+      <div class="card">
+        <h3>بستن راند</h3>
+        <p class="muted" style="margin:0 0 10px;font-size:0.85rem">
+          ابتدا از لیست بالا «جزئیات» راند باز را بزنید تا شناسه پر شود.
+          بستن بدون مشخص‌کردن پروژه منتخب مجاز نیست. تخصیص مالی در تب «تخصیص خزانه» انجام می‌شود.
+        </p>
         <input type="hidden" id="vRoundId" />
         <div class="row">
-          <input id="vDonor" placeholder="donor" style="flex:1" />
-          <input id="vProject" placeholder="project_id" style="width:100px" />
-          <button type="button" class="ghost" id="vVote">رای</button>
-          <input id="vCloseProject" placeholder="selected" style="width:100px" />
-          <button type="button" class="ghost" id="vClose">بستن</button>
-          <button type="button" class="primary" id="vAlloc">Allocate</button>
+          <input id="vRoundIdShow" placeholder="شناسه راند (از جزئیات)" readonly style="width:140px;opacity:0.85" />
+          <input id="vCloseProject" placeholder="پروژه منتخب (الزامی)" style="flex:1" />
+          <button type="button" class="primary" id="vClose">بستن راند</button>
         </div>
       </div>
     </section>
 
     <section id="tab-disburse" class="panel">
+      <div class="card">
+        <h3>Allocate راند بسته‌شده (FIFO)</h3>
+        <p class="muted" style="margin:0 0 10px;font-size:0.85rem">
+          فقط راند با وضعیت CLOSED قابل Allocate است. بعد از موفقیت، وضعیت راند ALLOCATED می‌شود و در صورت نیاز disbursement آماده می‌شود.
+        </p>
+        <div class="row">
+          <input id="dAllocRoundId" placeholder="شناسه راند CLOSED" style="width:160px" />
+          <button type="button" class="primary" id="dAlloc">Allocate</button>
+        </div>
+        <div id="dAllocResult" class="muted" style="margin-top:10px"></div>
+      </div>
+
       <div class="card">
         <div class="row">
           <button type="button" class="ghost" id="dRefresh">pending</button>
