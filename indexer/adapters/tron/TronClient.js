@@ -272,7 +272,11 @@ export class TronClient {
                         tokenAddress,
 
                     limit:
-                        '200',
+                        String(
+                            Number.isInteger(options.pageSize)
+                                ? Math.min(200, Math.max(1, options.pageSize))
+                                : 200
+                        ),
 
                     min_timestamp:
                         String(
