@@ -145,6 +145,12 @@ export class TronAdapter {
          *
          * Every candidate MUST be confirmed via receipt logs
          * for a real ERC20/TRC20 Transfer event to the treasury.
+         *
+         * Reliability notes (fix/nile-indexer-reliability):
+         * - Do NOT drop candidates missing block_number; resolve via txInfo.
+         * - Do NOT filter with block > lastScannedBlock only — that nullifies
+         *   SyncEngine overlap and permanently misses laggy TronGrid rows.
+         * - Keep candidates in [fromBlock, toBlock] when block is known.
          */
         const result =
             await this.client.getTRC20Transfers(
@@ -165,21 +171,35 @@ export class TronAdapter {
             : 20;
         let transactionInfoCount = 0;
 
-
-        const lastScannedBlock = Number.isInteger(options?.lastScannedBlock)
-            ? options.lastScannedBlock
-            : 0;
+        // Highest block we fully finished inspecting (success or reject).
+        // Cursor must not advance past unprocessed candidates.
+        let highestProcessedBlock = fromBlock - 1;
 
         const candidates = [...(result.data || [])]
-            .filter(candidate =>
-                Number.isInteger(candidate?.block_number)
-                    ? candidate.block_number > lastScannedBlock
-                    : false
-            )
-            .sort((a, b) =>
-                (Number.isInteger(a?.block_number) ? a.block_number : Number.MAX_SAFE_INTEGER) -
-                (Number.isInteger(b?.block_number) ? b.block_number : Number.MAX_SAFE_INTEGER)
-            );
+            .filter((candidate) => {
+                // Skip obvious non-transfers when TronGrid labels them.
+                const t = String(candidate?.type || '').toLowerCase();
+                if (t && t !== 'transfer' && t !== 'transferfrom') {
+                    return false;
+                }
+                if (!Number.isInteger(candidate?.block_number)) {
+                    // Keep — block will be resolved from getTransactionInfo.
+                    return true;
+                }
+                return (
+                    candidate.block_number >= fromBlock &&
+                    candidate.block_number <= toBlock
+                );
+            })
+            .sort((a, b) => {
+                const ab = Number.isInteger(a?.block_number)
+                    ? a.block_number
+                    : Number.MAX_SAFE_INTEGER;
+                const bb = Number.isInteger(b?.block_number)
+                    ? b.block_number
+                    : Number.MAX_SAFE_INTEGER;
+                return ab - bb;
+            });
 
         for (const candidate of candidates) {
 
@@ -193,14 +213,18 @@ export class TronAdapter {
             seenTx.add(txHash);
 
             if (transactionInfoCount >= maxTransactionInfo) {
+                // Stop before this unprocessed candidate; do not mark its block done.
                 const nextBlock = Number.isInteger(candidate.block_number)
                     ? candidate.block_number
-                    : fromBlock;
+                    : (highestProcessedBlock + 1);
 
                 return {
                     transfers,
                     partial: true,
-                    scannedToBlock: Math.max(fromBlock - 1, nextBlock - 1)
+                    scannedToBlock: Math.max(
+                        fromBlock - 1,
+                        Math.min(highestProcessedBlock, nextBlock - 1)
+                    )
                 };
             }
 
@@ -215,6 +239,12 @@ export class TronAdapter {
                 txInfo?.receipt?.result &&
                 txInfo.receipt.result !== 'SUCCESS'
             ) {
+                const failedBlock = Number.isInteger(txInfo?.blockNumber)
+                    ? txInfo.blockNumber
+                    : candidate.block_number;
+                if (Number.isInteger(failedBlock) && failedBlock > highestProcessedBlock) {
+                    highestProcessedBlock = failedBlock;
+                }
                 continue;
             }
 
@@ -229,10 +259,6 @@ export class TronAdapter {
              * No Transfer log to treasury → skip.
              * Approval-only txs die here.
              */
-            if (!event) {
-                continue;
-            }
-
             const blockNumber =
                 Number.isInteger(txInfo?.blockNumber)
                     ? txInfo.blockNumber
@@ -241,6 +267,14 @@ export class TronAdapter {
                             ? candidate.block_number
                             : null
                     );
+
+            if (Number.isInteger(blockNumber) && blockNumber > highestProcessedBlock) {
+                highestProcessedBlock = blockNumber;
+            }
+
+            if (!event) {
+                continue;
+            }
 
             if (
                 !Number.isInteger(blockNumber)
@@ -329,6 +363,7 @@ export class TronAdapter {
         return {
             transfers,
             partial: false,
+            // Full pass over candidates in this time window → safe to mark toBlock.
             scannedToBlock: toBlock
         };
     }

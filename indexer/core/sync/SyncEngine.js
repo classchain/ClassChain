@@ -129,13 +129,26 @@ export class SyncEngine {
             options.overlap ?? 10;
 
 
+        const previousScanned =
+            Number(state.last_scanned_block || 0);
+
+
         let fromBlock =
             Math.max(
                 0,
-                (state.last_scanned_block || 0) -
+                previousScanned -
                 overlap +
                 1
             );
+
+
+        // Optional forced rewind (admin recovery): options.rewindToBlock
+        if (
+            Number.isInteger(options.rewindToBlock) &&
+            options.rewindToBlock >= 0
+        ) {
+            fromBlock = Math.min(fromBlock, options.rewindToBlock);
+        }
 
 
         if (
@@ -170,7 +183,7 @@ export class SyncEngine {
                 fromBlock,
 
                 toBlock:
-                    state.last_scanned_block || 0,
+                    previousScanned,
 
                 transfers: 0,
 
@@ -191,8 +204,10 @@ export class SyncEngine {
                     toBlock,
                     {
                         ...options,
+                        // Informational only — adapters must use [fromBlock, toBlock]
+                        // so SyncEngine overlap is effective (esp. Tron).
                         lastScannedBlock:
-                            state.last_scanned_block || 0
+                            previousScanned
                     }
                 );
 
@@ -201,7 +216,7 @@ export class SyncEngine {
                     ? rawResult
                     : (rawResult?.transfers || []);
 
-            const scannedToBlock =
+            let scannedToBlock =
                 Array.isArray(rawResult)
                     ? toBlock
                     : Number.isInteger(rawResult?.scannedToBlock)
@@ -211,6 +226,29 @@ export class SyncEngine {
             const partial =
                 !Array.isArray(rawResult) &&
                 rawResult?.partial === true;
+
+            /*
+             * Conservative cursor:
+             * - On partial runs, only advance to what the adapter confirmed.
+             * - Never mark success past lastFinalizedBlock or toBlock.
+             */
+            scannedToBlock = Math.min(
+                scannedToBlock,
+                toBlock,
+                lastFinalizedBlock
+            );
+
+            // If adapter returned nothing useful and claimed partial with
+            // scannedToBlock behind previousScanned, keep previous cursor
+            // (avoid spinning forever on empty partial).
+            if (
+                partial &&
+                scannedToBlock < previousScanned &&
+                discoveredTransfers.length === 0 &&
+                !Number.isInteger(options.rewindToBlock)
+            ) {
+                scannedToBlock = previousScanned;
+            }
 
 
             let inserted = 0;
@@ -264,6 +302,8 @@ export class SyncEngine {
                 toBlock: scannedToBlock,
 
                 requestedToBlock: toBlock,
+
+                previousScanned,
 
                 transfers:
                     (

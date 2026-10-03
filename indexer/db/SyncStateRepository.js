@@ -127,4 +127,43 @@ export class SyncStateRepository {
             )
             .run();
     }
+
+    /**
+     * Rewind scan cursor so the next sync re-reads from toBlock.
+     * Used for recovery when TronGrid lag / partial runs missed transfers.
+     */
+    async rewind(
+        treasuryId,
+        toBlock
+    ) {
+
+        if (!treasuryId) {
+            throw new Error('treasuryId is required');
+        }
+
+        if (!Number.isInteger(toBlock) || toBlock < 0) {
+            throw new Error('toBlock must be a non-negative integer');
+        }
+
+        await this.db
+            .prepare(`
+                UPDATE sync_state
+                SET
+                    last_scanned_block = ?,
+                    last_finalized_block = ?,
+                    status = 'PENDING',
+                    error = NULL,
+                    last_sync_at = ?
+                WHERE treasury_id = ?
+            `)
+            .bind(
+                toBlock,
+                toBlock,
+                new Date().toISOString(),
+                treasuryId
+            )
+            .run();
+
+        return this.get(treasuryId);
+    }
 }
