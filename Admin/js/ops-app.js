@@ -122,40 +122,76 @@ function initEvents() {
   $('cNet').onchange = loadCommunity;
   $('vRefresh').onclick = loadRounds;
   $('dRefresh').onclick = loadDisburse;
+
   $('vOpen').onclick = async () => {
     try {
       const title = $('vTitle').value.trim();
       const cands = $('vCands').value.split(/[,\s]+/).filter(Boolean);
-      const data = await api('/api/voting/rounds', { method: 'POST', body: JSON.stringify({ title, candidate_projects: cands }) });
-      alert('راند #' + (data.round?.id || '')); loadRounds();
-    } catch (e) { alert(e.message); }
-  };
-  $('vVote').onclick = async () => {
-    try {
-      const id = $('vRoundId').value;
-      await api('/api/voting/rounds/' + id + '/vote', {
+      if (!title) return alert('عنوان راند الزامی است');
+      if (!cands.length) return alert('حداقل یک پروژه کاندید لازم است');
+      const data = await api('/api/voting/rounds', {
         method: 'POST',
-        body: JSON.stringify({ donor: $('vDonor').value.trim(), project_id: $('vProject').value.trim() }),
+        body: JSON.stringify({ title, candidate_projects: cands }),
       });
-      alert('رای ثبت شد');
+      alert('راند باز شد: #' + (data.round?.id || ''));
+      $('vTitle').value = '';
+      $('vCands').value = '';
+      loadRounds();
     } catch (e) { alert(e.message); }
   };
+
   $('vClose').onclick = async () => {
     try {
-      const id = $('vRoundId').value;
+      const id = ($('vRoundId').value || '').trim();
+      const selected = ($('vCloseProject').value || '').trim();
+      if (!id) return alert('ابتدا از لیست راندها «جزئیات» یک راند باز را بزنید');
+      if (!selected) return alert('پروژه منتخب الزامی است — بدون آن راند بسته نمی‌شود');
+
+      // برای بستن دستی: tally را از کاندیداهای راند با صفر می‌سازیم
+      // (رأی واقعی فعلاً از تلگرام خوانده نمی‌شود)
+      let resultTally = [];
+      try {
+        const d = await api('/api/voting/rounds/' + id);
+        const cands = d.round?.candidate_projects || [];
+        resultTally = cands.map((pid) => ({
+          project_id: String(pid),
+          vote_count: 0,
+        }));
+      } catch (_) {
+        resultTally = [{ project_id: selected, vote_count: 0 }];
+      }
+
       await api('/api/voting/rounds/' + id + '/close', {
         method: 'POST',
-        body: JSON.stringify({ selected_project_id: $('vCloseProject').value.trim() }),
+        body: JSON.stringify({
+          selected_project_id: selected,
+          result_tally: resultTally,
+        }),
       });
-      alert('بسته شد'); loadRounds();
+      alert('راند #' + id + ' بسته شد · منتخب: ' + selected);
+      $('vCloseProject').value = '';
+      loadRounds();
     } catch (e) { alert(e.message); }
   };
-  $('vAlloc').onclick = async () => {
+
+  $('dAlloc').onclick = async () => {
+    const box = $('dAllocResult');
     try {
-      const id = $('vRoundId').value;
-      const data = await api('/api/voting/rounds/' + id + '/allocate', { method: 'POST', body: '{}' });
-      alert(JSON.stringify(data).slice(0, 400));
-    } catch (e) { alert(e.message); }
+      const id = ($('dAllocRoundId').value || '').trim();
+      if (!id) return alert('شناسه راند CLOSED را وارد کنید');
+      if (box) box.textContent = 'در حال Allocate…';
+      const data = await api('/api/voting/rounds/' + id + '/allocate', {
+        method: 'POST',
+        body: '{}',
+      });
+      if (box) box.innerHTML = '<pre style="white-space:pre-wrap;font-size:12px">' +
+        JSON.stringify(data, null, 2).slice(0, 2000) + '</pre>';
+      alert('Allocate انجام شد · batch: ' + (data.allocation_batch_id || '—'));
+      loadDisburse();
+    } catch (e) {
+      if (box) box.innerHTML = '<p class="err">' + e.message + '</p>';
+      alert(e.message);
+    }
   };
 }
 
