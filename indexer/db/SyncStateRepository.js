@@ -44,9 +44,10 @@ export class SyncStateRepository {
                     error,
                     tron_cursor,
                     tron_cursor_min_timestamp,
-                    tron_cursor_max_timestamp
+                    tron_cursor_max_timestamp,
+                    tron_cursor_offset
                 )
-                VALUES (?, ?, 0, 0, NULL, 'PENDING', NULL, NULL, NULL)
+                VALUES (?, ?, 0, 0, NULL, 'PENDING', NULL, NULL, NULL, 0)
                 ON CONFLICT (treasury_id)
                 DO NOTHING
             `)
@@ -65,7 +66,8 @@ export class SyncStateRepository {
         treasuryId,
         fingerprint,
         minTimestamp,
-        maxTimestamp
+        maxTimestamp,
+        offset = 0
     ) {
         await this.db
             .prepare(`
@@ -73,10 +75,11 @@ export class SyncStateRepository {
                 SET
                     tron_cursor = ?,
                     tron_cursor_min_timestamp = ?,
-                    tron_cursor_max_timestamp = ?
+                    tron_cursor_max_timestamp = ?,
+                    tron_cursor_offset = ?
                 WHERE treasury_id = ?
             `)
-            .bind(fingerprint, minTimestamp, maxTimestamp, treasuryId)
+            .bind(fingerprint, minTimestamp, maxTimestamp, offset, treasuryId)
             .run();
     }
 
@@ -88,7 +91,8 @@ export class SyncStateRepository {
                 SET
                     tron_cursor = NULL,
                     tron_cursor_min_timestamp = NULL,
-                    tron_cursor_max_timestamp = NULL
+                    tron_cursor_max_timestamp = NULL,
+                    tron_cursor_offset = 0
                 WHERE treasury_id = ?
             `)
             .bind(treasuryId)
