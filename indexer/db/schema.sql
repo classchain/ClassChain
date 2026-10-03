@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS sync_state (
     tron_cursor TEXT,
     tron_cursor_min_timestamp INTEGER,
     tron_cursor_max_timestamp INTEGER,
+    tron_cursor_offset INTEGER NOT NULL DEFAULT 0,
 
     FOREIGN KEY (treasury_id)
         REFERENCES treasuries(id)
