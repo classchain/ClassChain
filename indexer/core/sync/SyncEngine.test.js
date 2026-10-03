@@ -6,7 +6,8 @@ import { SyncEngine } from './SyncEngine.js';
 const calls = {
     inserted: [],
     success: [],
-    failed: []
+    failed: [],
+    partial: []
 };
 
 
@@ -92,12 +93,18 @@ function makeSyncStateRepository(state) {
             treasuryId,
             error
         ) {
+            calls.failed.push({ treasuryId, error });
+        },
 
-            calls.failed.push({
-                treasuryId,
-                error
-            });
-        }
+        async markPartial(
+            treasuryId,
+            error
+        ) {
+            calls.partial.push({ treasuryId, error });
+        },
+
+        async markTronCursor() {},
+        async clearTronCursor() {}
     };
 }
 
@@ -147,6 +154,7 @@ function makeTransferRepository() {
     calls.inserted.length = 0;
     calls.success.length = 0;
     calls.failed.length = 0;
+    calls.partial.length = 0;
 
 
     let adapterCalled = false;
@@ -655,6 +663,63 @@ function makeTransferRepository() {
     console.log(
         'SyncEngine FAILURE test: PASS'
     );
+}
+
+
+/*
+ * TEST 4
+ * PARTIAL TRON PAGINATION
+ *
+ * A partial pagination result may insert already discovered transfers,
+ * but it must never advance last_scanned_block.
+ */
+{
+    calls.inserted.length = 0;
+    calls.success.length = 0;
+    calls.failed.length = 0;
+    calls.partial.length = 0;
+
+    const syncStateRepository = makeSyncStateRepository({
+        treasury_id: treasury.id,
+        scan_from_block: 69805900,
+        last_scanned_block: 69805950,
+        last_finalized_block: 69805940,
+        status: 'SUCCESS'
+    });
+
+    const adapter = {
+        async getLatestBlock() { return 69805989; },
+        async getTransfers() {
+            return {
+                transfers,
+                partial: true,
+                paginationComplete: false,
+                scannedToBlock: 69805969,
+                nextFingerprint: 'NEXT_CURSOR',
+                cursorMinTimestamp: 1,
+                cursorMaxTimestamp: 2
+            };
+        }
+    };
+
+    const engine = new SyncEngine({
+        treasuryRepository: {},
+        transferRepository: makeTransferRepository(),
+        syncStateRepository,
+        adapters: { tron_nile: adapter }
+    });
+
+    const result = await engine.syncTreasury(treasury, {
+        safeConfirmations: 20,
+        overlap: 10
+    });
+
+    assert.equal(result.status, 'PARTIAL');
+    assert.equal(calls.success.length, 0);
+    assert.equal(calls.partial.length, 1);
+    assert.equal(calls.partial[0].treasuryId, treasury.id);
+
+    console.log('SyncEngine PARTIAL pagination test: PASS');
 }
 
 
