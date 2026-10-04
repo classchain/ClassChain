@@ -1,19 +1,16 @@
 /**
  * DisbursementService
  *
- * After FIFO allocation, creates per-network transfer requests:
+ * After FIFO allocation plan, creates per-network transfer requests:
  *   GENERAL_POOL[network] → project.funds[network].address
  *
- * Order of money is already fixed by AllocationEngine (FIFO).
- * This service only packages those slices for treasury-owner approval
- * and eventual on-chain execution through the GENERAL_POOL multisig.
- *
- * Worker does NOT hold private keys. Treasury owners submit and confirm
- * the multisig transaction directly from their wallets.
+ * Round becomes ALLOCATED only after related disbursements are EXECUTED
+ * (see VotingService.finalizeRoundIfBatchComplete).
  */
 
 import { DisbursementRepository } from '../db/DisbursementRepository.js';
 import { AllocationRepository } from '../db/AllocationRepository.js';
+import { VotingService } from './VotingService.js';
 
 export const GENERAL_PROJECT_ID = 'GENERAL_POOL';
 
@@ -25,6 +22,7 @@ export class DisbursementService {
         this.repo = new DisbursementRepository(db);
         this.allocationRepo = new AllocationRepository(db);
         this.loadProjects = options.loadProjects || null;
+        this.env = options.env || null;
     }
 
     async prepareFromBatch(allocationBatchId, projectId, projectsRegistry = null) {
@@ -177,18 +175,33 @@ export class DisbursementService {
         const row = await this.repo.get(disbursementId);
         if (!row) throw new Error('disbursement not found');
         if (row.status === 'EXECUTED') {
-            return row;
+            return { disbursement: row, round_finalize: null };
         }
         if (row.status === 'NO_DESTINATION' || row.status === 'FAILED') {
             throw new Error(`cannot execute status=${row.status}`);
         }
 
-        return this.repo.setStatus(disbursementId, 'EXECUTED', {
+        const updated = await this.repo.setStatus(disbursementId, 'EXECUTED', {
             executeTxHash,
             onchainTxIndex,
             executedAt: Math.floor(Date.now() / 1000),
             error: null,
         });
+
+        let round_finalize = null;
+        try {
+            const voting = new VotingService(this.db, {
+                loadProjects: this.loadProjects,
+            });
+            round_finalize = await voting.finalizeRoundIfBatchComplete(
+                updated.allocation_batch_id,
+                (batchId) => this.repo.listByBatch(batchId)
+            );
+        } catch (e) {
+            round_finalize = { finalized: false, error: e.message };
+        }
+
+        return { disbursement: updated, round_finalize };
     }
 
     async markFailed(disbursementId, errorMessage) {
