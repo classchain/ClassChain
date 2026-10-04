@@ -53,4 +53,3 @@ CREATE TABLE IF NOT EXISTS votes (
 
 CREATE INDEX IF NOT EXISTS idx_votes_round
     ON votes(round_id);
-
