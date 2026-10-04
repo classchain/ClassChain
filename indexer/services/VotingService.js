@@ -3,6 +3,12 @@
  * Eligibility: donor has unallocated balance on at least one network.
  * Voting is network-agnostic; network selection belongs only to financial allocation.
  * Rule: only one OPEN round at a time.
+ *
+ * Money-first lifecycle:
+ *   OPEN → CLOSED (selected project)
+ *   allocateRound → PLANNED slices + pending disbursements (round still CLOSED,
+ *                   balances still unallocated)
+ *   disburse EXECUTED → commit queue/balance → when batch done → ALLOCATED
  */
 
 import { VotingRepository } from '../db/VotingRepository.js';
@@ -26,7 +32,6 @@ export class VotingService {
             throw new Error('candidateProjects must be a non-empty array');
         }
 
-        // Phase 3: only one open round at a time
         const existingOpenId = await this.votingRepo.hasOpenRound();
         if (existingOpenId != null) {
             throw new Error(
@@ -77,8 +82,6 @@ export class VotingService {
             throw new Error('projectId is not a candidate in this round');
         }
 
-        // Eligibility is aggregated across all networks. The voter does not
-        // choose a network; the network is resolved later during allocation.
         const unallocated = await this.balanceRepo.getTotalUnallocated(donor);
         if (unallocated <= 0n) {
             throw new Error('donor has no unallocated balance; not eligible to vote');
@@ -134,37 +137,45 @@ export class VotingService {
         }
 
         const tally = Array.isArray(resultTally) ? resultTally : [];
-        const candidateSet = new Set(candidates.map(String));
-        const seen = new Set();
-        for (const item of tally) {
-            const projectId = String(item?.project_id ?? item?.projectId ?? '');
-            const voteCount = Number(item?.vote_count ?? item?.voteCount);
-            if (!candidateSet.has(projectId)) throw new Error('result contains non-candidate project ' + projectId);
-            if (seen.has(projectId)) throw new Error('duplicate result for project ' + projectId);
-            if (!Number.isInteger(voteCount) || voteCount < 0) throw new Error('invalid vote count for project ' + projectId);
-            seen.add(projectId);
-        }
-        if (seen.size !== candidateSet.size) {
-            throw new Error('result_tally must contain every candidate project exactly once');
+        // Manual close may send empty tally; only validate when provided
+        if (tally.length > 0) {
+            const candidateSet = new Set(candidates.map(String));
+            const seen = new Set();
+            for (const item of tally) {
+                const projectId = String(item?.project_id ?? item?.projectId ?? '');
+                const voteCount = Number(item?.vote_count ?? item?.voteCount);
+                if (!candidateSet.has(projectId)) throw new Error('result contains non-candidate project ' + projectId);
+                if (seen.has(projectId)) throw new Error('duplicate result for project ' + projectId);
+                if (!Number.isInteger(voteCount) || voteCount < 0) throw new Error('invalid vote count for project ' + projectId);
+                seen.add(projectId);
+            }
+            if (seen.size !== candidateSet.size) {
+                throw new Error('result_tally must contain every candidate project exactly once');
+            }
         }
 
         return this.votingRepo.closeRound(roundId, selectedProjectId, requiredAmountRaw, tally);
     }
 
     /**
-     * Run FIFO allocation for a CLOSED round (manual confirm).
-     * Allocation is global FIFO, restricted to networks where the selected
-     * project actually has a treasury. The project registry is the source
-     * for that network set.
+     * Plan FIFO allocation for a CLOSED round.
+     * Does NOT consume queue or debit balances and does NOT mark ALLOCATED.
+     * Creates PLANNED allocation rows; worker then builds disbursements.
+     * Round stays CLOSED until on-chain EXECUTED commits the ledger.
      */
-    async allocateRound(roundId) {
+    async allocateRound(roundId, options = {}) {
         const round = await this.votingRepo.getRound(roundId);
         if (!round) throw new Error('round not found');
         if (round.status !== 'CLOSED') {
-            throw new Error('round must be CLOSED before allocation');
+            throw new Error('round must be CLOSED before allocation planning');
         }
         if (!round.selected_project_id || !round.required_amount_raw) {
             throw new Error('round missing selected_project_id or required_amount_raw');
+        }
+        if (round.allocation_batch_id) {
+            throw new Error(
+                `round already has a planned batch (${round.allocation_batch_id}); wait for disburse EXECUTED or clear the plan first`
+            );
         }
 
         if (!this.loadProjects) {
@@ -185,18 +196,46 @@ export class VotingService {
             throw new Error('selected project has no configured treasury');
         }
 
-        const result = await this.allocationEngine.allocate({
+        const requiredAmountRaw = options.requiredAmountRaw
+            || options.required_amount_raw
+            || round.required_amount_raw;
+
+        const result = await this.allocationEngine.plan({
             projectId: round.selected_project_id,
-            requiredAmountRaw: round.required_amount_raw,
+            requiredAmountRaw,
             networkIds: projectNetworkIds
         });
 
-        await this.votingRepo.markAllocated(roundId, result.allocation_batch_id);
+        if (!result.slices_count) {
+            throw new Error('no open queue capacity to plan allocation');
+        }
+
+        // Keep status CLOSED — only store the pending batch id
+        await this.votingRepo.attachPendingBatch(roundId, result.allocation_batch_id);
 
         return {
             round_id: roundId,
+            round_status: 'CLOSED',
+            ledger_committed: false,
+            message: 'FIFO planned; balances stay unallocated until on-chain disburse EXECUTED',
             ...result
         };
+    }
+
+    /**
+     * After all planned slices for a batch are COMMITTED, mark the round ALLOCATED.
+     */
+    async tryMarkAllocatedForBatch(allocationBatchId) {
+        const round = await this.votingRepo.getRoundByBatchId(allocationBatchId);
+        if (!round || round.status !== 'CLOSED') return null;
+
+        const plannedLeft = await this.allocationEngine.allocationRepo
+            .countPlannedByBatch(allocationBatchId);
+
+        if (plannedLeft > 0) return { round_id: round.id, status: 'CLOSED', planned_left: plannedLeft };
+
+        const updated = await this.votingRepo.markAllocated(round.id, allocationBatchId);
+        return { round_id: round.id, status: updated?.status, planned_left: 0 };
     }
 
     _findProject(registry, projectId) {
