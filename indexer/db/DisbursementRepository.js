@@ -116,18 +116,18 @@ export class DisbursementRepository {
         return result.results || [];
     }
 
-    async addApproval(disbursementId, approver, approvedAt) {
+    async addApproval(disbursementId, approver, approvedAt, onchainTxIndex = null, onchainTxHash = null) {
         const now = new Date().toISOString();
         const ts = Number(approvedAt) || Math.floor(Date.now() / 1000);
 
         await this.db
             .prepare(`
                 INSERT INTO disbursement_approvals (
-                    disbursement_id, approver, approved_at, created_at
-                ) VALUES (?, ?, ?, ?)
+                    disbursement_id, approver, approved_at, onchain_tx_index, onchain_tx_hash, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(disbursement_id, approver) DO NOTHING
             `)
-            .bind(disbursementId, approver, ts, now)
+            .bind(disbursementId, approver, ts, onchainTxIndex, onchainTxHash, now)
             .run();
 
         const countRow = await this.db
