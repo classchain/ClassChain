@@ -100,6 +100,10 @@ export class AllocationEngine {
             }
         }
 
+        if (commitBalances !== false && slices.length) {
+            await this.allocationRepo.commitBatch(batchId);
+        }
+
         const totalAllocated = BigInt(String(requiredAmountRaw)) - remainingNeeded;
 
         return {
