@@ -1,5 +1,9 @@
 /**
  * AllocationRepository — records FIFO allocations to projects.
+ *
+ * status:
+ *   PLANNED   — plan only (queue/balance untouched)
+ *   COMMITTED — after on-chain EXECUTED (queue reduced + unallocated debited)
  */
 
 export class AllocationRepository {
@@ -16,10 +20,12 @@ export class AllocationRepository {
         networkId,
         amountRaw,
         allocationBatchId,
-        allocatedAt
+        allocatedAt,
+        status = 'COMMITTED',
     }) {
         const now = new Date().toISOString();
         const ts = Number(allocatedAt) || Math.floor(Date.now() / 1000);
+        const st = status === 'PLANNED' ? 'PLANNED' : 'COMMITTED';
 
         const result = await this.db
             .prepare(`
@@ -31,8 +37,9 @@ export class AllocationRepository {
                     amount_raw,
                     allocation_batch_id,
                     allocated_at,
-                    created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    created_at,
+                    status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             `)
             .bind(
                 queueEntryId,
@@ -42,7 +49,8 @@ export class AllocationRepository {
                 String(amountRaw),
                 allocationBatchId,
                 ts,
-                now
+                now,
+                st
             )
             .run();
 
@@ -59,6 +67,32 @@ export class AllocationRepository {
             .bind(allocationBatchId)
             .all();
         return result.results || [];
+    }
+
+    async listPlannedByBatchAndNetwork(allocationBatchId, networkId) {
+        const result = await this.db
+            .prepare(`
+                SELECT * FROM allocations
+                WHERE allocation_batch_id = ?
+                  AND network_id = ?
+                  AND status = 'PLANNED'
+                ORDER BY id ASC
+            `)
+            .bind(allocationBatchId, networkId)
+            .all();
+        return result.results || [];
+    }
+
+    async markCommitted(id) {
+        await this.db
+            .prepare(`
+                UPDATE allocations
+                SET status = 'COMMITTED',
+                    allocated_at = ?
+                WHERE id = ? AND status = 'PLANNED'
+            `)
+            .bind(Math.floor(Date.now() / 1000), id)
+            .run();
     }
 
     async listByProject(projectId, limit = 100) {
@@ -80,9 +114,21 @@ export class AllocationRepository {
                 SELECT COALESCE(SUM(CAST(amount_raw AS INTEGER)), 0) AS total
                 FROM allocations
                 WHERE project_id = ?
+                  AND status = 'COMMITTED'
             `)
             .bind(projectId)
             .first();
         return String(row?.total ?? 0);
+    }
+
+    async countPlannedByBatch(allocationBatchId) {
+        const row = await this.db
+            .prepare(`
+                SELECT COUNT(*) AS c FROM allocations
+                WHERE allocation_batch_id = ? AND status = 'PLANNED'
+            `)
+            .bind(allocationBatchId)
+            .first();
+        return Number(row?.c || 0);
     }
 }
