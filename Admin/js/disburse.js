@@ -349,8 +349,7 @@ export async function loadDisbursePending() {
     const enriched = await Promise.all(rows.map(async r => {
       const detail = await indexerFetch(`/api/disburse/${r.id}`);
       const d = detail.disbursement || r;
-      const owners = await readMultisigOwners(d);
-      return { ...r, ...d, multisig_owners: owners.length ? owners : (d.multisig_owners || []) };
+      return { ...r, ...d, multisig_owners: d.multisig_owners || [] };
     }));
 
     box.innerHTML = `
