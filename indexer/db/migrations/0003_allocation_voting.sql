@@ -54,10 +54,3 @@ CREATE TABLE IF NOT EXISTS votes (
 CREATE INDEX IF NOT EXISTS idx_votes_round
     ON votes(round_id);
 
-
--- Phase 5: FIFO reservation lifecycle
--- Existing allocations were already committed before this migration.
-ALTER TABLE allocations ADD COLUMN allocation_status TEXT NOT NULL DEFAULT 'COMMITTED';
-
-CREATE INDEX IF NOT EXISTS idx_allocations_status_batch
-    ON allocations(allocation_status, allocation_batch_id);
