@@ -1,12 +1,12 @@
 /**
  * DisbursementService
  *
- * After FIFO allocation, creates per-network transfer requests:
+ * After FIFO *plan*, creates per-network transfer requests:
  *   GENERAL_POOL[network] → project.funds[network].address
  *
- * Order of money is already fixed by AllocationEngine (FIFO).
- * This service only packages those slices for treasury-owner approval
- * and eventual on-chain execution through the GENERAL_POOL multisig.
+ * Order of money is fixed by AllocationEngine.plan (FIFO).
+ * Ledger (queue + unallocated) is committed only when markExecuted runs
+ * after the on-chain transfer is confirmed.
  *
  * Worker does NOT hold private keys. Treasury owners submit and confirm
  * the multisig transaction directly from their wallets.
@@ -14,6 +14,8 @@
 
 import { DisbursementRepository } from '../db/DisbursementRepository.js';
 import { AllocationRepository } from '../db/AllocationRepository.js';
+import { AllocationEngine } from './AllocationEngine.js';
+import { VotingRepository } from '../db/VotingRepository.js';
 
 export const GENERAL_PROJECT_ID = 'GENERAL_POOL';
 
@@ -24,6 +26,8 @@ export class DisbursementService {
         this.db = db;
         this.repo = new DisbursementRepository(db);
         this.allocationRepo = new AllocationRepository(db);
+        this.allocationEngine = new AllocationEngine(db);
+        this.votingRepo = new VotingRepository(db);
         this.loadProjects = options.loadProjects || null;
     }
 
@@ -171,24 +175,64 @@ export class DisbursementService {
         return this.get(disbursementId);
     }
 
+    /**
+     * Record on-chain execution, then commit ledger for that network.
+     * When no PLANNED slices remain for the batch, mark linked voting round ALLOCATED.
+     */
     async markExecuted(disbursementId, executeTxHash, onchainTxIndex = null) {
         if (!executeTxHash) throw new Error('executeTxHash is required');
 
         const row = await this.repo.get(disbursementId);
         if (!row) throw new Error('disbursement not found');
         if (row.status === 'EXECUTED') {
-            return row;
+            return { disbursement: row, ledger: { ok: true, already_executed: true } };
         }
         if (row.status === 'NO_DESTINATION' || row.status === 'FAILED') {
             throw new Error(`cannot execute status=${row.status}`);
         }
 
-        return this.repo.setStatus(disbursementId, 'EXECUTED', {
+        const updated = await this.repo.setStatus(disbursementId, 'EXECUTED', {
             executeTxHash,
             onchainTxIndex,
             executedAt: Math.floor(Date.now() / 1000),
             error: null,
         });
+
+        let ledger = null;
+        try {
+            ledger = await this.allocationEngine.commitNetwork({
+                allocationBatchId: row.allocation_batch_id,
+                networkId: row.network_id,
+            });
+        } catch (e) {
+            ledger = { ok: false, error: e.message };
+        }
+
+        let round = null;
+        try {
+            const plannedLeft = await this.allocationRepo.countPlannedByBatch(
+                row.allocation_batch_id
+            );
+            if (plannedLeft === 0) {
+                const linked = await this.votingRepo.getRoundByBatchId(row.allocation_batch_id);
+                if (linked && linked.status === 'CLOSED') {
+                    round = await this.votingRepo.markAllocated(
+                        linked.id,
+                        row.allocation_batch_id
+                    );
+                }
+            } else {
+                round = { status: 'CLOSED', planned_left: plannedLeft };
+            }
+        } catch (e) {
+            round = { ok: false, error: e.message };
+        }
+
+        return {
+            disbursement: updated,
+            ledger,
+            round,
+        };
     }
 
     async markFailed(disbursementId, errorMessage) {
