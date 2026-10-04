@@ -96,7 +96,7 @@ export class DisbursementRepository {
             const result = await this.db
                 .prepare(`
                     SELECT * FROM disbursements
-                    WHERE status = 'PENDING_APPROVAL' AND network_id = ?
+                    WHERE status IN ('PENDING_APPROVAL', 'APPROVED') AND network_id = ?
                     ORDER BY id ASC
                     LIMIT ?
                 `)
@@ -107,7 +107,7 @@ export class DisbursementRepository {
         const result = await this.db
             .prepare(`
                 SELECT * FROM disbursements
-                WHERE status = 'PENDING_APPROVAL'
+                WHERE status IN ('PENDING_APPROVAL', 'APPROVED')
                 ORDER BY id ASC
                 LIMIT ?
             `)
