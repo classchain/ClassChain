@@ -353,7 +353,8 @@ export async function handleExtendedRoutes(ctx) {
         const svc = new DisbursementService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
         const result = await svc.markExecuted(
           Number(executedMatch[1]),
-          body.tx_hash || body.txHash || body.execute_tx_hash || null
+          body.tx_hash || body.txHash || body.execute_tx_hash || null,
+          body.onchain_tx_index ?? body.onchainTxIndex ?? null
         );
         const row = result?.disbursement || result;
         const round_finalize = result?.round_finalize || null;
