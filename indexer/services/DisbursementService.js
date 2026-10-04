@@ -61,28 +61,14 @@ export class DisbursementService {
             const toAddress = toFund?.address || null;
             const requiredSignatures = Number(fromFund?.requiredSignatures) || 1;
 
-            if (!fromAddress || !toAddress) {
-                const row = await this.repo.insert({
-                    allocationBatchId,
-                    projectId,
-                    networkId,
-                    fromAddress: fromAddress || '',
-                    toAddress: toAddress || '',
-                    amountRaw: String(amount),
-                    status: 'NO_DESTINATION',
-                    requiredSignatures,
-                });
-                created.push({
-                    network_id: networkId,
-                    status: 'NO_DESTINATION',
-                    amount_raw: String(amount),
-                    reason: !fromAddress
-                        ? 'GENERAL_POOL missing address on this network'
-                        : 'project missing funds address on this network',
-                    id: row.id,
-                    inserted: row.inserted,
-                });
-                continue;
+            if (!fromAddress || !toAddress || !fromFund?.multisigAddress) {
+                throw new Error(
+                    !fromAddress
+                        ? `GENERAL_POOL missing address on network ${networkId}`
+                        : !toAddress
+                            ? `project ${projectId} missing funds address on network ${networkId}`
+                            : `GENERAL_POOL missing multisigAddress on network ${networkId}`
+                );
             }
 
             const row = await this.repo.insert({
