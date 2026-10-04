@@ -237,7 +237,7 @@ async function walletAction(row) {
     await recordOnchainState(row.id, existing.index, txHash, account);
     const finalTx = await multisig.methods.getTransaction(existing.index).call();
     if (finalTx.executed) {
-      await indexerFetch(`/api/disburse/${row.id}/executed`, { method: 'POST', body: JSON.stringify({ execute_tx_hash: txHash }) });
+      await indexerFetch(`/api/disburse/${row.id}/executed`, { method: 'POST', body: JSON.stringify({ execute_tx_hash: txHash, onchain_tx_index: existing.index }) });
     }
     return { phase: 'confirmed', txIndex: existing.index, txHash };
   }
@@ -252,7 +252,7 @@ async function walletAction(row) {
   await recordOnchainState(row.id, existing.index, txHash, tronWeb.defaultAddress.base58);
   const finalTx = await existing.contract.getTransaction(existing.index).call();
   if (finalTx.executed) {
-    await indexerFetch(`/api/disburse/${row.id}/executed`, { method: 'POST', body: JSON.stringify({ execute_tx_hash: txHash }) });
+    await indexerFetch(`/api/disburse/${row.id}/executed`, { method: 'POST', body: JSON.stringify({ execute_tx_hash: txHash, onchain_tx_index: existing.index }) });
   }
   return { phase: 'confirmed', txIndex: existing.index, txHash };
 }
