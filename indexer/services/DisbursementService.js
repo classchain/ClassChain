@@ -132,7 +132,7 @@ export class DisbursementService {
         });
     }
 
-    async approve(disbursementId, approver) {
+    async approve(disbursementId, approver, onchain = {}) {
         if (!approver) throw new Error('approver is required');
 
         const row = await this.repo.get(disbursementId);
@@ -144,7 +144,9 @@ export class DisbursementService {
         const count = await this.repo.addApproval(
             disbursementId,
             String(approver).toLowerCase(),
-            Math.floor(Date.now() / 1000)
+            Math.floor(Date.now() / 1000),
+            onchain.onchainTxIndex ?? null,
+            onchain.onchainTxHash ?? null
         );
 
         const required = Number(row.required_signatures) || 1;
