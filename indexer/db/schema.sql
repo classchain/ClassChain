@@ -139,7 +139,6 @@ CREATE TABLE IF NOT EXISTS allocations (
     amount_raw          TEXT NOT NULL,
     allocation_batch_id TEXT NOT NULL,
     allocated_at        INTEGER NOT NULL,
-    allocation_status   TEXT NOT NULL DEFAULT 'COMMITTED',
     created_at          TEXT NOT NULL,
     FOREIGN KEY (queue_entry_id) REFERENCES allocation_queue(id)
 );
