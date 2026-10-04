@@ -1,6 +1,10 @@
 /**
  * VotingRepository — voting rounds and preference votes.
  * Vote Preference ≠ Financial Allocation.
+ *
+ * Status lifecycle (money-first):
+ *   OPEN → CLOSED (selected project)
+ *        → ALLOCATED only after on-chain disburse EXECUTED for the batch
  */
 
 export class VotingRepository {
@@ -55,6 +59,20 @@ export class VotingRepository {
         return this._normalizeRound(row);
     }
 
+    async getRoundByBatchId(allocationBatchId) {
+        if (!allocationBatchId) return null;
+        const row = await this.db
+            .prepare(`
+                SELECT * FROM voting_rounds
+                WHERE allocation_batch_id = ?
+                LIMIT 1
+            `)
+            .bind(allocationBatchId)
+            .first();
+        if (!row) return null;
+        return this._normalizeRound(row);
+    }
+
     async listRounds(limit = 20) {
         const result = await this.db
             .prepare(`
@@ -90,17 +108,33 @@ export class VotingRepository {
         return this.getRound(id);
     }
 
+    /**
+     * Attach a planned allocation batch while keeping status CLOSED.
+     * ALLOCATED is set only after on-chain commit via markAllocated.
+     */
+    async attachPendingBatch(id, allocationBatchId) {
+        await this.db
+            .prepare(`
+                UPDATE voting_rounds
+                SET allocation_batch_id = ?
+                WHERE id = ? AND status = 'CLOSED'
+            `)
+            .bind(allocationBatchId, id)
+            .run();
+        return this.getRound(id);
+    }
+
     async markAllocated(id, allocationBatchId) {
         const allocatedAt = Math.floor(Date.now() / 1000);
         await this.db
             .prepare(`
                 UPDATE voting_rounds
                 SET status = 'ALLOCATED',
-                    allocation_batch_id = ?,
+                    allocation_batch_id = COALESCE(?, allocation_batch_id),
                     allocated_at = ?
                 WHERE id = ? AND status = 'CLOSED'
             `)
-            .bind(allocationBatchId, allocatedAt, id)
+            .bind(allocationBatchId || null, allocatedAt, id)
             .run();
         return this.getRound(id);
     }
