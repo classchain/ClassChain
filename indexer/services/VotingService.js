@@ -6,6 +6,11 @@
  *
  * Vote Preference ≠ Financial Allocation.
  * Close requires selectedProjectId (admin decision); allocation is a separate step.
+ *
+ * Round status:
+ *   OPEN → CLOSED (selected project)
+ *   CLOSED stays until every related disburse is on-chain EXECUTED
+ *   then → ALLOCATED
  */
 
 import { VotingRepository } from '../db/VotingRepository.js';
@@ -161,28 +166,11 @@ export class VotingService {
         return this.votingRepo.closeRound(roundId, selectedId, requiredAmountRaw, tally);
     }
 
-    /**
-     * Sum remaining FIFO queue (deterministic) on the given networks.
-     */
     async _sumQueueRemaining(networkIds) {
         const ids = Array.isArray(networkIds) ? networkIds : [];
         if (!ids.length) return 0n;
-        let total = 0n;
-        let offsetGuard = 0;
-        // walk FIFO in chunks until empty
-        while (offsetGuard < 50) {
-            const openEntries = await this.queueRepo.peekOpen(500, null, ids);
-            if (!openEntries.length) break;
-            for (const e of openEntries) {
-                total += BigInt(String(e.remaining_raw || '0'));
-            }
-            // peek always returns same head if we don't consume — only need one pass for sum
-            break;
-        }
-        // For accurate sum beyond 500, query D1 aggregate would be better; use extra peeks is wrong without consume.
-        // Fall back: additional unbounded query via peek with higher limit once.
         const more = await this.queueRepo.peekOpen(5000, null, ids);
-        total = 0n;
+        let total = 0n;
         for (const e of more) {
             total += BigInt(String(e.remaining_raw || '0'));
         }
@@ -190,15 +178,22 @@ export class VotingService {
     }
 
     /**
-     * Run FIFO allocation for a CLOSED round (manual confirm).
-     * @param {number} roundId
-     * @param {{ requiredAmountRaw?: string }} [options] optional manual amount (base units string)
+     * Plan FIFO allocation for a CLOSED round and prepare disburse.
+     * Does NOT mark the round ALLOCATED and does NOT debit balances yet.
+     * Queue slices are locked so they cannot be double-spent.
+     * Round stays CLOSED until on-chain EXECUTED finalizes the batch.
      */
     async allocateRound(roundId, options = {}) {
         const round = await this.votingRepo.getRound(roundId);
         if (!round) throw new Error('round not found');
         if (round.status !== 'CLOSED') {
-            throw new Error('round must be CLOSED before allocation');
+            throw new Error('round must be CLOSED before allocation plan (status=' + round.status + ')');
+        }
+        if (round.allocation_batch_id) {
+            throw new Error(
+                'round already has allocation_batch_id=' + round.allocation_batch_id +
+                '; complete on-chain disburse (or cancel) before planning again'
+            );
         }
         if (!round.selected_project_id || !round.required_amount_raw) {
             throw new Error('round missing selected_project_id or required_amount_raw');
@@ -222,7 +217,6 @@ export class VotingService {
             throw new Error('selected project has no configured treasury');
         }
 
-        // Amount: manual override OR locked target from close
         let requestedRaw = round.required_amount_raw;
         if (options.requiredAmountRaw != null && String(options.requiredAmountRaw).trim() !== '') {
             const s = String(options.requiredAmountRaw).replace(/,/g, '').trim();
@@ -232,7 +226,6 @@ export class VotingService {
             requestedRaw = s;
         }
 
-        // Cap by deterministic FIFO remaining on allowed networks (not probabilistic)
         const available = await this._sumQueueRemaining(projectNetworkIds);
         if (available <= 0n) {
             throw new Error('no unallocated FIFO balance on project networks');
@@ -245,12 +238,12 @@ export class VotingService {
         const result = await this.allocationEngine.allocate({
             projectId: round.selected_project_id,
             requiredAmountRaw: effectiveRaw,
-            networkIds: projectNetworkIds
+            networkIds: projectNetworkIds,
+            commitBalances: false
         });
 
-        await this.votingRepo.markAllocated(roundId, result.allocation_batch_id);
+        await this.votingRepo.attachAllocationBatch(roundId, result.allocation_batch_id);
 
-        // Build per-network totals from slices (deterministic outcome of FIFO)
         const byNetwork = {};
         for (const s of result.slices || []) {
             const nid = s.network_id;
@@ -259,12 +252,60 @@ export class VotingService {
 
         return {
             round_id: roundId,
+            round_status: 'CLOSED',
+            note: 'Round stays CLOSED until on-chain disburse is EXECUTED; balances remain unallocated until then',
             requested_amount_raw: requestedRaw,
             effective_amount_raw: effectiveRaw,
             queue_available_raw: String(available),
             capped_to_queue: BigInt(requestedRaw) > available,
             by_network: byNetwork,
             ...result
+        };
+    }
+
+    /**
+     * After disburse EXECUTED: if every disburse for the batch is terminal,
+     * commit balances and mark round ALLOCATED.
+     */
+    async finalizeRoundIfBatchComplete(allocationBatchId, listDisbursementsFn) {
+        if (!allocationBatchId) return { finalized: false, reason: 'no_batch' };
+
+        const round = await this.votingRepo.findByAllocationBatchId(allocationBatchId);
+        if (!round) return { finalized: false, reason: 'no_round_for_batch' };
+        if (round.status === 'ALLOCATED') {
+            return { finalized: false, reason: 'already_allocated', round };
+        }
+        if (round.status !== 'CLOSED') {
+            return { finalized: false, reason: 'round_not_closed', round };
+        }
+
+        const rows = await listDisbursementsFn(allocationBatchId);
+        if (!rows.length) {
+            return { finalized: false, reason: 'no_disbursements' };
+        }
+
+        const terminal = new Set(['EXECUTED', 'NO_DESTINATION']);
+        const pending = rows.filter((r) => !terminal.has(String(r.status)));
+        if (pending.length) {
+            return {
+                finalized: false,
+                reason: 'disbursements_pending',
+                pending: pending.map((r) => ({ id: r.id, status: r.status, network_id: r.network_id }))
+            };
+        }
+
+        const anyExecuted = rows.some((r) => String(r.status) === 'EXECUTED');
+        if (!anyExecuted) {
+            return { finalized: false, reason: 'no_executed_disbursement' };
+        }
+
+        await this.allocationEngine.commitBatchBalances(allocationBatchId);
+
+        const updated = await this.votingRepo.markAllocated(round.id, allocationBatchId);
+        return {
+            finalized: true,
+            round: updated,
+            allocation_batch_id: allocationBatchId
         };
     }
 

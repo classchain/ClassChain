@@ -5,6 +5,11 @@
  * - Consumes allocation_queue in contribution_timestamp order
  * - Vote preference is NOT used here (allocation is independent of votes)
  * - Manual confirmation: only runs when explicitly invoked (admin)
+ *
+ * commitBalances:
+ * - true (default): debit contribution_balances immediately (legacy / direct allocate)
+ * - false: only lock queue + record allocation rows; balances stay unallocated
+ *          until on-chain disburse is EXECUTED (then caller debits)
  */
 
 import { AllocationQueueRepository } from '../db/AllocationQueueRepository.js';
@@ -34,9 +39,10 @@ export class AllocationEngine {
      * @param {string} params.projectId
      * @param {string} params.requiredAmountRaw  integer string (base units)
      * @param {string[]|null} params.networkIds  allowed treasury networks for the selected project
+     * @param {boolean} [params.commitBalances=true]  when false, do not debit unallocated yet
      * @returns {Promise<object>} summary
      */
-    async allocate({ projectId, requiredAmountRaw, networkIds = null, networkId = null }) {
+    async allocate({ projectId, requiredAmountRaw, networkIds = null, networkId = null, commitBalances = true }) {
         if (!projectId) throw new Error('projectId is required');
         if (!requiredAmountRaw || BigInt(String(requiredAmountRaw)) <= 0n) {
             throw new Error('requiredAmountRaw must be a positive integer string');
@@ -52,9 +58,6 @@ export class AllocationEngine {
             : (networkId ? [networkId] : null);
         const allowedNetworks = resolvedNetworkIds ? new Set(resolvedNetworkIds) : null;
 
-        // Consume the eligible global FIFO queue in chunks. Filtering is done
-        // by the repository so a large queue on unrelated networks does not
-        // block eligible contributions and there is no fixed global queue cap.
         while (remainingNeeded > 0n) {
             const openEntries = await this.queueRepo.peekOpen(
                 500,
@@ -68,37 +71,39 @@ export class AllocationEngine {
                 if (remainingNeeded <= 0n) break;
 
                 const available = BigInt(entry.remaining_raw);
-            if (available <= 0n) continue;
+                if (available <= 0n) continue;
 
-            const take = available < remainingNeeded ? available : remainingNeeded;
+                const take = available < remainingNeeded ? available : remainingNeeded;
 
-            // 1) reduce queue remaining
-            await this.queueRepo.reduceRemaining(entry.id, String(take));
+                // 1) reduce queue remaining (locks slice so it cannot be double-spent)
+                await this.queueRepo.reduceRemaining(entry.id, String(take));
 
-            // 2) debit unallocated balance
-            await this.balanceRepo.debitUnallocated({
-                donor: entry.donor,
-                networkId: entry.network_id,
-                amountRaw: String(take)
-            });
+                // 2) optionally debit unallocated balance
+                if (commitBalances !== false) {
+                    await this.balanceRepo.debitUnallocated({
+                        donor: entry.donor,
+                        networkId: entry.network_id,
+                        amountRaw: String(take)
+                    });
+                }
 
-            // 3) record allocation
-            await this.allocationRepo.insert({
-                queueEntryId: entry.id,
-                projectId,
-                donor: entry.donor,
-                networkId: entry.network_id,
-                amountRaw: String(take),
-                allocationBatchId: batchId,
-                allocatedAt
-            });
+                // 3) record allocation plan / slice
+                await this.allocationRepo.insert({
+                    queueEntryId: entry.id,
+                    projectId,
+                    donor: entry.donor,
+                    networkId: entry.network_id,
+                    amountRaw: String(take),
+                    allocationBatchId: batchId,
+                    allocatedAt
+                });
 
-            slices.push({
-                queue_entry_id: entry.id,
-                donor: entry.donor,
-                network_id: entry.network_id,
-                amount_raw: String(take)
-            });
+                slices.push({
+                    queue_entry_id: entry.id,
+                    donor: entry.donor,
+                    network_id: entry.network_id,
+                    amount_raw: String(take)
+                });
 
                 remainingNeeded -= take;
             }
@@ -114,8 +119,27 @@ export class AllocationEngine {
             allocated_amount_raw: String(totalAllocated),
             shortfall_raw: String(remainingNeeded),
             fully_funded: remainingNeeded === 0n,
+            balances_committed: commitBalances !== false,
             slices_count: slices.length,
             slices
         };
+    }
+
+    /**
+     * Commit balance debits for a previously planned batch (commitBalances=false path).
+     */
+    async commitBatchBalances(allocationBatchId) {
+        if (!allocationBatchId) throw new Error('allocationBatchId is required');
+        const slices = await this.allocationRepo.listByBatch(allocationBatchId);
+        let committed = 0;
+        for (const s of slices) {
+            await this.balanceRepo.debitUnallocated({
+                donor: s.donor,
+                networkId: s.network_id,
+                amountRaw: s.amount_raw
+            });
+            committed += 1;
+        }
+        return { ok: true, allocation_batch_id: allocationBatchId, committed_slices: committed };
     }
 }

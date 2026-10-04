@@ -1,6 +1,11 @@
 /**
  * VotingRepository — voting rounds and preference votes.
  * Vote Preference ≠ Financial Allocation.
+ *
+ * Round lifecycle:
+ *   OPEN → CLOSED (admin selects project)
+ *   CLOSED stays until on-chain disburse is EXECUTED
+ *   then → ALLOCATED
  */
 
 export class VotingRepository {
@@ -55,6 +60,20 @@ export class VotingRepository {
         return this._normalizeRound(row);
     }
 
+    async findByAllocationBatchId(allocationBatchId) {
+        if (!allocationBatchId) return null;
+        const row = await this.db
+            .prepare(`
+                SELECT * FROM voting_rounds
+                WHERE allocation_batch_id = ?
+                LIMIT 1
+            `)
+            .bind(String(allocationBatchId))
+            .first();
+        if (!row) return null;
+        return this._normalizeRound(row);
+    }
+
     async listRounds(limit = 20) {
         const result = await this.db
             .prepare(`
@@ -86,6 +105,22 @@ export class VotingRepository {
                 closedAt,
                 id
             )
+            .run();
+        return this.getRound(id);
+    }
+
+    /**
+     * Attach FIFO batch to a CLOSED round without flipping status to ALLOCATED.
+     * ALLOCATED is reserved for when on-chain disburse is fully EXECUTED.
+     */
+    async attachAllocationBatch(id, allocationBatchId) {
+        await this.db
+            .prepare(`
+                UPDATE voting_rounds
+                SET allocation_batch_id = ?
+                WHERE id = ? AND status = 'CLOSED'
+            `)
+            .bind(String(allocationBatchId), id)
             .run();
         return this.getRound(id);
     }
