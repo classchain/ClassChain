@@ -8,8 +8,8 @@
  *
  * commitBalances:
  * - true (default): debit contribution_balances immediately (legacy / direct allocate)
- * - false: only lock queue + record allocation rows; balances stay unallocated
- *          until on-chain disburse is EXECUTED (then caller debits)
+ * - false: reserve FIFO capacity + record PLANNED allocation rows; balances and queue
+ *          remain unchanged until every related on-chain disbursement is EXECUTED
  */
 
 import { AllocationQueueRepository } from '../db/AllocationQueueRepository.js';
@@ -70,24 +70,15 @@ export class AllocationEngine {
             for (const entry of openEntries) {
                 if (remainingNeeded <= 0n) break;
 
-                const available = BigInt(entry.remaining_raw);
+                const available = BigInt(entry.available_raw ?? entry.remaining_raw);
                 if (available <= 0n) continue;
 
                 const take = available < remainingNeeded ? available : remainingNeeded;
 
-                // 1) reduce queue remaining (locks slice so it cannot be double-spent)
-                await this.queueRepo.reduceRemaining(entry.id, String(take));
+                // Planning reserves capacity through the allocation row itself.
+                // Queue remaining and balances are consumed only after on-chain execution.
 
-                // 2) optionally debit unallocated balance
-                if (commitBalances !== false) {
-                    await this.balanceRepo.debitUnallocated({
-                        donor: entry.donor,
-                        networkId: entry.network_id,
-                        amountRaw: String(take)
-                    });
-                }
-
-                // 3) record allocation plan / slice
+                // Record allocation plan / slice
                 await this.allocationRepo.insert({
                     queueEntryId: entry.id,
                     projectId,
@@ -129,17 +120,10 @@ export class AllocationEngine {
      * Commit balance debits for a previously planned batch (commitBalances=false path).
      */
     async commitBatchBalances(allocationBatchId) {
-        if (!allocationBatchId) throw new Error('allocationBatchId is required');
-        const slices = await this.allocationRepo.listByBatch(allocationBatchId);
-        let committed = 0;
-        for (const s of slices) {
-            await this.balanceRepo.debitUnallocated({
-                donor: s.donor,
-                networkId: s.network_id,
-                amountRaw: s.amount_raw
-            });
-            committed += 1;
-        }
-        return { ok: true, allocation_batch_id: allocationBatchId, committed_slices: committed };
+        return this.allocationRepo.commitBatch(allocationBatchId);
+    }
+
+    async releaseBatch(allocationBatchId) {
+        return this.allocationRepo.releaseBatch(allocationBatchId);
     }
 }
