@@ -172,7 +172,7 @@ export class VotingService {
         const more = await this.queueRepo.peekOpen(5000, null, ids);
         let total = 0n;
         for (const e of more) {
-            total += BigInt(String(e.remaining_raw || '0'));
+            total += BigInt(String(e.available_raw ?? e.remaining_raw ?? '0'));
         }
         return total;
     }
@@ -209,8 +209,16 @@ export class VotingService {
             throw new Error(`project ${round.selected_project_id} not found in Projects.json`);
         }
 
+        const general = this._findProject(registry, 'GENERAL_POOL');
+        if (!general) throw new Error('GENERAL_POOL not found in Projects.json');
+
+        // A network is allocatable only when both source and destination are
+        // configured and the source has a Multisig executor.
         const projectNetworkIds = Object.entries(project.funds || {})
-            .filter(([, fund]) => fund?.address)
+            .filter(([networkId, fund]) => {
+                const source = general.funds?.[networkId];
+                return Boolean(fund?.address && source?.address && source?.multisigAddress);
+            })
             .map(([networkId]) => networkId);
 
         if (!projectNetworkIds.length) {
@@ -284,7 +292,7 @@ export class VotingService {
             return { finalized: false, reason: 'no_disbursements' };
         }
 
-        const terminal = new Set(['EXECUTED', 'NO_DESTINATION']);
+        const terminal = new Set(['EXECUTED']);
         const pending = rows.filter((r) => !terminal.has(String(r.status)));
         if (pending.length) {
             return {
@@ -294,9 +302,9 @@ export class VotingService {
             };
         }
 
-        const anyExecuted = rows.some((r) => String(r.status) === 'EXECUTED');
-        if (!anyExecuted) {
-            return { finalized: false, reason: 'no_executed_disbursement' };
+        const allExecuted = rows.every((r) => String(r.status) === 'EXECUTED');
+        if (!allExecuted) {
+            return { finalized: false, reason: 'not_all_disbursements_executed' };
         }
 
         await this.allocationEngine.commitBatchBalances(allocationBatchId);
