@@ -114,6 +114,30 @@ export class AllocationQueueRepository {
         return result.results || [];
     }
 
+    async sumAvailable(networkIds = null) {
+        let query = `
+            SELECT COALESCE(SUM(
+                CAST(q.remaining_raw AS INTEGER) -
+                COALESCE((
+                    SELECT SUM(CAST(a.amount_raw AS INTEGER))
+                    FROM allocations a
+                    WHERE a.queue_entry_id = q.id
+                      AND a.allocation_status = 'PLANNED'
+                ), 0)
+            ), 0) AS total
+            FROM allocation_queue q
+            WHERE q.status IN ('OPEN', 'PARTIAL')
+        `;
+        const binds = [];
+        if (Array.isArray(networkIds) && networkIds.length) {
+            const placeholders = networkIds.map(() => '?').join(', ');
+            query += ` AND q.network_id IN (${placeholders})`;
+            binds.push(...networkIds);
+        }
+        const row = await this.db.prepare(query).bind(...binds).first();
+        return BigInt(String(row?.total || '0'));
+    }
+
     async getById(id) {
         return await this.db
             .prepare(`SELECT * FROM allocation_queue WHERE id = ? LIMIT 1`)
