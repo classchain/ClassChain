@@ -1,6 +1,10 @@
 /**
  * Extended HTTP routes for ClassChain Indexer Worker
  * voting, wallet link, community, disburse, telegram
+ *
+ * Allocation lifecycle:
+ *   allocate = plan FIFO + pending disburse (round stays CLOSED)
+ *   executed = on-chain done → maybe finalize round to ALLOCATED + telegram
  */
 import { ContributionLedgerService } from './services/ContributionLedgerService.js';
 import { VotingService } from './services/VotingService.js';
@@ -159,23 +163,13 @@ export async function handleExtendedRoutes(ctx) {
         } catch (de) {
           disbursement = { ok: false, error: de.message };
         }
-        let telegram = null;
-        try {
-          const donors = (result.slices || result.allocations || [])
-            .map((s) => s.donor)
-            .filter(Boolean);
-          const unique = [...new Set(donors)];
-          if (unique.length) {
-            const sync = new TelegramSyncService(env.DB, env);
-            telegram = await sync.onAllocated({
-              projectId: result.project_id,
-              donors: unique,
-            });
-          }
-        } catch (te) {
-          telegram = { ok: false, error: te.message };
-        }
-        return jsonResponse({ ok: true, ...result, disbursement, telegram });
+        return jsonResponse({
+          ok: true,
+          ...result,
+          disbursement,
+          telegram: null,
+          message: 'Allocation planned. Round remains CLOSED until on-chain disburse is EXECUTED.',
+        });
       } catch (e) {
         return jsonResponse({ ok: false, error: e.message }, 400);
       }
@@ -207,23 +201,7 @@ export async function handleExtendedRoutes(ctx) {
         } catch (de) {
           disbursement = { ok: false, error: de.message };
         }
-        let telegram = null;
-        try {
-          const donors = (result.slices || result.allocations || [])
-            .map((s) => s.donor)
-            .filter(Boolean);
-          const unique = [...new Set(donors)];
-          if (unique.length) {
-            const sync = new TelegramSyncService(env.DB, env);
-            telegram = await sync.onAllocated({
-              projectId,
-              donors: unique,
-            });
-          }
-        } catch (te) {
-          telegram = { ok: false, error: te.message };
-        }
-        return jsonResponse({ ...result, disbursement, telegram });
+        return jsonResponse({ ...result, disbursement, telegram: null });
       } catch (e) {
         return jsonResponse({ ok: false, error: e.message }, 400);
       }
@@ -411,11 +389,36 @@ export async function handleExtendedRoutes(ctx) {
         const svc = new DisbursementService(env.DB, {
           loadProjects: () => loadProjectsRegistry(env),
         });
-        const row = await svc.markExecuted(
+        const result = await svc.markExecuted(
           Number(executedMatch[1]),
           body.tx_hash || body.txHash || body.execute_tx_hash || null
         );
-        return jsonResponse({ ok: true, disbursement: row });
+        const row = result?.disbursement || result;
+        const round_finalize = result?.round_finalize || null;
+
+        let telegram = null;
+        if (round_finalize?.finalized && round_finalize.round) {
+          try {
+            const batchId = round_finalize.allocation_batch_id || row.allocation_batch_id;
+            const projectId = round_finalize.round.selected_project_id || row.project_id;
+            const engine = new AllocationEngine(env.DB);
+            const slices = await engine.allocationRepo.listByBatch(batchId);
+            const unique = [...new Set((slices || []).map((s) => s.donor).filter(Boolean))];
+            if (unique.length) {
+              const sync = new TelegramSyncService(env.DB, env);
+              telegram = await sync.onAllocated({ projectId, donors: unique });
+            }
+          } catch (te) {
+            telegram = { ok: false, error: te.message };
+          }
+        }
+
+        return jsonResponse({
+          ok: true,
+          disbursement: row,
+          round_finalize,
+          telegram,
+        });
       } catch (e) {
         return jsonResponse({ ok: false, error: e.message }, 400);
       }
@@ -482,38 +485,6 @@ export async function handleExtendedRoutes(ctx) {
           active: body.active !== false,
         });
         return jsonResponse({ ok: true, group: row });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    if (method === 'GET' && path === '/api/telegram/groups/project') {
-      const projectId = url.searchParams.get('project_id');
-      if (!projectId) {
-        return jsonResponse({ ok: false, error: 'project_id is required' }, 400);
-      }
-      try {
-        const repo = new TelegramGroupRepository(env.DB);
-        const groups = await repo.listByProject(projectId);
-        return jsonResponse({ ok: true, groups });
-      } catch (e) {
-        return jsonResponse({ ok: false, error: e.message }, 400);
-      }
-    }
-
-    if (method === 'POST' && path === '/api/telegram/groups/project/invite') {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
-      const body = await readJsonBody(request);
-      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
-      try {
-        const client = new TelegramBotClient(env);
-        const result = await client.createInviteLink({
-          chatId: body.chat_id || body.chatId,
-          name: body.name || null,
-        });
-        return jsonResponse({ ok: true, ...result });
       } catch (e) {
         return jsonResponse({ ok: false, error: e.message }, 400);
       }
