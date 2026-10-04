@@ -73,24 +73,39 @@ export class AllocationQueueRepository {
      */
     async peekOpen(limit = 50, networkId = null, networkIds = null) {
         let query = `
-            SELECT *
-            FROM allocation_queue
-            WHERE status IN ('OPEN', 'PARTIAL')
-              AND CAST(remaining_raw AS INTEGER) > 0
+            SELECT q.*,
+                   CAST(q.remaining_raw AS INTEGER) -
+                   COALESCE((
+                       SELECT SUM(CAST(a.amount_raw AS INTEGER))
+                       FROM allocations a
+                       WHERE a.queue_entry_id = q.id
+                         AND a.allocation_status = 'PLANNED'
+                   ), 0) AS available_raw
+            FROM allocation_queue q
+            WHERE q.status IN ('OPEN', 'PARTIAL')
+              AND (
+                  CAST(q.remaining_raw AS INTEGER) -
+                  COALESCE((
+                      SELECT SUM(CAST(a.amount_raw AS INTEGER))
+                      FROM allocations a
+                      WHERE a.queue_entry_id = q.id
+                        AND a.allocation_status = 'PLANNED'
+                  ), 0)
+              ) > 0
         `;
         const binds = [];
 
         if (networkId) {
-            query += ` AND network_id = ?`;
+            query += ` AND q.network_id = ?`;
             binds.push(networkId);
         } else if (Array.isArray(networkIds) && networkIds.length) {
             const placeholders = networkIds.map(() => '?').join(', ');
-            query += ` AND network_id IN (${placeholders})`;
+            query += ` AND q.network_id IN (${placeholders})`;
             binds.push(...networkIds);
         }
 
         query += `
-            ORDER BY contribution_timestamp ASC, id ASC
+            ORDER BY q.contribution_timestamp ASC, q.id ASC
             LIMIT ?
         `;
         binds.push(limit);
