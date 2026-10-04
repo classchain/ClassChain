@@ -39,7 +39,6 @@ export async function handleExtendedRoutes(ctx) {
       if (!donor || !networkId) {
         return jsonResponse({ ok: false, error: 'donor and network_id are required' }, 400);
       }
-
       const ledger = new ContributionLedgerService(env.DB);
       const data = await ledger.getContributor(donor, networkId);
       return jsonResponse({ ok: true, contributor: data });
@@ -48,7 +47,6 @@ export async function handleExtendedRoutes(ctx) {
     if (method === 'GET' && path === '/api/queue') {
       const limit = Math.min(Number(url.searchParams.get('limit')) || 50, 200);
       const networkId = url.searchParams.get('network_id') || null;
-
       const ledger = new ContributionLedgerService(env.DB);
       const queue = await ledger.getQueue(limit, networkId);
       return jsonResponse({ ok: true, queue });
@@ -57,7 +55,6 @@ export async function handleExtendedRoutes(ctx) {
     if (method === 'GET' && path === '/api/contributors') {
       const limit = Math.min(Number(url.searchParams.get('limit')) || 100, 500);
       const networkId = url.searchParams.get('network_id') || null;
-
       const ledger = new ContributionLedgerService(env.DB);
       const contributors = await ledger.listContributors(networkId, limit);
       return jsonResponse({ ok: true, contributors });
@@ -78,15 +75,11 @@ export async function handleExtendedRoutes(ctx) {
     }
 
     if (method === 'POST' && path === '/api/voting/rounds') {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       const body = await readJsonBody(request);
       if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
       try {
-        const voting = new VotingService(env.DB, {
-          loadProjects: () => loadProjectsRegistry(env),
-        });
+        const voting = new VotingService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
         const round = await voting.openRound({
           title: body.title,
           candidateProjects: body.candidate_projects || body.candidateProjects,
@@ -117,15 +110,11 @@ export async function handleExtendedRoutes(ctx) {
 
     const closeMatch = path.match(/^\/api\/voting\/rounds\/(\d+)\/close$/);
     if (method === 'POST' && closeMatch) {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       const body = await readJsonBody(request);
       if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
       try {
-        const voting = new VotingService(env.DB, {
-          loadProjects: () => loadProjectsRegistry(env),
-        });
+        const voting = new VotingService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
         const round = await voting.closeRound({
           roundId: Number(closeMatch[1]),
           selectedProjectId: body.selected_project_id || body.selectedProjectId,
@@ -139,27 +128,18 @@ export async function handleExtendedRoutes(ctx) {
 
     const allocateMatch = path.match(/^\/api\/voting\/rounds\/(\d+)\/allocate$/);
     if (method === 'POST' && allocateMatch) {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       const body = await readJsonBody(request);
       try {
-        const voting = new VotingService(env.DB, {
-          loadProjects: () => loadProjectsRegistry(env),
-        });
+        const voting = new VotingService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
         const amountOverride = body?.required_amount_raw || body?.requiredAmountRaw || null;
         const result = await voting.allocateRound(Number(allocateMatch[1]), {
           requiredAmountRaw: amountOverride,
         });
         let disbursement = null;
         try {
-          const disb = new DisbursementService(env.DB, {
-            loadProjects: () => loadProjectsRegistry(env),
-          });
-          disbursement = await disb.prepareFromBatch(
-            result.allocation_batch_id,
-            result.project_id
-          );
+          const disb = new DisbursementService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
+          disbursement = await disb.prepareFromBatch(result.allocation_batch_id, result.project_id);
         } catch (de) {
           disbursement = { ok: false, error: de.message };
         }
@@ -176,9 +156,7 @@ export async function handleExtendedRoutes(ctx) {
     }
 
     if (method === 'POST' && path === '/api/allocate') {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       const body = await readJsonBody(request);
       if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
       try {
@@ -191,13 +169,8 @@ export async function handleExtendedRoutes(ctx) {
         });
         let disbursement = null;
         try {
-          const disb = new DisbursementService(env.DB, {
-            loadProjects: () => loadProjectsRegistry(env),
-          });
-          disbursement = await disb.prepareFromBatch(
-            result.allocation_batch_id,
-            projectId
-          );
+          const disb = new DisbursementService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
+          disbursement = await disb.prepareFromBatch(result.allocation_batch_id, projectId);
         } catch (de) {
           disbursement = { ok: false, error: de.message };
         }
@@ -243,9 +216,7 @@ export async function handleExtendedRoutes(ctx) {
 
     if (method === 'GET' && path === '/api/link/status') {
       const telegramUserId = url.searchParams.get('telegram_user_id');
-      if (!telegramUserId) {
-        return jsonResponse({ ok: false, error: 'telegram_user_id is required' }, 400);
-      }
+      if (!telegramUserId) return jsonResponse({ ok: false, error: 'telegram_user_id is required' }, 400);
       try {
         const svc = new WalletLinkService(env.DB);
         const data = await svc.getStatus(telegramUserId);
@@ -256,9 +227,7 @@ export async function handleExtendedRoutes(ctx) {
     }
 
     if (method === 'POST' && path === '/api/link/unlink') {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       const body = await readJsonBody(request);
       if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
       try {
@@ -278,14 +247,9 @@ export async function handleExtendedRoutes(ctx) {
       const telegramUserId = url.searchParams.get('telegram_user_id');
       const donor = url.searchParams.get('donor');
       const networkId = url.searchParams.get('network_id') || null;
-
       if (!telegramUserId && !donor) {
-        return jsonResponse({
-          ok: false,
-          error: 'telegram_user_id or donor is required',
-        }, 400);
+        return jsonResponse({ ok: false, error: 'telegram_user_id or donor is required' }, 400);
       }
-
       try {
         const svc = new CommunityStatusService(env.DB);
         const data = telegramUserId
@@ -301,7 +265,6 @@ export async function handleExtendedRoutes(ctx) {
       const type = url.searchParams.get('type') || 'contributor';
       const projectId = url.searchParams.get('project_id') || null;
       const limit = Math.min(Number(url.searchParams.get('limit')) || 100, 500);
-
       try {
         const svc = new CommunityStatusService(env.DB);
         if (type === 'project' && projectId) {
@@ -317,9 +280,7 @@ export async function handleExtendedRoutes(ctx) {
 
     if (method === 'GET' && path === '/api/disburse/pending') {
       try {
-        const svc = new DisbursementService(env.DB, {
-          loadProjects: () => loadProjectsRegistry(env),
-        });
+        const svc = new DisbursementService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
         const rows = await svc.listPending();
         return jsonResponse({ ok: true, pending: rows });
       } catch (e) {
@@ -330,9 +291,7 @@ export async function handleExtendedRoutes(ctx) {
     const disburseIdMatch = path.match(/^\/api\/disburse\/(\d+)$/);
     if (method === 'GET' && disburseIdMatch) {
       try {
-        const svc = new DisbursementService(env.DB, {
-          loadProjects: () => loadProjectsRegistry(env),
-        });
+        const svc = new DisbursementService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
         const row = await svc.get(Number(disburseIdMatch[1]));
         if (!row) return jsonResponse({ ok: false, error: 'not_found' }, 404);
         return jsonResponse({ ok: true, disbursement: row });
@@ -343,9 +302,7 @@ export async function handleExtendedRoutes(ctx) {
 
     const approveMatch = path.match(/^\/api\/disburse\/(\d+)\/approve$/);
     if (method === 'POST' && approveMatch) {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       const body = await readJsonBody(request);
       if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
       const approver = body.approver || body.wallet || body.address;
@@ -353,9 +310,7 @@ export async function handleExtendedRoutes(ctx) {
         return jsonResponse({ ok: false, error: 'approver wallet address is required (from connected wallet)' }, 400);
       }
       try {
-        const svc = new DisbursementService(env.DB, {
-          loadProjects: () => loadProjectsRegistry(env),
-        });
+        const svc = new DisbursementService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
         const current = await svc.get(Number(approveMatch[1]));
         if (!current) return jsonResponse({ ok: false, error: 'not_found' }, 404);
         const registry = await loadProjectsRegistry(env);
@@ -380,15 +335,11 @@ export async function handleExtendedRoutes(ctx) {
 
     const executedMatch = path.match(/^\/api\/disburse\/(\d+)\/executed$/);
     if (method === 'POST' && executedMatch) {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       const body = await readJsonBody(request);
       if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
       try {
-        const svc = new DisbursementService(env.DB, {
-          loadProjects: () => loadProjectsRegistry(env),
-        });
+        const svc = new DisbursementService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
         const result = await svc.markExecuted(
           Number(executedMatch[1]),
           body.tx_hash || body.txHash || body.execute_tx_hash || null
@@ -413,27 +364,18 @@ export async function handleExtendedRoutes(ctx) {
           }
         }
 
-        return jsonResponse({
-          ok: true,
-          disbursement: row,
-          round_finalize,
-          telegram,
-        });
+        return jsonResponse({ ok: true, disbursement: row, round_finalize, telegram });
       } catch (e) {
         return jsonResponse({ ok: false, error: e.message }, 400);
       }
     }
 
     if (method === 'POST' && path === '/api/disburse/prepare') {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       const body = await readJsonBody(request);
       if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
       try {
-        const svc = new DisbursementService(env.DB, {
-          loadProjects: () => loadProjectsRegistry(env),
-        });
+        const svc = new DisbursementService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
         const row = await svc.prepareFromBatch(
           body.allocation_batch_id || body.allocationBatchId,
           body.project_id || body.projectId
@@ -457,9 +399,7 @@ export async function handleExtendedRoutes(ctx) {
     }
 
     if (method === 'POST' && path === '/api/telegram/sync-general') {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       try {
         const sync = new TelegramSyncService(env.DB, env);
         const result = await sync.syncGeneral();
@@ -470,9 +410,7 @@ export async function handleExtendedRoutes(ctx) {
     }
 
     if (method === 'POST' && path === '/api/telegram/groups') {
-      if (!requireAdmin(request, env)) {
-        return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
-      }
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       const body = await readJsonBody(request);
       if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
       try {
@@ -485,6 +423,34 @@ export async function handleExtendedRoutes(ctx) {
           active: body.active !== false,
         });
         return jsonResponse({ ok: true, group: row });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    if (method === 'GET' && path === '/api/telegram/groups/project') {
+      const projectId = url.searchParams.get('project_id');
+      if (!projectId) return jsonResponse({ ok: false, error: 'project_id is required' }, 400);
+      try {
+        const repo = new TelegramGroupRepository(env.DB);
+        const groups = await repo.listByProject(projectId);
+        return jsonResponse({ ok: true, groups });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+
+    if (method === 'POST' && path === '/api/telegram/groups/project/invite') {
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
+      const body = await readJsonBody(request);
+      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
+      try {
+        const client = new TelegramBotClient(env);
+        const result = await client.createInviteLink({
+          chatId: body.chat_id || body.chatId,
+          name: body.name || null,
+        });
+        return jsonResponse({ ok: true, ...result });
       } catch (e) {
         return jsonResponse({ ok: false, error: e.message }, 400);
       }
