@@ -127,6 +127,7 @@ export class DisbursementService {
                 ...row,
                 multisig_address: fund?.multisigAddress || null,
                 required_signatures: Number(row.required_signatures) || Number(fund?.requiredSignatures) || 1,
+                multisig_owners: Array.isArray(fund?.owners) ? fund.owners : [],
                 project_name: project?.ProjectName || project?.Name || null,
             };
         });
