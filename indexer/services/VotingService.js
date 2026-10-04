@@ -167,14 +167,7 @@ export class VotingService {
     }
 
     async _sumQueueRemaining(networkIds) {
-        const ids = Array.isArray(networkIds) ? networkIds : [];
-        if (!ids.length) return 0n;
-        const more = await this.queueRepo.peekOpen(5000, null, ids);
-        let total = 0n;
-        for (const e of more) {
-            total += BigInt(String(e.available_raw ?? e.remaining_raw ?? '0'));
-        }
-        return total;
+        return this.queueRepo.sumAvailable(Array.isArray(networkIds) ? networkIds : []);
     }
 
     /**
