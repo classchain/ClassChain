@@ -433,11 +433,35 @@ async function walletAction(row) {
     const account = accounts?.[0];
     if (!account) throw new Error('کیف پول متصل نیست.');
 
-    const multisig = new web3.eth.Contract(MULTISIG_ABI, row.multisig_address);
-    // provider is needed by the finder to build calldata.
-    multisig._provider = wallet.provider;
+    const fundOwner = await getEvmFundOwner(web3, row.from_address);
+    const required = Number(row.required_signatures || 1);
 
+    if (required <= 1) {
+      const fund = new web3.eth.Contract(FUND_WITHDRAW_ABI, row.from_address);
+      const receipt = await fund.methods.withdrawToken(
+        window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT'),
+        row.to_address,
+        String(row.amount_raw)
+      ).send({ from: account });
+      const txHash = receipt?.transactionHash || null;
+      await api('/api/disburse/' + row.id + '/approve', {
+        method: 'POST',
+        body: JSON.stringify({ approver: account, onchain_tx_index: null, onchain_tx_hash: txHash })
+      });
+      await api('/api/disburse/' + row.id + '/executed', {
+        method: 'POST',
+        body: JSON.stringify({ execute_tx_hash: txHash, onchain_tx_index: null })
+      });
+      return { phase: 'executed', txHash, txIndex: null };
+    }
+
+    const multisigAddress = row.multisig_address || fundOwner;
+    if (!multisigAddress) throw new Error('آدرس Multisig خزانه عمومی پیدا نشد.');
+
+    const multisig = new web3.eth.Contract(MULTISIG_ABI, multisigAddress);
+    multisig._provider = wallet.provider;
     let existing = await findEvmDisbursementTx(row, multisig);
+
     if (!existing) {
       const submitted = await submitEvmDisbursement(row, web3, multisig);
       existing = { index: submitted.index };
@@ -445,8 +469,8 @@ async function walletAction(row) {
 
     const receipt = await multisig.methods.confirmTransaction(String(existing.index))
       .send({ from: account });
-
     const txHash = receipt?.transactionHash || null;
+
     await api('/api/disburse/' + row.id + '/approve', {
       method: 'POST',
       body: JSON.stringify({
@@ -466,13 +490,10 @@ async function walletAction(row) {
         })
       });
     }
-
     return { phase: finalTx.executed ? 'executed' : 'confirmed', txHash, txIndex: existing.index };
   }
 
   const tronWeb = wallet.provider;
-  await window.ClassChainNetworkConfig.ready;
-
   let account = tronWeb.defaultAddress?.base58;
   if (!account && typeof tronWeb.request === 'function') {
     try { await tronWeb.request({ method: 'tron_requestAccounts' }); } catch (_) {}
@@ -486,12 +507,42 @@ async function walletAction(row) {
     throw new Error('TronLink روی شبکه Nile نیست. شبکه TronLink را روی Nile قرار دهید.');
   }
 
-  let existing = await findTronDisbursementTx(row, tronWeb);
+  const required = Number(row.required_signatures || 1);
+  const fundOwner = getTronBase58(await getTronFundOwner(tronWeb, row.from_address));
+
+  if (required <= 1) {
+    const fund = await tronWeb.contract(FUND_WITHDRAW_ABI, row.from_address);
+    const result = await fund.withdrawToken(
+      getTronBase58(window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT')),
+      getTronBase58(row.to_address),
+      String(row.amount_raw)
+    ).send({ feeLimit: 150000000, callValue: 0, shouldPollResponse: true });
+    const txHash = typeof result === 'string'
+      ? result
+      : result?.txid || result?.txID || result?.transaction?.txID || null;
+
+    await api('/api/disburse/' + row.id + '/approve', {
+      method: 'POST',
+      body: JSON.stringify({ approver: account, onchain_tx_index: null, onchain_tx_hash: txHash })
+    });
+    await api('/api/disburse/' + row.id + '/executed', {
+      method: 'POST',
+      body: JSON.stringify({ execute_tx_hash: txHash, onchain_tx_index: null })
+    });
+    return { phase: 'executed', txHash, txIndex: null };
+  }
+
+  const multisigAddress = row.multisig_address || fundOwner;
+  if (!multisigAddress) throw new Error('آدرس Multisig خزانه عمومی پیدا نشد.');
+
+  const effectiveRow = { ...row, multisig_address: multisigAddress };
+  let existing = await findTronDisbursementTx(effectiveRow, tronWeb);
+
   if (!existing) {
-    const submitted = await submitTronDisbursement(row, tronWeb);
+    const submitted = await submitTronDisbursement(effectiveRow, tronWeb);
     existing = {
       index: submitted.index,
-      contract: await tronWeb.contract(MULTISIG_ABI, row.multisig_address)
+      contract: await tronWeb.contract(MULTISIG_ABI, multisigAddress)
     };
   }
 
@@ -526,7 +577,6 @@ async function walletAction(row) {
 
   return { phase: finalTx.executed ? 'executed' : 'confirmed', txHash, txIndex: existing.index };
 }
-
 export async function loadDisbursePending() {
   try {
     const data = await api('/api/disburse/pending');
