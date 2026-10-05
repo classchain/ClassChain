@@ -323,6 +323,29 @@ async function ensureEvmNetwork(provider, chainId) {
   await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: wanted }] });
 }
 
+async function getEvmFundOwner(web3, fundAddress) {
+  const fund = new web3.eth.Contract([{
+    inputs: [],
+    name: 'owner',
+    outputs: [{ internalType: 'address', name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function'
+  }], fundAddress);
+  return fund.methods.owner().call();
+}
+
+async function getTronFundOwner(tronWeb, fundAddress) {
+  const fund = await tronWeb.contract([{
+    constant: true,
+    inputs: [],
+    name: 'owner',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'View',
+    type: 'Function'
+  }], fundAddress);
+  return fund.owner().call();
+}
+
 async function findEvmDisbursementTx(row, multisig) {
   const fund = String(row.from_address || '').toLowerCase();
   const token = window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT');
