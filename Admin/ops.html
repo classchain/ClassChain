@@ -1,3 +1,199 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
-<head><meta charset="UTF-8" /><title>temp</title></head><body>temp restore pending</body></html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ClassChain — مرکز راهبری</title>
+  <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/ops.css" />
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <script src="../frontend/js/network-config.js"></script>
+  <script src="../frontend/js/raised-reader.js"></script>
+</head>
+<body>
+  <header class="ops-header">
+    <div>
+      <h1>مرکز راهبری ClassChain</h1>
+      <div class="sub">مالی · Indexer · FIFO · رأی · تخصیص — مقیاس‌پذیر برای n شبکه</div>
+    </div>
+    <div class="tools">
+      <select id="netFilter" title="فیلتر شبکه"><option value="">همه شبکه‌ها</option></select>
+      <input id="secret" type="password" placeholder="Indexer Secret" style="width:140px" />
+      <button type="button" class="ghost" id="saveSecret">Secret</button>
+      <button type="button" class="primary" id="btnRefresh">بروزرسانی</button>
+      <label class="muted" style="font-size:12px"><input type="checkbox" id="opsAuto" /> auto 60s</label>
+      <a href="index.html">پنل اصلی</a>
+    </div>
+  </header>
+
+  <nav class="ops-nav">
+    <button type="button" class="active" data-tab="overview">نمای کلی</button>
+    <button type="button" data-tab="indexer">سلامت Indexer</button>
+    <button type="button" data-tab="community">جامعه / FIFO</button>
+    <button type="button" data-tab="voting">رای‌گیری</button>
+    <button type="button" data-tab="disburse">تخصیص خزانه</button>
+  </nav>
+
+  <main>
+    <section id="tab-overview" class="panel active">
+      <div class="kpi-row">
+        <div class="kpi"><div class="label">TVL پروژه‌ها</div><div class="value" id="kpiTvl">—</div><div class="hint">جمع موجودی خزانه‌های پروژه</div></div>
+        <div class="kpi"><div class="label">GENERAL_POOL</div><div class="value" id="kpiGeneral">—</div><div class="hint">خزانه عمومی (جدا از TVL)</div></div>
+        <div class="kpi"><div class="label">پیشرفت کل</div><div class="value" id="kpiPct">—</div><div class="hint">raised / target پروژه‌ها</div></div>
+        <div class="kpi"><div class="label">تعداد پروژه</div><div class="value" id="kpiProjects">—</div><div class="hint">بدون GENERAL</div></div>
+        <div class="kpi"><div class="label">Indexer</div><div class="value" id="kpiIndexer">—</div><div class="hint" id="idxMeta">—</div></div>
+      </div>
+
+      <div class="visual-row">
+        <div class="card">
+          <h3>پیشرفت مالی کل <span class="hint">donut</span></h3>
+          <div class="donut-wrap">
+            <div class="donut" id="donutOverall"><span>—</span></div>
+            <div class="muted" style="font-size:0.85rem;line-height:1.6">
+              نسبت مجموع موجودی پروژه‌ها به مجموع اهداف.<br />
+              با فیلتر شبکه، فقط همان شبکه محاسبه می‌شود.
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <h3>موجودی پروژه‌ها per-network <span class="hint">bar</span></h3>
+          <div class="net-bars" id="netBars"><p class="muted">…</p></div>
+        </div>
+        <div class="card general-card">
+          <h3>خزانه عمومی GENERAL_POOL</h3>
+          <div id="generalBody"><p class="muted">…</p></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="projects-toolbar">
+          <h3 style="margin:0;flex:1">پروژه‌ها <span class="hint">نوار پیشرفت</span></h3>
+          <select id="sortProjects">
+            <option value="pct">مرتب: درصد ↓</option>
+            <option value="raised">مرتب: موجودی ↓</option>
+            <option value="target">مرتب: هدف ↓</option>
+            <option value="id">مرتب: شناسه</option>
+          </select>
+          <span class="muted" id="lastUpdated">—</span>
+        </div>
+        <div class="projects-grid" id="projectsGrid"><p class="muted">در حال بارگذاری…</p></div>
+      </div>
+    </section>
+
+    <section id="tab-indexer" class="panel">
+      <div class="card">
+        <h3>وضعیت اسکن زنجیره</h3>
+        <div class="table-wrap">
+          <table class="ops-table">
+            <thead>
+              <tr>
+                <th>پروژه</th><th>شبکه</th><th>آخرین بلاک</th><th>Lag</th><th>Tx</th><th>وضعیت</th><th>خطا</th><th></th>
+              </tr>
+            </thead>
+            <tbody id="syncTableBody"><tr><td colspan="8" class="muted">…</td></tr></tbody>
+          </table>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <input id="syncProject" placeholder="projectId" style="flex:1;min-width:160px" />
+          <button type="button" class="primary" id="syncOne">Sync پروژه</button>
+          <button type="button" class="ghost" id="syncAll">Sync همه</button>
+        </div>
+        <div class="log-box" id="opsLog">آماده.</div>
+      </div>
+    </section>
+
+    <section id="tab-community" class="panel">
+      <div class="card">
+        <div class="row">
+          <select id="cNet"><option value="">همه شبکه‌ها</option></select>
+          <button type="button" class="ghost" id="cRefresh">بروزرسانی</button>
+        </div>
+        <h3>Contributors</h3>
+        <div id="cList" class="muted">…</div>
+        <h3 style="margin-top:16px">صف FIFO</h3>
+        <div id="cQueue" class="muted">…</div>
+      </div>
+    </section>
+
+    <section id="tab-voting" class="panel">
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3 style="margin:0">راندهای رأی‌گیری</h3>
+          <button type="button" class="ghost" id="vRefresh">بروزرسانی لیست</button>
+        </div>
+        <div id="vRounds" style="margin-top:12px"></div>
+        <div id="vDetail" style="margin-top:12px"></div>
+      </div>
+
+      <div class="card">
+        <h3>باز کردن راند جدید</h3>
+        <p class="muted" style="margin:0 0 10px;font-size:0.85rem">فقط یک راند باز همزمان مجاز است. کاندیداها را با کاما بنویسید.</p>
+        <div class="row">
+          <input id="vTitle" placeholder="عنوان راند" style="flex:1" />
+          <input id="vCands" placeholder="مثلاً 1004,1005" style="flex:1" />
+          <button type="button" class="primary" id="vOpen">باز کن</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>بستن راند</h3>
+        <p class="muted" style="margin:0 0 10px;font-size:0.85rem">
+          ابتدا از لیست بالا «جزئیات» راند باز را بزنید تا شناسه پر شود.
+          بستن بدون مشخص‌کردن پروژه منتخب مجاز نیست. تخصیص مالی در تب «تخصیص خزانه» انجام می‌شود.
+        </p>
+        <input type="hidden" id="vRoundId" />
+        <div class="row">
+          <input id="vRoundIdShow" placeholder="شناسه راند (از جزئیات)" readonly style="width:140px;opacity:0.85" />
+          <input id="vCloseProject" placeholder="پروژه منتخب (الزامی)" style="flex:1" />
+          <button type="button" class="primary" id="vClose">بستن راند</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-disburse" class="panel">
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3 style="margin:0">راندها — وضعیت تخصیص</h3>
+          <button type="button" class="ghost" id="dRoundsRefresh">بروزرسانی</button>
+        </div>
+        <p class="muted" style="margin:8px 0 10px;font-size:0.85rem;line-height:1.6">
+          تخصیص از <strong>صف FIFO قطعی</strong> است (نه تصادفی): به ترتیب واریز donors و فقط روی شبکه‌هایی که پروژه خزانه دارد.
+          مبلغ پیش‌فرض = target پروژه؛ می‌توانید مبلغ دستی (USDT) وارد کنید. سیستم از موجودی آزاد صف بیشتر برنمی‌دارد.
+        </p>
+        <div class="row" style="margin-bottom:10px">
+          <label class="muted" style="font-size:12px">مبلغ تخصیص (USDT، خالی = target راند)</label>
+          <input id="dAllocAmount" placeholder="مثلاً 11050 یا خالی برای target" style="flex:1;min-width:180px" />
+        </div>
+        <div id="dRounds" class="muted">…</div>
+        <div id="dAllocResult" class="muted" style="margin-top:10px"></div>
+      </div>
+
+      <div class="card">
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <h3 style="margin:0">درخواست‌های انتقال on-chain (per-network)</h3>
+          <button type="button" class="ghost" id="dRefresh">بروزرسانی pending</button>
+        </div>
+        <p class="muted" style="margin:8px 0 10px;font-size:0.85rem;line-height:1.6">
+          هر شبکه یک کارت جدا: <strong>GENERAL_POOL → خزانه پروژه</strong>.
+          تک‌امضا یا چندامضا از روی Projects.json تشخیص داده می‌شود.
+          برای هر Owner دکمهٔ اختصاصی؛ بعد از امضا/اجرا دکمه قفل می‌شود.
+          کارمزد را شبکه تعیین می‌کند — سایت هیچ fee/gas محاسبه نمی‌کند.
+        </p>
+        <div id="dList" class="muted" style="margin-top:10px">…</div>
+        <div id="dDetail"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
+  <aside class="drawer" id="drawer">
+    <div class="row" style="justify-content:space-between">
+      <h2 id="drawerTitle">جزئیات</h2>
+      <button type="button" class="ghost" id="drawerClose">بستن</button>
+    </div>
+    <div id="drawerBody"></div>
+  </aside>
+
+  <script type="module" src="js/ops-app.js"></script>
+</body>
+</html>
