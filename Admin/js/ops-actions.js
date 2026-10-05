@@ -348,6 +348,25 @@ async function ensureEvmNetwork(provider, chainId) {
   await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: wanted }] });
 }
 
+async function sendEvmTransaction(provider, web3, tx) {
+  const transaction = {
+    from: tx.from,
+    to: tx.to,
+    data: tx.data,
+    value: tx.value || '0x0'
+  };
+  const txHash = await provider.request({
+    method: 'eth_sendTransaction',
+    params: [transaction]
+  });
+
+  for (let i = 0; i < 60; i++) {
+    const receipt = await web3.eth.getTransactionReceipt(txHash);
+    if (receipt) return { ...receipt, transactionHash: txHash };
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  throw new Error('تراکنش ارسال شد ولی Receipt در زمان مقرر دریافت نشد: ' + txHash);
+}
 async function getEvmFundOwner(web3, fundAddress) {
   const fund = new web3.eth.Contract([{
     inputs: [],
@@ -407,8 +426,12 @@ async function submitEvmDisbursement(row, web3, multisig) {
     token, row.to_address, String(row.amount_raw)
   ).encodeABI();
 
-  const tx = multisig.methods.submitTransaction(row.from_address, '0', data);
-  const receipt = await tx.send({ from: (await web3.eth.getAccounts())[0] });
+  const account = (await web3.eth.getAccounts())[0];
+  const receipt = await sendEvmTransaction(multisig._provider, web3, {
+    from: account,
+    to: multisig.options.address,
+    data: multisig.methods.submitTransaction(row.from_address, '0', data).encodeABI()
+  });
   const index = Number(await multisig.methods.getTransactionCount().call()) - 1;
   return { index, txHash: receipt?.transactionHash || null };
 }
@@ -485,11 +508,15 @@ async function walletAction(row) {
 
     if (required <= 1) {
       const fund = new web3.eth.Contract(FUND_WITHDRAW_ABI, row.from_address);
-      const receipt = await fund.methods.withdrawToken(
-        window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT'),
-        row.to_address,
-        String(row.amount_raw)
-      ).send({ from: account });
+      const receipt = await sendEvmTransaction(wallet.provider, web3, {
+        from: account,
+        to: row.from_address,
+        data: fund.methods.withdrawToken(
+          window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT'),
+          row.to_address,
+          String(row.amount_raw)
+        ).encodeABI()
+      });
       const txHash = receipt?.transactionHash || null;
       await api('/api/disburse/' + row.id + '/approve', {
         method: 'POST',
@@ -514,8 +541,11 @@ async function walletAction(row) {
       existing = { index: submitted.index };
     }
 
-    const receipt = await multisig.methods.confirmTransaction(String(existing.index))
-      .send({ from: account });
+    const receipt = await sendEvmTransaction(wallet.provider, web3, {
+      from: account,
+      to: multisigAddress,
+      data: multisig.methods.confirmTransaction(String(existing.index)).encodeABI()
+    });
     const txHash = receipt?.transactionHash || null;
 
     await api('/api/disburse/' + row.id + '/approve', {
@@ -640,8 +670,8 @@ export async function loadDisbursePending() {
             <td title="${r.to_address || ''}">${short(r.to_address || '')}</td>
             <td>${badge(r.status)}</td>
             <td>
-              ${r.status === 'EXECUTED'
-                ? '<span class="badge" style="background:#34d399">انجام شد</span>'
+              ${['APPROVED', 'EXECUTED'].includes(r.status)
+                ? `<span class="badge" style="background:#34d399">${r.status === 'EXECUTED' ? 'انجام شد' : 'تأیید شد'}</span>`
                 : `<button type="button" class="ghost" data-a="${r.id}">اتصال ${walletLabel(r.network_id)} و امضا</button>`}
               <button type="button" class="ghost" data-d="${r.id}">جزئیات</button>
             </td>
@@ -650,10 +680,17 @@ export async function loadDisbursePending() {
 
     $('dList').querySelectorAll('[data-a]').forEach((b) => {
       b.onclick = async () => {
+        if (b.disabled) return;
+        b.disabled = true;
+        b.textContent = 'در حال امضا…';
         try {
           const d = await api('/api/disburse/' + b.dataset.a);
           const row = d.disbursement;
           if (!row) throw new Error('درخواست انتقال پیدا نشد.');
+          if (['APPROVED', 'EXECUTED'].includes(row.status)) {
+            await loadDisbursePending();
+            return;
+          }
           const result = await walletAction(row);
           alert(result.phase === 'executed'
             ? 'تراکنش on-chain اجرا شد و وضعیت ثبت شد.'
@@ -661,6 +698,8 @@ export async function loadDisbursePending() {
           await loadDisbursePending();
           await loadDisburseRounds();
         } catch (e) {
+          b.disabled = false;
+          b.textContent = 'اتصال کیف پول و امضا';
           alert(e.message);
         }
       };
