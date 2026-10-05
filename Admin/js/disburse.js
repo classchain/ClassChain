@@ -156,27 +156,15 @@ function hideLegacyControls() {
 
 function getWalletProvider(networkId) {
   const network = getFullNetwork(networkId);
-  if (!network) throw new Error(`شبکه \${networkId} در تنظیمات پیدا نشد.`);
-
-  if (network.type === 'EVM') {
-    if (!window.ethereum) throw new Error('برای این درخواست باید MetaMask یا کیف پول EVM نصب باشد.');
+  if (network?.type === 'EVM') {
+    if (!window.ethereum) throw new Error('کیف پول EVM پیدا نشد.');
     return { type: 'EVM', provider: window.ethereum, network };
   }
-
-  if (network.type === 'TVM') {
-    const tronWeb =
-      window.tronWeb ||
-      window.tron?.tronWeb ||
-      null;
-
-    if (!tronWeb) {
-      throw new Error('برای شبکه TRON / Nile باید TronLink نصب و فعال باشد.');
-    }
-
-    return { type: 'TVM', provider: tronWeb, network };
+  if (network?.type === 'TVM') {
+    if (!window.tronWeb?.ready) throw new Error('TronLink متصل نیست.');
+    return { type: 'TVM', provider: window.tronWeb, network };
   }
-
-  throw new Error(`نوع کیف پول شبکه \${network.type} پشتیبانی نمی‌شود.`);
+  throw new Error('شبکه پشتیبانی نمی‌شود.');
 }
 
 async function ensureEvmNetwork(provider, chainId) {
@@ -297,89 +285,34 @@ async function walletAction(row) {
     const web3 = new Web3(wallet.provider);
     const multisig = new web3.eth.Contract(MULTISIG_ABI, row.multisig_address);
 
-    let existing = await findEvmTransaction(multisig, row);
-
-    // هر کلیک از طرف یک Owner باید یک مرحله واقعی از Multisig را انجام دهد:
-    // اگر تراکنش هنوز ساخته نشده، همان Owner آن را submit و سپس confirm می‌کند.
-    // بنابراین برای requiredSignatures=1، همان کلیک انتقال را نیز اجرا می‌کند.
+    const existing = await findEvmTransaction(multisig, row);
     if (!existing) {
       const submitted = await submitEvm(row, account);
-      existing = { index: submitted.txIndex, confirmations: 0 };
+      return { phase: 'submitted', txIndex: submitted.txIndex, txHash: submitted.txHash };
     }
 
     const txHash = await confirmEvm(row, account, existing.index);
     await recordOnchainState(row.id, existing.index, txHash, account);
-
     const finalTx = await multisig.methods.getTransaction(existing.index).call();
     if (finalTx.executed) {
-      await indexerFetch(`/api/disburse/${row.id}/executed`, {
-        method: 'POST',
-        body: JSON.stringify({
-          execute_tx_hash: txHash,
-          onchain_tx_index: existing.index
-        })
-      });
+      await indexerFetch(`/api/disburse/${row.id}/executed`, { method: 'POST', body: JSON.stringify({ execute_tx_hash: txHash, onchain_tx_index: existing.index }) });
     }
-
-    return {
-      phase: finalTx.executed ? 'executed' : 'confirmed',
-      txIndex: existing.index,
-      txHash
-    };
+    return { phase: 'confirmed', txIndex: existing.index, txHash };
   }
 
   const tronWeb = wallet.provider;
-
-  let account = tronWeb.defaultAddress?.base58;
-  if (!account) {
-    if (typeof tronWeb.request === 'function') {
-      try {
-        await tronWeb.request({ method: 'tron_requestAccounts' });
-      } catch (_) {}
-    }
-    account = tronWeb.defaultAddress?.base58;
-  }
-  if (!account) throw new Error('TronLink قفل است یا هیچ حسابی انتخاب نشده است.');
-
-  // اطمینان از اینکه خود TronLink در اختیار همان شبکه‌ای است که ردیف درخواست می‌کند.
-  const fullNode = String(tronWeb.fullNode?.host || '').toLowerCase();
-  const expectedRpc = String(wallet.network.rpcUrl || '').toLowerCase();
-  if (expectedRpc && fullNode && !fullNode.includes(new URL(expectedRpc).host.toLowerCase())) {
-    throw new Error(`TronLink روی شبکه \${wallet.network.name} نیست. لطفاً شبکه را به \${wallet.network.name} تغییر دهید.`);
-  }
-
-  let existing = await findTronTransaction(tronWeb, row);
-
-  // مثل EVM: اولین Owner هم submit و هم confirm می‌کند.
-  // برای requiredSignatures=1، confirmTransaction به‌صورت خودکار execute می‌شود.
+  const existing = await findTronTransaction(tronWeb, row);
   if (!existing) {
     const submitted = await submitTron(row, tronWeb);
-    existing = {
-      index: submitted.txIndex,
-      confirmations: 0,
-      contract: await tronWeb.contract(MULTISIG_ABI, row.multisig_address)
-    };
+    return { phase: 'submitted', txIndex: submitted.txIndex, txHash: submitted.txHash };
   }
-
   const txHash = await confirmTron(row, tronWeb, existing.index);
-  await recordOnchainState(row.id, existing.index, txHash, account);
-
+  await recordOnchainState(row.id, existing.index, txHash, tronWeb.defaultAddress.base58);
   const finalTx = await existing.contract.getTransaction(existing.index).call();
   if (finalTx.executed) {
-    await indexerFetch(`/api/disburse/${row.id}/executed`, {
-      method: 'POST',
-      body: JSON.stringify({
-        execute_tx_hash: txHash,
-        onchain_tx_index: existing.index
-      })
-    });
+    await indexerFetch(`/api/disburse/${row.id}/executed`, { method: 'POST', body: JSON.stringify({ execute_tx_hash: txHash, onchain_tx_index: existing.index }) });
   }
-
-  return {
-    phase: finalTx.executed ? 'executed' : 'confirmed',
-    txIndex: existing.index,
-    txHash
-  };
+  return { phase: 'confirmed', txIndex: existing.index, txHash };
 }
 
 async function recordOnchainState(id, txIndex, txHash, approver) {
@@ -454,7 +387,7 @@ export async function approveDisburse(id) {
     const data = await indexerFetch(`/api/disburse/${id}`);
     if (!data.disbursement) throw new Error('درخواست یافت نشد.');
     await walletAction(data.disbursement);
-    alert('عملیات Multisig با موفقیت انجام شد. در صورت رسیدن به حد نصاب، انتقال USDT نیز اجرا شده است.');
+    alert('عملیات کیف پول انجام شد. اگر این اولین امضا باشد، تراکنش Multisig ایجاد شده و امضای بعدی با همین درخواست انجام می‌شود.');
     await loadDisbursePending();
     await loadDisburseDetail(id);
   } catch (e) {
