@@ -490,13 +490,16 @@ async function sendTronVoid(methodCall) {
 async function submitTronDisbursement(row, tronWeb) {
   const token = window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT');
   if (!token) throw new Error('آدرس USDT شبکه پیدا نشد.');
-  // Build calldata via contract encoder (avoids hardcoded selector drift)
-  const fund = await tronWeb.contract(FUND_WITHDRAW_TRON_ABI, row.from_address);
-  const data = fund.withdrawToken(
-    getTronBase58(token, tronWeb),
-    getTronBase58(row.to_address, tronWeb),
-    String(row.amount_raw)
-  ).encodeABI();
+  // TronWeb has no encodeABI() like web3; build calldata with selector + encodeParams
+  // selector = first 4 bytes of keccak256("withdrawToken(address,address,uint256)")
+  const data = '0x01e33667' + tronWeb.utils.abi.encodeParams(
+    ['address', 'address', 'uint256'],
+    [
+      tronBase58ToHex(token, tronWeb),
+      tronBase58ToHex(row.to_address, tronWeb),
+      String(row.amount_raw)
+    ]
+  ).replace(/^0x/, '');
 
   const multisig = await tronWeb.contract(MULTISIG_ABI, row.multisig_address);
   const txHash = await sendTronVoid(
