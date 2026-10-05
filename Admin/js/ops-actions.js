@@ -465,31 +465,47 @@ async function findTronDisbursementTx(row, tronWeb) {
   return null;
 }
 
+function extractTronTxId(result) {
+  if (!result) return null;
+  if (typeof result === 'string') return result;
+  return result.txid || result.txID || result.transaction?.txID || result.transaction?.txid || null;
+}
+
+/**
+ * TronWeb + shouldPollResponse:true tries to ABI-decode contractResult.
+ * Void methods (and some failed/empty returns) throw:
+ *   data out-of-bounds (buffer=0x, length=0, offset=32, BUFFER_OVERRUN)
+ * So we always send with shouldPollResponse:false and only keep the txID.
+ */
+async function sendTronVoid(methodCall) {
+  const result = await methodCall.send({
+    callValue: 0,
+    shouldPollResponse: false
+  });
+  const txHash = extractTronTxId(result);
+  if (!txHash) throw new Error('تراکنش ارسال شد ولی txID از TronLink دریافت نشد.');
+  return txHash;
+}
+
 async function submitTronDisbursement(row, tronWeb) {
   const token = window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT');
   if (!token) throw new Error('آدرس USDT شبکه پیدا نشد.');
-  const data = '0x01e33667' + tronWeb.utils.abi.encodeParams(
-    ['address', 'address', 'uint256'],
-    [
-      tronBase58ToHex(token, tronWeb),
-      tronBase58ToHex(row.to_address, tronWeb),
-      String(row.amount_raw)
-    ]
-  ).replace(/^0x/, '');
+  // Build calldata via contract encoder (avoids hardcoded selector drift)
+  const fund = await tronWeb.contract(FUND_WITHDRAW_TRON_ABI, row.from_address);
+  const data = fund.withdrawToken(
+    getTronBase58(token, tronWeb),
+    getTronBase58(row.to_address, tronWeb),
+    String(row.amount_raw)
+  ).encodeABI();
 
   const multisig = await tronWeb.contract(MULTISIG_ABI, row.multisig_address);
-  const result = await multisig.submitTransaction(
-    row.from_address, 0, data
-  ).send({
-    callValue: 0,
-    shouldPollResponse: true
-  });
+  const txHash = await sendTronVoid(
+    multisig.submitTransaction(getTronBase58(row.from_address, tronWeb), 0, data)
+  );
   const count = Number(await multisig.getTransactionCount().call());
   return {
     index: count - 1,
-    txHash: typeof result === 'string'
-      ? result
-      : result?.txid || result?.txID || result?.transaction?.txID || null
+    txHash
   };
 }
 
@@ -611,14 +627,13 @@ async function walletAction(row) {
 
   if (required <= 1) {
     const fund = await tronWeb.contract(FUND_WITHDRAW_TRON_ABI, row.from_address);
-    const result = await fund.withdrawToken(
-      getTronBase58(window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT')),
-      getTronBase58(row.to_address),
-      String(row.amount_raw)
-    ).send({ callValue: 0, shouldPollResponse: true });
-    const txHash = typeof result === 'string'
-      ? result
-      : result?.txid || result?.txID || result?.transaction?.txID || null;
+    const txHash = await sendTronVoid(
+      fund.withdrawToken(
+        getTronBase58(window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT'), tronWeb),
+        getTronBase58(row.to_address, tronWeb),
+        String(row.amount_raw)
+      )
+    );
 
     await api('/api/disburse/' + row.id + '/approve', {
       method: 'POST',
@@ -645,13 +660,10 @@ async function walletAction(row) {
     };
   }
 
-  const result = await existing.contract.confirmTransaction(existing.index).send({
-    callValue: 0,
-    shouldPollResponse: true
-  });
-  const txHash = typeof result === 'string'
-    ? result
-    : result?.txid || result?.txID || result?.transaction?.txID || null;
+  // confirmTransaction is void → must not use shouldPollResponse:true
+  const txHash = await sendTronVoid(
+    existing.contract.confirmTransaction(existing.index)
+  );
 
   await api('/api/disburse/' + row.id + '/approve', {
     method: 'POST',
