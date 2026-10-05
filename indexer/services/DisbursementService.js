@@ -6,6 +6,9 @@
  *
  * Round becomes ALLOCATED only after related disbursements are EXECUTED
  * (see VotingService.finalizeRoundIfBatchComplete).
+ *
+ * Supports Single-Sig (requiredSignatures <= 1, no multisig) and Multi-Sig
+ * for any number of networks.
  */
 
 import { DisbursementRepository } from '../db/DisbursementRepository.js';
@@ -60,14 +63,17 @@ export class DisbursementService {
             const fromAddress = fromFund?.address || null;
             const toAddress = toFund?.address || null;
             const requiredSignatures = Number(fromFund?.requiredSignatures) || 1;
+            const multisigAddress = fromFund?.multisigAddress || null;
 
-            if (!fromAddress || !toAddress || !fromFund?.multisigAddress) {
+            if (!fromAddress) {
+                throw new Error(`GENERAL_POOL missing address on network ${networkId}`);
+            }
+            if (!toAddress) {
+                throw new Error(`project ${projectId} missing funds address on network ${networkId}`);
+            }
+            if (requiredSignatures > 1 && !multisigAddress) {
                 throw new Error(
-                    !fromAddress
-                        ? `GENERAL_POOL missing address on network ${networkId}`
-                        : !toAddress
-                            ? `project ${projectId} missing funds address on network ${networkId}`
-                            : `GENERAL_POOL missing multisigAddress on network ${networkId}`
+                    `GENERAL_POOL requires multisigAddress on network ${networkId} when requiredSignatures=${requiredSignatures}`
                 );
             }
 
@@ -88,7 +94,7 @@ export class DisbursementService {
                 amount_raw: String(amount),
                 from_address: fromAddress,
                 to_address: toAddress,
-                multisig_address: fromFund?.multisigAddress || null,
+                multisig_address: multisigAddress,
                 required_signatures: requiredSignatures,
                 id: row.id,
                 inserted: row.inserted,
