@@ -205,12 +205,15 @@ export class VotingService {
         const general = this._findProject(registry, 'GENERAL_POOL');
         if (!general) throw new Error('GENERAL_POOL not found in Projects.json');
 
-        // A network is allocatable only when both source and destination are
-        // configured and the source has a Multisig executor.
+        // A network is allocatable when both source and destination have addresses.
+        // Multi-sig (requiredSignatures > 1) needs multisigAddress; single-sig does not.
         const projectNetworkIds = Object.entries(project.funds || {})
             .filter(([networkId, fund]) => {
                 const source = general.funds?.[networkId];
-                return Boolean(fund?.address && source?.address && source?.multisigAddress);
+                if (!fund?.address || !source?.address) return false;
+                const required = Number(source?.requiredSignatures) || 1;
+                if (required > 1) return Boolean(source?.multisigAddress);
+                return true;
             })
             .map(([networkId]) => networkId);
 
