@@ -278,6 +278,20 @@ const FUND_WITHDRAW_ABI = [{
   type: "function"
 }];
 
+const FUND_WITHDRAW_TRON_ABI = [{
+  constant: false,
+  inputs: [
+    { name: "token", type: "address" },
+    { name: "to", type: "address" },
+    { name: "amount", type: "uint256" }
+  ],
+  name: "withdrawToken",
+  outputs: [],
+  payable: false,
+  stateMutability: "Nonpayable",
+  type: "Function"
+}];
+
 function networkLabel(networkId) {
   return networkId === 'tron_nile' ? 'TRON / Nile' : networkId === 'polygon_amoy' ? 'EVM / Amoy' : networkId;
 }
@@ -534,7 +548,7 @@ async function walletAction(row) {
   const fundOwner = getTronBase58(await getTronFundOwner(tronWeb, row.from_address));
 
   if (required <= 1) {
-    const fund = await tronWeb.contract(FUND_WITHDRAW_ABI, row.from_address);
+    const fund = await tronWeb.contract(FUND_WITHDRAW_TRON_ABI, row.from_address);
     const result = await fund.withdrawToken(
       getTronBase58(window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT')),
       getTronBase58(row.to_address),
