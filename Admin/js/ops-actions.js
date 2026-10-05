@@ -225,35 +225,306 @@ export async function allocateRoundById(roundId, btnEl) {
   }
 }
 
-let connectedApprover = null;
+const MULTISIG_ABI = [
+  {
+    inputs: [
+      { internalType: "address", name: "_to", type: "address" },
+      { internalType: "uint256", name: "_value", type: "uint256" },
+      { internalType: "bytes", name: "_data", type: "bytes" }
+    ],
+    name: "submitTransaction",
+    outputs: [{ internalType: "uint256", name: "txIndex", type: "uint256" }],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "_txIndex", type: "uint256" }],
+    name: "confirmTransaction",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function"
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "_txIndex", type: "uint256" }],
+    name: "getTransaction",
+    outputs: [
+      { internalType: "address", name: "to", type: "address" },
+      { internalType: "uint256", name: "value", type: "uint256" },
+      { internalType: "bytes", name: "data", type: "bytes" },
+      { internalType: "bool", name: "executed", type: "bool" },
+      { internalType: "uint256", name: "numConfirmations", type: "uint256" }
+    ],
+    stateMutability: "view",
+    type: "function"
+  },
+  {
+    inputs: [],
+    name: "getTransactionCount",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function"
+  }
+];
 
-export function getConnectedApprover() {
-  return connectedApprover;
+const FUND_WITHDRAW_ABI = [{
+  inputs: [
+    { internalType: "address", name: "token", type: "address" },
+    { internalType: "address", name: "to", type: "address" },
+    { internalType: "uint256", name: "amount", type: "uint256" }
+  ],
+  name: "withdrawToken",
+  outputs: [],
+  stateMutability: "nonpayable",
+  type: "function"
+}];
+
+function networkLabel(networkId) {
+  return networkId === 'tron_nile' ? 'TRON / Nile' : networkId === 'polygon_amoy' ? 'EVM / Amoy' : networkId;
 }
 
-export function setConnectedApprover(addr) {
-  connectedApprover = addr ? String(addr) : null;
-  const el = $('dWalletStatus');
-  if (el) {
-    el.textContent = connectedApprover
-      ? ('متصل: ' + connectedApprover.slice(0, 8) + '…' + connectedApprover.slice(-4))
-      : 'کیف متصل نیست';
-  }
+function walletLabel(networkId) {
+  return networkId === 'tron_nile' ? 'TronLink' : 'MetaMask';
 }
 
-export async function connectApproverWallet() {
-  if (!window.ethereum) {
-    alert('MetaMask / کیف EVM پیدا نشد');
-    return null;
+function getTronWeb() {
+  return window.tronWeb || window.tron?.tronWeb || null;
+}
+
+function tronBase58ToHex(address, tronWeb) {
+  const value = String(address || '').trim();
+  if (!value) throw new Error('آدرس TRON خالی است.');
+  if (/^41[0-9a-fA-F]{40}$/.test(value)) return value;
+  if (!tronWeb?.address?.toHex) throw new Error('TronLink برای تبدیل آدرس در دسترس نیست.');
+  return tronWeb.address.toHex(value);
+}
+
+function getWalletForRow(row) {
+  const network = window.ClassChainNetworkConfig?.getNetwork?.(row.network_id);
+  if (!network) throw new Error('تنظیمات شبکه پیدا نشد: ' + row.network_id);
+
+  if (network.type === 'EVM') {
+    if (!window.ethereum) throw new Error('برای Amoy باید MetaMask نصب و فعال باشد.');
+    return { type: 'EVM', network, provider: window.ethereum };
   }
-  const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-  const account = accounts && accounts[0];
-  if (!account) {
-    alert('اتصال کیف لغو شد');
-    return null;
+
+  if (network.type === 'TVM') {
+    const tronWeb = getTronWeb();
+    if (!tronWeb) throw new Error('برای Nile باید TronLink نصب و فعال باشد.');
+    return { type: 'TVM', network, provider: tronWeb };
   }
-  setConnectedApprover(account);
-  return account;
+
+  throw new Error('نوع شبکه پشتیبانی نمی‌شود: ' + network.type);
+}
+
+async function ensureEvmNetwork(provider, chainId) {
+  const wanted = '0x' + Number(chainId).toString(16);
+  const current = await provider.request({ method: 'eth_chainId' });
+  if (String(current).toLowerCase() === wanted.toLowerCase()) return;
+  await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: wanted }] });
+}
+
+async function findEvmDisbursementTx(row, multisig) {
+  const fund = String(row.from_address || '').toLowerCase();
+  const token = window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT');
+  const web3 = new Web3(multisig._provider);
+  const encoder = new web3.eth.Contract(FUND_WITHDRAW_ABI);
+  const expected = encoder.methods.withdrawToken(
+    token, row.to_address, String(row.amount_raw)
+  ).encodeABI().toLowerCase();
+  const count = Number(await multisig.methods.getTransactionCount().call());
+
+  for (let i = count - 1; i >= 0; i--) {
+    const tx = await multisig.methods.getTransaction(i).call();
+    if (
+      String(tx.to).toLowerCase() === fund &&
+      String(tx.value) === '0' &&
+      String(tx.data).toLowerCase() === expected &&
+      !tx.executed
+    ) {
+      return { index: i, confirmations: Number(tx.numConfirmations || 0) };
+    }
+  }
+  return null;
+}
+
+async function submitEvmDisbursement(row, web3, multisig) {
+  const token = window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT');
+  if (!token) throw new Error('آدرس USDT شبکه پیدا نشد.');
+  if (!row.from_address || !row.to_address || !row.multisig_address) {
+    throw new Error('اطلاعات GENERAL_POOL / مقصد / Multisig ناقص است.');
+  }
+
+  const fund = new web3.eth.Contract(FUND_WITHDRAW_ABI);
+  const data = fund.methods.withdrawToken(
+    token, row.to_address, String(row.amount_raw)
+  ).encodeABI();
+
+  const tx = multisig.methods.submitTransaction(row.from_address, '0', data);
+  const receipt = await tx.send({ from: (await web3.eth.getAccounts())[0] });
+  const index = Number(await multisig.methods.getTransactionCount().call()) - 1;
+  return { index, txHash: receipt?.transactionHash || null };
+}
+
+async function findTronDisbursementTx(row, tronWeb) {
+  const token = window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT');
+  const expectedParams = tronWeb.utils.abi.encodeParams(
+    ['address', 'address', 'uint256'],
+    [
+      tronBase58ToHex(token, tronWeb),
+      tronBase58ToHex(row.to_address, tronWeb),
+      String(row.amount_raw)
+    ]
+  ).replace(/^0x/, '').toLowerCase();
+  const expectedData = '01e33667' + expectedParams;
+  const multisig = await tronWeb.contract(MULTISIG_ABI, row.multisig_address);
+  const count = Number(await multisig.getTransactionCount().call());
+
+  for (let i = count - 1; i >= 0; i--) {
+    const tx = await multisig.getTransaction(i).call();
+    const data = String(tx.data || '').replace(/^0x/, '').toLowerCase();
+    if (
+      String(tx.to || '').toUpperCase() === String(row.from_address || '').toUpperCase() &&
+      String(tx.value || '0') === '0' &&
+      data === expectedData &&
+      !tx.executed
+    ) {
+      return { index: i, confirmations: Number(tx.numConfirmations || 0), contract: multisig };
+    }
+  }
+  return null;
+}
+
+async function submitTronDisbursement(row, tronWeb) {
+  const token = window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT');
+  if (!token) throw new Error('آدرس USDT شبکه پیدا نشد.');
+  const data = '0x01e33667' + tronWeb.utils.abi.encodeParams(
+    ['address', 'address', 'uint256'],
+    [
+      tronBase58ToHex(token, tronWeb),
+      tronBase58ToHex(row.to_address, tronWeb),
+      String(row.amount_raw)
+    ]
+  ).replace(/^0x/, '');
+
+  const multisig = await tronWeb.contract(MULTISIG_ABI, row.multisig_address);
+  const result = await multisig.submitTransaction(
+    row.from_address, 0, data
+  ).send({
+    feeLimit: 150000000,
+    callValue: 0,
+    shouldPollResponse: true
+  });
+  const count = Number(await multisig.getTransactionCount().call());
+  return {
+    index: count - 1,
+    txHash: typeof result === 'string'
+      ? result
+      : result?.txid || result?.txID || result?.transaction?.txID || null
+  };
+}
+
+async function walletAction(row) {
+  const wallet = getWalletForRow(row);
+
+  if (wallet.type === 'EVM') {
+    await ensureEvmNetwork(wallet.provider, wallet.network.chainId);
+    const web3 = new Web3(wallet.provider);
+    const accounts = await wallet.provider.request({ method: 'eth_requestAccounts' });
+    const account = accounts?.[0];
+    if (!account) throw new Error('کیف پول متصل نیست.');
+
+    const multisig = new web3.eth.Contract(MULTISIG_ABI, row.multisig_address);
+    // provider is needed by the finder to build calldata.
+    multisig._provider = wallet.provider;
+
+    let existing = await findEvmDisbursementTx(row, multisig);
+    if (!existing) {
+      const submitted = await submitEvmDisbursement(row, web3, multisig);
+      existing = { index: submitted.index };
+    }
+
+    const receipt = await multisig.methods.confirmTransaction(String(existing.index))
+      .send({ from: account });
+
+    const txHash = receipt?.transactionHash || null;
+    await api('/api/disburse/' + row.id + '/approve', {
+      method: 'POST',
+      body: JSON.stringify({
+        approver: account,
+        onchain_tx_index: existing.index,
+        onchain_tx_hash: txHash
+      })
+    });
+
+    const finalTx = await multisig.methods.getTransaction(existing.index).call();
+    if (finalTx.executed) {
+      await api('/api/disburse/' + row.id + '/executed', {
+        method: 'POST',
+        body: JSON.stringify({
+          execute_tx_hash: txHash,
+          onchain_tx_index: existing.index
+        })
+      });
+    }
+
+    return { phase: finalTx.executed ? 'executed' : 'confirmed', txHash, txIndex: existing.index };
+  }
+
+  const tronWeb = wallet.provider;
+  await window.ClassChainNetworkConfig.ready;
+
+  let account = tronWeb.defaultAddress?.base58;
+  if (!account && typeof tronWeb.request === 'function') {
+    try { await tronWeb.request({ method: 'tron_requestAccounts' }); } catch (_) {}
+    account = tronWeb.defaultAddress?.base58;
+  }
+  if (!account) throw new Error('TronLink قفل است یا حسابی انتخاب نشده است.');
+
+  const expectedHost = new URL(wallet.network.rpcUrl).host.toLowerCase();
+  const actualHost = String(tronWeb.fullNode?.host || '').toLowerCase();
+  if (actualHost && !actualHost.includes(expectedHost)) {
+    throw new Error('TronLink روی شبکه Nile نیست. شبکه TronLink را روی Nile قرار دهید.');
+  }
+
+  let existing = await findTronDisbursementTx(row, tronWeb);
+  if (!existing) {
+    const submitted = await submitTronDisbursement(row, tronWeb);
+    existing = {
+      index: submitted.index,
+      contract: await tronWeb.contract(MULTISIG_ABI, row.multisig_address)
+    };
+  }
+
+  const result = await existing.contract.confirmTransaction(existing.index).send({
+    feeLimit: 150000000,
+    callValue: 0,
+    shouldPollResponse: true
+  });
+  const txHash = typeof result === 'string'
+    ? result
+    : result?.txid || result?.txID || result?.transaction?.txID || null;
+
+  await api('/api/disburse/' + row.id + '/approve', {
+    method: 'POST',
+    body: JSON.stringify({
+      approver: account,
+      onchain_tx_index: existing.index,
+      onchain_tx_hash: txHash
+    })
+  });
+
+  const finalTx = await existing.contract.getTransaction(existing.index).call();
+  if (finalTx.executed) {
+    await api('/api/disburse/' + row.id + '/executed', {
+      method: 'POST',
+      body: JSON.stringify({
+        execute_tx_hash: txHash,
+        onchain_tx_index: existing.index
+      })
+    });
+  }
+
+  return { phase: finalTx.executed ? 'executed' : 'confirmed', txHash, txIndex: existing.index };
 }
 
 export async function loadDisbursePending() {
@@ -267,13 +538,13 @@ export async function loadDisbursePending() {
           rows.map((r) => `<tr>
             <td>${r.id}</td>
             <td>${r.project_id}</td>
-            <td><b>${r.network_id || '—'}</b></td>
+            <td><b>${networkLabel(r.network_id)}</b></td>
             <td>${usdtRaw(r.amount_raw)}</td>
             <td title="${r.from_address || ''}">${short(r.from_address || '')}</td>
             <td title="${r.to_address || ''}">${short(r.to_address || '')}</td>
             <td>${badge(r.status)}</td>
             <td>
-              <button type="button" class="ghost" data-a="${r.id}">تأیید با کیف</button>
+              <button type="button" class="ghost" data-a="${r.id}">اتصال ${walletLabel(r.network_id)} و امضا</button>
               <button type="button" class="ghost" data-d="${r.id}">جزئیات</button>
             </td>
           </tr>`).join('')
@@ -281,19 +552,22 @@ export async function loadDisbursePending() {
 
     $('dList').querySelectorAll('[data-a]').forEach((b) => {
       b.onclick = async () => {
-        let approver = getConnectedApprover();
-        if (!approver) approver = await connectApproverWallet();
-        if (!approver) return alert('ابتدا کیف پول صاحب امضای GENERAL را متصل کنید');
-        if (!confirm('ثبت تأیید با کیف\n' + approver + '؟')) return;
         try {
-          await api('/api/disburse/' + b.dataset.a + '/approve', {
-            method: 'POST',
-            body: JSON.stringify({ approver }),
-          });
-          loadDisbursePending();
-        } catch (e) { alert(e.message); }
+          const d = await api('/api/disburse/' + b.dataset.a);
+          const row = d.disbursement;
+          if (!row) throw new Error('درخواست انتقال پیدا نشد.');
+          const result = await walletAction(row);
+          alert(result.phase === 'executed'
+            ? 'تراکنش on-chain اجرا شد و وضعیت ثبت شد.'
+            : 'امضای on-chain ثبت شد؛ Owner بعدی باید تأیید کند.');
+          await loadDisbursePending();
+          await loadDisburseRounds();
+        } catch (e) {
+          alert(e.message);
+        }
       };
     });
+
     $('dList').querySelectorAll('[data-d]').forEach((b) => {
       b.onclick = async () => {
         try {
