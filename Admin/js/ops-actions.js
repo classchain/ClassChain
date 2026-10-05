@@ -594,7 +594,6 @@ async function walletAction(row) {
   }
 
   const result = await existing.contract.confirmTransaction(existing.index).send({
-    feeLimit: 150000000,
     callValue: 0,
     shouldPollResponse: true
   });
