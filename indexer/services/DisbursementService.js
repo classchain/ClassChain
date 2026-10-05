@@ -71,6 +71,7 @@ export class DisbursementService {
             if (!toAddress) {
                 throw new Error(`project ${projectId} missing funds address on network ${networkId}`);
             }
+            // Multi-sig requires multisigAddress; single-sig may omit it
             if (requiredSignatures > 1 && !multisigAddress) {
                 throw new Error(
                     `GENERAL_POOL requires multisigAddress on network ${networkId} when requiredSignatures=${requiredSignatures}`
