@@ -458,7 +458,6 @@ async function submitTronDisbursement(row, tronWeb) {
   const result = await multisig.submitTransaction(
     row.from_address, 0, data
   ).send({
-    feeLimit: 150000000,
     callValue: 0,
     shouldPollResponse: true
   });
@@ -564,7 +563,7 @@ async function walletAction(row) {
       getTronBase58(window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT')),
       getTronBase58(row.to_address),
       String(row.amount_raw)
-    ).send({ feeLimit: 150000000, callValue: 0, shouldPollResponse: true });
+    ).send({ callValue: 0, shouldPollResponse: true });
     const txHash = typeof result === 'string'
       ? result
       : result?.txid || result?.txID || result?.transaction?.txID || null;
@@ -642,7 +641,9 @@ export async function loadDisbursePending() {
             <td title="${r.to_address || ''}">${short(r.to_address || '')}</td>
             <td>${badge(r.status)}</td>
             <td>
-              <button type="button" class="ghost" data-a="${r.id}">اتصال ${walletLabel(r.network_id)} و امضا</button>
+              ${r.status === 'EXECUTED'
+                ? '<span class="badge" style="background:#34d399">انجام شد</span>'
+                : `<button type="button" class="ghost" data-a="${r.id}">اتصال ${walletLabel(r.network_id)} و امضا</button>`}
               <button type="button" class="ghost" data-d="${r.id}">جزئیات</button>
             </td>
           </tr>`).join('')
