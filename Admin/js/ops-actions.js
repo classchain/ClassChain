@@ -304,6 +304,17 @@ function getTronWeb() {
   return window.tronWeb || window.tron?.tronWeb || null;
 }
 
+function getTronBase58(address, tronWeb = getTronWeb()) {
+  const value = String(address || '').trim();
+  if (!value) throw new Error('آدرس TRON خالی است.');
+  if (value.startsWith('T')) return value;
+  if (/^41[0-9a-fA-F]{40}$/.test(value)) {
+    if (!tronWeb?.address?.fromHex) throw new Error('TronLink برای تبدیل آدرس در دسترس نیست.');
+    return tronWeb.address.fromHex(value);
+  }
+  return value;
+}
+
 function tronBase58ToHex(address, tronWeb) {
   const value = String(address || '').trim();
   if (!value) throw new Error('آدرس TRON خالی است.');
