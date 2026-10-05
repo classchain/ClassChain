@@ -308,9 +308,12 @@ function getTronBase58(address, tronWeb = getTronWeb()) {
   const value = String(address || '').trim();
   if (!value) throw new Error('آدرس TRON خالی است.');
   if (value.startsWith('T')) return value;
-  if (/^41[0-9a-fA-F]{40}$/.test(value)) {
+  // 0x-prefixed 20-byte or 41-prefixed 21-byte hex
+  let hex = value.replace(/^0x/i, '');
+  if (/^[0-9a-fA-F]{40}$/.test(hex)) hex = '41' + hex;
+  if (/^41[0-9a-fA-F]{40}$/.test(hex)) {
     if (!tronWeb?.address?.fromHex) throw new Error('TronLink برای تبدیل آدرس در دسترس نیست.');
-    return tronWeb.address.fromHex(value);
+    return tronWeb.address.fromHex(hex);
   }
   return value;
 }
@@ -318,9 +321,40 @@ function getTronBase58(address, tronWeb = getTronWeb()) {
 function tronBase58ToHex(address, tronWeb) {
   const value = String(address || '').trim();
   if (!value) throw new Error('آدرس TRON خالی است.');
-  if (/^41[0-9a-fA-F]{40}$/.test(value)) return value;
+  let hex = value.replace(/^0x/i, '');
+  if (/^41[0-9a-fA-F]{40}$/.test(hex)) return hex.toLowerCase();
+  if (/^[0-9a-fA-F]{40}$/.test(hex)) return ('41' + hex).toLowerCase();
   if (!tronWeb?.address?.toHex) throw new Error('TronLink برای تبدیل آدرس در دسترس نیست.');
-  return tronWeb.address.toHex(value);
+  return String(tronWeb.address.toHex(value)).replace(/^0x/i, '').toLowerCase();
+}
+
+/** 20-byte hex (0x…) for ABI encodeParams — strips TRON 0x41 prefix */
+function tronAddrToAbiHex(address, tronWeb) {
+  let hex = tronBase58ToHex(address, tronWeb).replace(/^0x/i, '').toLowerCase();
+  if (hex.startsWith('41') && hex.length === 42) hex = hex.slice(2);
+  if (hex.length !== 40) throw new Error('آدرس TRON نامعتبر برای ABI: ' + address);
+  return '0x' + hex;
+}
+
+function sameTronAddr(a, b, tronWeb = getTronWeb()) {
+  if (!a || !b) return false;
+  try {
+    return tronAddrToAbiHex(a, tronWeb) === tronAddrToAbiHex(b, tronWeb);
+  } catch {
+    return String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+  }
+}
+
+function buildTronWithdrawCalldata(tronWeb, token, toAddress, amountRaw) {
+  const params = tronWeb.utils.abi.encodeParams(
+    ['address', 'address', 'uint256'],
+    [
+      tronAddrToAbiHex(token, tronWeb),
+      tronAddrToAbiHex(toAddress, tronWeb),
+      String(amountRaw)
+    ]
+  ).replace(/^0x/, '').toLowerCase();
+  return '01e33667' + params;
 }
 
 function getWalletForRow(row) {
@@ -438,31 +472,33 @@ async function submitEvmDisbursement(row, web3, multisig) {
 
 async function findTronDisbursementTx(row, tronWeb) {
   const token = window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT');
-  const expectedParams = tronWeb.utils.abi.encodeParams(
-    ['address', 'address', 'uint256'],
-    [
-      tronBase58ToHex(token, tronWeb),
-      tronBase58ToHex(row.to_address, tronWeb),
-      String(row.amount_raw)
-    ]
-  ).replace(/^0x/, '').toLowerCase();
-  const expectedData = '01e33667' + expectedParams;
+  const expectedData = buildTronWithdrawCalldata(
+    tronWeb,
+    token,
+    row.to_address,
+    row.amount_raw
+  );
   const multisig = await tronWeb.contract(MULTISIG_ABI, row.multisig_address);
   const count = Number(await multisig.getTransactionCount().call());
 
-  for (let i = count - 1; i >= 0; i--) {
+  // Prefer lowest index with most confirmations so all signers converge on one tx
+  let best = null;
+  for (let i = 0; i < count; i++) {
     const tx = await multisig.getTransaction(i).call();
-    const data = String(tx.data || '').replace(/^0x/, '').toLowerCase();
-    if (
-      String(tx.to || '').toUpperCase() === String(row.from_address || '').toUpperCase() &&
-      String(tx.value || '0') === '0' &&
-      data === expectedData &&
-      !tx.executed
-    ) {
-      return { index: i, confirmations: Number(tx.numConfirmations || 0), contract: multisig };
+    const data = String(tx.data || tx[2] || '').replace(/^0x/i, '').toLowerCase();
+    const toAddr = tx.to || tx[0];
+    const value = String(tx.value ?? tx[1] ?? '0');
+    const executed = tx.executed === true || tx[3] === true;
+    const conf = Number(tx.numConfirmations ?? tx[4] ?? 0);
+    if (executed) continue;
+    if (value !== '0') continue;
+    if (!sameTronAddr(toAddr, row.from_address, tronWeb)) continue;
+    if (data !== expectedData) continue;
+    if (!best || conf > best.confirmations || (conf === best.confirmations && i < best.index)) {
+      best = { index: i, confirmations: conf, contract: multisig };
     }
   }
-  return null;
+  return best;
 }
 
 function extractTronTxId(result) {
@@ -490,16 +526,8 @@ async function sendTronVoid(methodCall) {
 async function submitTronDisbursement(row, tronWeb) {
   const token = window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT');
   if (!token) throw new Error('آدرس USDT شبکه پیدا نشد.');
-  // TronWeb has no encodeABI() like web3; build calldata with selector + encodeParams
-  // selector = first 4 bytes of keccak256("withdrawToken(address,address,uint256)")
-  const data = '0x01e33667' + tronWeb.utils.abi.encodeParams(
-    ['address', 'address', 'uint256'],
-    [
-      tronBase58ToHex(token, tronWeb),
-      tronBase58ToHex(row.to_address, tronWeb),
-      String(row.amount_raw)
-    ]
-  ).replace(/^0x/, '');
+  // calldata without 0x — matches what is stored in multisig.getTransaction().data
+  const data = '0x' + buildTronWithdrawCalldata(tronWeb, token, row.to_address, row.amount_raw);
 
   const multisig = await tronWeb.contract(MULTISIG_ABI, row.multisig_address);
   const txHash = await sendTronVoid(
@@ -607,15 +635,13 @@ async function walletAction(row) {
   if (!account) throw new Error('TronLink قفل است یا حسابی انتخاب نشده است.');
 
   const priorApprovalsT = Array.isArray(row.approvals) ? row.approvals : [];
-  if (priorApprovalsT.some((x) => String(x.approver || '').toLowerCase() === String(account).toLowerCase())) {
+  // Tron base58 is case-sensitive — never lowercase-compare
+  if (priorApprovalsT.some((x) => sameTronAddr(x.approver, account, tronWeb))) {
     throw new Error('این کیف قبلاً برای این درخواست امضا کرده است.');
   }
   const ownersT = Array.isArray(row.multisig_owners) ? row.multisig_owners : [];
   if (ownersT.length) {
-    const acc58 = getTronBase58(account, tronWeb);
-    const ok = ownersT.some((o) => {
-      try { return getTronBase58(o, tronWeb) === acc58; } catch { return String(o).toLowerCase() === String(account).toLowerCase(); }
-    });
+    const ok = ownersT.some((o) => sameTronAddr(o, account, tronWeb));
     if (!ok) throw new Error('کیف متصل در فهرست مالکان GENERAL این شبکه نیست.');
   }
 
