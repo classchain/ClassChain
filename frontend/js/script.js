@@ -8,24 +8,41 @@ const languageButton = document.getElementById("languageButton");
 const languageMenu = document.getElementById("languageMenu");
 
 async function loadTranslations() {
-    const results = await Promise.all(
+    const results = await Promise.allSettled(
         SUPPORTED_LANGS.map(async (lang) => {
-            const res = await fetch(`i18n/${lang}.json`);
-            if (!res.ok) throw new Error(`Failed to load i18n/${lang}.json`);
+            const res = await fetch(`i18n/${lang}.json`, { cache: "no-store" });
+            if (!res.ok) throw new Error(`Failed to load i18n/${lang}.json (${res.status})`);
             translations[lang] = await res.json();
             return lang;
         })
     );
-    return results;
+    const loaded = results
+        .filter((r) => r.status === "fulfilled")
+        .map((r) => r.value);
+    const failed = results.filter((r) => r.status === "rejected");
+    if (failed.length) {
+        console.warn(
+            "i18n partial load failure:",
+            failed.map((r) => r.reason && r.reason.message).join("; ")
+        );
+    }
+    if (!loaded.length) throw new Error("No i18n files loaded");
+    return loaded;
 }
 
 function applyLanguage(lang) {
-    if (!translations[lang]) lang = "fa";
+    if (!translations[lang]) {
+        if (translations.fa) lang = "fa";
+        else if (translations.en) lang = "en";
+        else if (translations.ar) lang = "ar";
+        else return;
+    }
     currentLang = lang;
     const dictionary = translations[lang];
+    if (!dictionary) return;
 
     document.documentElement.lang = lang;
-    document.documentElement.dir = dictionary.dir || "rtl";
+    document.documentElement.dir = dictionary.dir || (lang === "en" ? "ltr" : "rtl");
 
     document.querySelectorAll("[data-i18n]").forEach((el) => {
         const key = el.dataset.i18n;
@@ -38,7 +55,9 @@ function applyLanguage(lang) {
     });
 
     if (languageButton) languageButton.textContent = dictionary.langName || lang.toUpperCase();
-    localStorage.setItem("classchain-language", lang);
+    try {
+        localStorage.setItem("classchain-language", lang);
+    } catch (e) {}
     document.documentElement.classList.add("i18n-ready");
     document.documentElement.setAttribute("data-lang", lang);
 
@@ -64,16 +83,23 @@ function applyLanguage(lang) {
 
 function bindUi() {
     document.querySelectorAll(".language-menu [data-lang]").forEach((btn) => {
-        btn.addEventListener("click", () => applyLanguage(btn.dataset.lang));
+        btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            applyLanguage(btn.dataset.lang);
+        });
     });
 
     if (languageButton && languageMenu) {
         languageButton.addEventListener("click", (e) => {
+            e.preventDefault();
             e.stopPropagation();
             const open = languageMenu.classList.toggle("open");
             languageButton.setAttribute("aria-expanded", String(open));
         });
-        document.addEventListener("click", () => {
+        document.addEventListener("click", (e) => {
+            const switcher = languageButton.closest(".language-switcher");
+            if (switcher && switcher.contains(e.target)) return;
             languageMenu.classList.remove("open");
             languageButton.setAttribute("aria-expanded", "false");
         });
@@ -82,7 +108,10 @@ function bindUi() {
     const mobileMenuButton = document.getElementById("mobileMenuButton");
     const mobileMenu = document.getElementById("mobileMenu");
     if (mobileMenuButton && mobileMenu) {
-        mobileMenuButton.addEventListener("click", () => mobileMenu.classList.toggle("open"));
+        mobileMenuButton.addEventListener("click", (e) => {
+            e.stopPropagation();
+            mobileMenu.classList.toggle("open");
+        });
         document.querySelectorAll(".mobile-menu a").forEach((link) => {
             link.addEventListener("click", () => mobileMenu.classList.remove("open"));
         });
@@ -106,12 +135,15 @@ function bindUi() {
 }
 
 function resolveInitialLanguage() {
-    const saved = localStorage.getItem("classchain-language");
-    if (saved && SUPPORTED_LANGS.includes(saved)) return saved;
+    try {
+        const saved = localStorage.getItem("classchain-language");
+        if (saved && SUPPORTED_LANGS.includes(saved) && translations[saved]) return saved;
+    } catch (e) {}
     const browser = (navigator.language || "fa").toLowerCase();
-    if (browser.startsWith("en")) return "en";
-    if (browser.startsWith("ar")) return "ar";
-    return "fa";
+    if (browser.startsWith("en") && translations.en) return "en";
+    if (browser.startsWith("ar") && translations.ar) return "ar";
+    if (translations.fa) return "fa";
+    return SUPPORTED_LANGS.find((l) => translations[l]) || "fa";
 }
 
 function initHeroNetwork() {
