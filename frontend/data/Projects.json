@@ -735,7 +735,7 @@
           },
           "polygon_amoy": {
             "address": "0x4C2290A31F155EA47079FdFE4dE8Cbbf26E90639",
-            "multisigAddress": null,
+            "multisigAddress": "0xb3624f719734f4cc21d9f2f9ec86780e4b7fbbe4",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x6841751DB259881Cc3C91a048978d02D8F2d9681",
