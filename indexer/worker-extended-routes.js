@@ -326,7 +326,18 @@ export async function handleExtendedRoutes(ctx) {
             error: `wallet ${approver} is not a GENERAL_POOL owner on ${current.network_id}`,
           }, 403);
         }
-        const row = await svc.approve(Number(approveMatch[1]), String(approver));
+        const txIndex = body.onchain_tx_index ?? body.onchainTxIndex;
+        const txHash = body.onchain_tx_hash ?? body.onchainTxHash;
+        if (txIndex === undefined || txIndex === null || !txHash) {
+          return jsonResponse({
+            ok: false,
+            error: 'on-chain multisig transaction index and confirmation tx hash are required',
+          }, 400);
+        }
+        const row = await svc.approve(Number(approveMatch[1]), String(approver), {
+          onchainTxIndex: Number(txIndex),
+          onchainTxHash: String(txHash),
+        });
         return jsonResponse({ ok: true, disbursement: row });
       } catch (e) {
         return jsonResponse({ ok: false, error: e.message }, 400);
@@ -342,7 +353,8 @@ export async function handleExtendedRoutes(ctx) {
         const svc = new DisbursementService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
         const result = await svc.markExecuted(
           Number(executedMatch[1]),
-          body.tx_hash || body.txHash || body.execute_tx_hash || null
+          body.tx_hash || body.txHash || body.execute_tx_hash || null,
+          body.onchain_tx_index ?? body.onchainTxIndex ?? null
         );
         const row = result?.disbursement || result;
         const round_finalize = result?.round_finalize || null;

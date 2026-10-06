@@ -6,6 +6,9 @@
  *
  * Round becomes ALLOCATED only after related disbursements are EXECUTED
  * (see VotingService.finalizeRoundIfBatchComplete).
+ *
+ * Supports Single-Sig (requiredSignatures <= 1, no multisig) and Multi-Sig
+ * for any number of networks.
  */
 
 import { DisbursementRepository } from '../db/DisbursementRepository.js';
@@ -60,29 +63,19 @@ export class DisbursementService {
             const fromAddress = fromFund?.address || null;
             const toAddress = toFund?.address || null;
             const requiredSignatures = Number(fromFund?.requiredSignatures) || 1;
+            const multisigAddress = fromFund?.multisigAddress || null;
 
-            if (!fromAddress || !toAddress) {
-                const row = await this.repo.insert({
-                    allocationBatchId,
-                    projectId,
-                    networkId,
-                    fromAddress: fromAddress || '',
-                    toAddress: toAddress || '',
-                    amountRaw: String(amount),
-                    status: 'NO_DESTINATION',
-                    requiredSignatures,
-                });
-                created.push({
-                    network_id: networkId,
-                    status: 'NO_DESTINATION',
-                    amount_raw: String(amount),
-                    reason: !fromAddress
-                        ? 'GENERAL_POOL missing address on this network'
-                        : 'project missing funds address on this network',
-                    id: row.id,
-                    inserted: row.inserted,
-                });
-                continue;
+            if (!fromAddress) {
+                throw new Error(`GENERAL_POOL missing address on network ${networkId}`);
+            }
+            if (!toAddress) {
+                throw new Error(`project ${projectId} missing funds address on network ${networkId}`);
+            }
+            // Multi-sig requires multisigAddress; single-sig may omit it
+            if (requiredSignatures > 1 && !multisigAddress) {
+                throw new Error(
+                    `GENERAL_POOL requires multisigAddress on network ${networkId} when requiredSignatures=${requiredSignatures}`
+                );
             }
 
             const row = await this.repo.insert({
@@ -102,7 +95,7 @@ export class DisbursementService {
                 amount_raw: String(amount),
                 from_address: fromAddress,
                 to_address: toAddress,
-                multisig_address: fromFund?.multisigAddress || null,
+                multisig_address: multisigAddress,
                 required_signatures: requiredSignatures,
                 id: row.id,
                 inserted: row.inserted,
@@ -141,12 +134,13 @@ export class DisbursementService {
                 ...row,
                 multisig_address: fund?.multisigAddress || null,
                 required_signatures: Number(row.required_signatures) || Number(fund?.requiredSignatures) || 1,
+                multisig_owners: Array.isArray(fund?.owners) ? fund.owners : [],
                 project_name: project?.ProjectName || project?.Name || null,
             };
         });
     }
 
-    async approve(disbursementId, approver) {
+    async approve(disbursementId, approver, onchain = {}) {
         if (!approver) throw new Error('approver is required');
 
         const row = await this.repo.get(disbursementId);
@@ -158,7 +152,9 @@ export class DisbursementService {
         const count = await this.repo.addApproval(
             disbursementId,
             String(approver).toLowerCase(),
-            Math.floor(Date.now() / 1000)
+            Math.floor(Date.now() / 1000),
+            onchain.onchainTxIndex ?? null,
+            onchain.onchainTxHash ?? null
         );
 
         const required = Number(row.required_signatures) || 1;

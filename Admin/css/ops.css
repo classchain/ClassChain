@@ -210,3 +210,62 @@ pre {
   .net-bar-row { grid-template-columns: 70px 1fr 52px; }
   .ops-header h1 { font-size: 1rem; }
 }
+
+
+/* Disburse per-network cards (ops tab) */
+.disb-list { display: flex; flex-direction: column; gap: 14px; }
+.disb-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+}
+.disb-card.is-done { opacity: 0.85; border-color: rgba(52, 211, 153, 0.35); }
+.disb-card-head {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  gap: 12px; margin-bottom: 12px;
+}
+.disb-card-head strong { font-size: 0.95rem; }
+.disb-card-head .muted { margin-right: 8px; font-size: 0.8rem; }
+.disb-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px; margin-bottom: 12px;
+}
+.disb-grid > div {
+  background: rgba(0,0,0,0.2); border-radius: 10px; padding: 10px 12px;
+}
+.disb-grid span { display: block; font-size: 0.7rem; color: var(--muted); margin-bottom: 4px; }
+.disb-grid strong, .disb-grid code {
+  font-size: 0.85rem; font-variant-numeric: tabular-nums;
+}
+.disb-grid code { font-family: var(--mono); direction: ltr; display: inline-block; }
+
+.disb-signers {
+  border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px; margin: 10px 0; background: rgba(0,0,0,0.15);
+}
+.disb-signers-head {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
+}
+.disb-signers-head strong { font-size: 0.85rem; }
+.disb-signer-row {
+  display: grid; grid-template-columns: 28px 1fr auto auto;
+  gap: 8px; align-items: center; padding: 8px 0;
+  border-top: 1px dashed rgba(120,140,200,0.12);
+}
+.disb-signer-row.is-signed { opacity: 0.75; }
+.disb-signer-idx {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 0.7rem; font-weight: 700;
+  background: rgba(124,108,255,0.2); color: #c4b5fd;
+}
+.disb-signer-addr { font-family: var(--mono); font-size: 0.78rem; direction: ltr; text-align: left; }
+.disb-signer-st { font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+.disb-signer-row.is-signed .disb-signer-st { color: var(--good); }
+.disb-signer-act button { white-space: nowrap; }
+.disb-card-actions {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px;
+}
+@media (max-width: 640px) {
+  .disb-signer-row { grid-template-columns: 28px 1fr; }
+  .disb-signer-st, .disb-signer-act { grid-column: 2; }
+}

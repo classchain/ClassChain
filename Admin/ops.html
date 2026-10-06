@@ -174,13 +174,11 @@
           <button type="button" class="ghost" id="dRefresh">بروزرسانی pending</button>
         </div>
         <p class="muted" style="margin:8px 0 10px;font-size:0.85rem;line-height:1.6">
-          هر شبکه یک ردیف: GENERAL_POOL → پروژه. تأیید فقط با <strong>اتصال کیف پول</strong> صاحب امضای GENERAL روی همان شبکه.
-          آدرس دستی قبول نیست؛ Worker کلید ندارد و بدون امضای کیف تراکنش on-chain ساخته نمی‌شود.
+          هر شبکه یک کارت جدا: <strong>GENERAL_POOL → خزانه پروژه</strong>.
+          تک‌امضا یا چندامضا از روی Projects.json تشخیص داده می‌شود.
+          برای هر Owner دکمهٔ اختصاصی؛ بعد از امضا/اجرا دکمه قفل می‌شود.
+          کارمزد را شبکه تعیین می‌کند — سایت هیچ fee/gas محاسبه نمی‌کند.
         </p>
-        <div class="row">
-          <button type="button" class="primary" id="dConnectWallet">اتصال کیف پول امضاکننده</button>
-          <span id="dWalletStatus" class="muted" style="font-size:13px">کیف متصل نیست</span>
-        </div>
         <div id="dList" class="muted" style="margin-top:10px">…</div>
         <div id="dDetail"></div>
       </div>

@@ -29,6 +29,12 @@ const MULTISIG_ABI = [
     outputs: []
   },
   {
+    name: 'getOwners',
+    type: 'function',
+    inputs: [],
+    outputs: [{ name: '', type: 'address[]' }]
+  },
+  {
     name: 'getTransactionCount',
     type: 'function',
     inputs: [],
@@ -86,6 +92,58 @@ function statusBadge(status) {
   const c = colors[status] || '#7f8c8d';
   return `<span style="background:${c};color:#fff;padding:2px 8px;border-radius:6px;font-size:12px;">${status}</span>`;
 }
+function networkLabel(networkId) {
+  return networkId === 'tron_nile' ? 'TRON / Nile' : networkId === 'evm_amoy' ? 'EVM / Amoy' : networkId;
+}
+
+function walletLabel(networkId) {
+  return networkId === 'tron_nile' ? 'TronLink' : 'MetaMask';
+}
+
+function normalizeOwnerAddress(address) {
+  return String(address || '').trim().toLowerCase();
+}
+
+function renderSignerState(row) {
+  const required = Number(row.required_signatures) || 1;
+  const owners = Array.isArray(row.multisig_owners) ? row.multisig_owners : [];
+  const approvals = Array.isArray(row.approvals) ? row.approvals : [];
+  const approved = new Set(approvals.map(a => normalizeOwnerAddress(a.approver)));
+  const ownerRows = owners.map((owner, i) => `
+    <div class="disburse-signer ${approved.has(normalizeOwnerAddress(owner)) ? 'is-approved' : ''}">
+      <span class="disburse-signer-index">${i + 1}</span>
+      <span class="disburse-signer-address">${shortAddr(owner)}</span>
+      <span class="disburse-signer-status">${approved.has(normalizeOwnerAddress(owner)) ? '✓ امضا شده' : 'در انتظار امضا'}</span>
+    </div>`).join('');
+  return `
+    <div class="disburse-signers">
+      <div class="disburse-signers-head">
+        <strong>امضاها: ${Math.min(Number(row.confirmations_count) || 0, required)}/${required}</strong>
+        <span class="muted">${owners.length ? owners.length + ' مالک Multisig' : 'فهرست مالکان در دسترس نیست'}</span>
+      </div>
+      ${ownerRows || '<div class="muted">فهرست امضاکنندگان ثبت نشده است.</div>'}
+    </div>`;
+}
+
+async function readMultisigOwners(row) {
+  if (!row.multisig_address) return [];
+  try {
+    const wallet = getWalletProvider(row.network_id);
+    if (wallet.type === 'EVM') {
+      await ensureEvmNetwork(wallet.provider, wallet.network.chainId);
+      const web3 = new Web3(wallet.provider);
+      const multisig = new web3.eth.Contract(MULTISIG_ABI, row.multisig_address);
+      const owners = await multisig.methods.getOwners().call();
+      return Array.isArray(owners) ? owners : [];
+    }
+    const contract = await wallet.provider.contract(MULTISIG_ABI, row.multisig_address);
+    const owners = await contract.getOwners().call();
+    return Array.isArray(owners) ? owners : [];
+  } catch {
+    return Array.isArray(row.multisig_owners) ? row.multisig_owners : [];
+  }
+}
+
 
 function hideLegacyControls() {
   ['disburseApprover', 'disburseBatchId', 'disburseProjectId', 'disbursePrepareBtn'].forEach(id => {
@@ -237,7 +295,7 @@ async function walletAction(row) {
     await recordOnchainState(row.id, existing.index, txHash, account);
     const finalTx = await multisig.methods.getTransaction(existing.index).call();
     if (finalTx.executed) {
-      await indexerFetch(`/api/disburse/${row.id}/executed`, { method: 'POST', body: JSON.stringify({ execute_tx_hash: txHash }) });
+      await indexerFetch(`/api/disburse/${row.id}/executed`, { method: 'POST', body: JSON.stringify({ execute_tx_hash: txHash, onchain_tx_index: existing.index }) });
     }
     return { phase: 'confirmed', txIndex: existing.index, txHash };
   }
@@ -252,7 +310,7 @@ async function walletAction(row) {
   await recordOnchainState(row.id, existing.index, txHash, tronWeb.defaultAddress.base58);
   const finalTx = await existing.contract.getTransaction(existing.index).call();
   if (finalTx.executed) {
-    await indexerFetch(`/api/disburse/${row.id}/executed`, { method: 'POST', body: JSON.stringify({ execute_tx_hash: txHash }) });
+    await indexerFetch(`/api/disburse/${row.id}/executed`, { method: 'POST', body: JSON.stringify({ execute_tx_hash: txHash, onchain_tx_index: existing.index }) });
   }
   return { phase: 'confirmed', txIndex: existing.index, txHash };
 }
@@ -277,53 +335,48 @@ export async function loadDisbursePending() {
   box.innerHTML = '<p style="color:#888;">در حال بارگذاری…</p>';
 
   try {
+    const data = await indexerFetch('/api/disburse/pending');
+    let rows = data.pending || [];
     const networkId = el('disburseNetworkFilter')?.value || '';
-    const q = networkId ? `?network_id=${encodeURIComponent(networkId)}` : '';
-    const data = await indexerFetch(`/api/disburse/pending${q}`);
-    const rows = data.pending || [];
     syncNetworkFilter(rows);
+    if (networkId) rows = rows.filter(r => r.network_id === networkId);
 
     if (!rows.length) {
       box.innerHTML = '<p style="color:#666;">درخواستی در انتظار تأیید نیست.</p>';
       return;
     }
 
-    box.innerHTML = `
-      <table class="admin-simple-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>پروژه</th>
-            <th>شبکه</th>
-            <th>مبلغ (USDT)</th>
-            <th>از → به</th>
-            <th>امضاها</th>
-            <th>وضعیت</th>
-            <th>عملیات</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(r => {
-            const signatures = `${r.confirmations_count || 0}/${r.required_signatures || 1}`;
-            const action = r.multisig_address ? 'اقدام با کیف پول' : 'نیازمند Multisig';
+    const enriched = await Promise.all(rows.map(async r => {
+      const detail = await indexerFetch(`/api/disburse/${r.id}`);
+      const d = detail.disbursement || r;
+      return { ...r, ...d, multisig_owners: d.multisig_owners || [] };
+    }));
 
-            return `
-              <tr>
-                <td>${r.id}</td>
-                <td><code>${r.project_id}</code></td>
-                <td>${r.network_id}</td>
-                <td><strong>${formatUsdt(r.amount_raw)}</strong></td>
-                <td style="font-size:11px;">${shortAddr(r.from_address)} → ${shortAddr(r.to_address)}</td>
-                <td>${signatures}</td>
-                <td>${statusBadge(r.status)}</td>
-                <td>
-                  <button type="button" class="btn-secondary btn-sm" data-disburse-wallet="${r.id}">${action}</button>
-                  <button type="button" class="btn-secondary btn-sm" data-disburse-detail="${r.id}">جزئیات</button>
-                </td>
-              </tr>`;
-          }).join('')}
-        </tbody>
-      </table>`;
+    box.innerHTML = `
+      <div class="disburse-allocation-list">
+        ${enriched.map(r => `
+          <article class="disburse-allocation-card">
+            <div class="disburse-card-header">
+              <div><strong>تخصیص #${r.id}</strong><span class="muted">پروژه ${r.project_id}</span></div>
+              ${statusBadge(r.status)}
+            </div>
+            <div class="disburse-network-grid">
+              <div><span>شبکه</span><strong>${networkLabel(r.network_id)}</strong></div>
+              <div><span>مبلغ</span><strong>${formatUsdt(r.amount_raw)} USDT</strong></div>
+              <div><span>مبدأ</span><code>${shortAddr(r.from_address)}</code></div>
+              <div><span>مقصد</span><code>${shortAddr(r.to_address)}</code></div>
+            </div>
+            <div class="disburse-multisig">
+              <div><span>Multisig</span><code>${shortAddr(r.multisig_address)}</code></div>
+              ${renderSignerState(r)}
+            </div>
+            <div class="disburse-card-actions">
+              ${r.status !== 'EXECUTED' ? `<button type="button" class="btn-connect btn-sm" data-disburse-wallet="${r.id}">🔗 اتصال ${walletLabel(r.network_id)} و امضا</button>` : '<span class="disburse-executed">✓ انتقال اجرا شده</span>'}
+              <button type="button" class="btn-secondary btn-sm" data-disburse-detail="${r.id}">جزئیات</button>
+            </div>
+          </article>`).join('')}
+      </div>`;
+
   } catch (e) {
     box.innerHTML = `<p style="color:#e74c3c;">خطا: ${e.message}</p>`;
   }

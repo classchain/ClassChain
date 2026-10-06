@@ -277,3 +277,28 @@ body {
   .form-group input,
   .form-group select { max-width: 100%; }
 }
+
+
+/* Per-allocation, per-network disbursement cards */
+.disburse-allocation-list{display:grid;gap:14px}
+.disburse-allocation-card{background:#fff;border:1px solid #e1e7ea;border-radius:12px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+.disburse-card-header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.disburse-card-header>div{display:flex;align-items:center;gap:10px}
+.disburse-network-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:14px}
+.disburse-network-grid>div{border:1px solid #edf0f2;border-radius:8px;padding:9px;background:#fafbfc}
+.disburse-network-grid span,.disburse-multisig>div>span{display:block;color:#89929a;font-size:11px;margin-bottom:4px}
+.disburse-network-grid strong{font-size:13px}
+.disburse-network-grid code,.disburse-multisig code{font-size:11px;direction:ltr;display:block;text-align:left}
+.disburse-multisig{border-top:1px solid #edf0f2;padding-top:12px}
+.disburse-signers{margin-top:10px}
+.disburse-signers-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}
+.disburse-signer{display:flex;align-items:center;gap:9px;padding:7px 9px;border:1px solid #edf0f2;border-radius:7px;margin-top:6px;background:#fafbfc}
+.disburse-signer.is-approved{background:#f0faf5;border-color:#ccebdc}
+.disburse-signer-index{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#e9edf0;font-size:11px;font-weight:700}
+.disburse-signer-address{font-family:ui-monospace,monospace;font-size:11px;direction:ltr}
+.disburse-signer-status{margin-right:auto;font-size:11px;color:#7b858d}
+.disburse-signer.is-approved .disburse-signer-status{color:#1e8449;font-weight:700}
+.disburse-card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.disburse-executed{display:inline-flex;align-items:center;padding:6px 10px;border-radius:7px;background:#d5f5e3;color:#1e8449;font-size:12px;font-weight:700}
+@media(max-width:900px){.disburse-network-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.disburse-network-grid{grid-template-columns:1fr}.disburse-card-header,.disburse-signers-head{align-items:flex-start;flex-direction:column}}
