@@ -63,7 +63,7 @@ function applyLanguage(lang) {
 }
 
 function bindUi() {
-    document.querySelectorAll("[data-lang]").forEach((btn) => {
+    document.querySelectorAll(".language-menu [data-lang]").forEach((btn) => {
         btn.addEventListener("click", () => applyLanguage(btn.dataset.lang));
     });
 
