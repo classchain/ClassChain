@@ -387,21 +387,53 @@ img { max-width: 100%; display: block; }
 .qr-section {
     text-align: center;
     margin: 1.5rem 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .qr-section h3 {
     font-size: 0.95rem;
     color: var(--green-900);
     margin-bottom: 0.75rem;
+    width: 100%;
+    text-align: center;
 }
 
 #qrcode {
-    margin: 0.75rem auto;
-    display: inline-block;
-    padding: 10px;
-    background: #fff;
-    border-radius: 12px;
-    border: 1px solid var(--border);
+    margin: 0.75rem auto 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+#qrcode img,
+#qrcode canvas {
+    display: block;
+    margin-inline: auto;
+}
+
+#qrcode #qrAddressText {
+    text-align: center;
+    white-space: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+    width: max-content;
+    margin-inline: auto;
+    word-break: normal;
+    overflow-wrap: normal;
+}
+
+#qrcode #qrNetworkMeta {
+    text-align: center;
+    margin-inline: auto;
 }
 
 /* Sidebar pieces */
