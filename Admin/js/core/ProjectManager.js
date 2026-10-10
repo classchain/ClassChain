@@ -272,21 +272,25 @@ export class ProjectManager {
   }
 
   async _getFileSha(workerUrl, adminKey, path) {
+    const response = await fetch(`${workerUrl}?path=${encodeURIComponent(path)}`, {
+      method: 'GET',
+      headers: { 'X-Admin-Key': adminKey }
+    });
+
+    let data = {};
     try {
-      const response = await fetch(`${workerUrl}?path=${encodeURIComponent(path)}`, {
-        method: 'GET',
-        headers: { 'X-Admin-Key': adminKey }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return data.sha;
-      }
-
-      return null;
-    } catch (error) {
-      return null;
+      data = await response.json();
+    } catch {
+      // Keep the generic error below; do not expose upstream response details.
     }
+
+    if (!response.ok) {
+      throw new Error(data.error || `دریافت نسخه فعلی فایل ناموفق بود (HTTP ${response.status})`);
+    }
+    if (typeof data.sha !== 'string' || !/^[a-f0-9]{40}$/i.test(data.sha)) {
+      throw new Error('نسخه فعلی Projects.json از GitHub دریافت نشد؛ برای جلوگیری از بازنویسی ناخواسته، ذخیره متوقف شد.');
+    }
+    return data.sha;
   }
 
   getProjectsByNetwork(networkId) {
