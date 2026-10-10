@@ -1155,39 +1155,15 @@ window.pushToGitHub = async () => {
     const textarea = document.getElementById('jsonOutput');
     if (!textarea) return;
 
-    // بررسی توکن
-    const token = localStorage.getItem('github_token');
-    if (!token) {
-        // نمایش پیام برای وارد کردن توکن
-        const result = document.getElementById('createResult');
-        if (result) {
-            result.innerHTML += `
-                <div style="margin-top:15px;padding:15px;background:#fde8e8;border:2px solid #e74c3c;border-radius:8px;">
-                    <h4 style="color:#e74c3c;">❌ توکن GitHub تنظیم نشده است</h4>
-                    <p style="font-size:13px;">لطفاً توکن خود را در بخش <strong>تنظیمات</strong> وارد کنید.</p>
-                    <button onclick="document.querySelector('[data-section=\\"settings\\"]')?.click();" 
-                            style="padding:8px 16px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer;">
-                        ⚙️ رفتن به تنظیمات
-                    </button>
-                </div>
-            `;
-        }
-        return;
+    const btn = document.querySelector('#createResult button[onclick="window.pushToGitHub()"]');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ در حال آپلود...';
     }
 
     try {
-        // نمایش لودینگ
-        const btn = event?.target;
-        if (btn) {
-            btn.disabled = true;
-            btn.textContent = '⏳ در حال آپلود...';
-        }
-
         await projectManager.pushToGitHub(textarea.value);
-
-        // پیام موفقیت
         showTemporaryMessage('✅ فایل با موفقیت به GitHub آپلود شد!');
-
     } catch (error) {
         console.error('❌ خطا در آپلود:', error);
         showError('❌ خطا در آپلود به GitHub: ' + (error.message || 'نامشخص'));
@@ -1315,18 +1291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // ذخیره توکن GitHub
-    const saveTokenBtn = document.querySelector('[onclick="saveGitHubToken()"]');
-    if (saveTokenBtn) {
-        saveTokenBtn.addEventListener('click', () => {
-            const input = document.getElementById('githubToken');
-            if (input && input.value) {
-                localStorage.setItem('github_token', input.value);
-                alert('✅ توکن ذخیره شد!');
-                input.value = '';
-            }
-        });
-    }
+
 });
 
 console.log('✅ app.js بارگذاری شد');
