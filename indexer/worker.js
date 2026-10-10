@@ -85,7 +85,7 @@ function readNumber(env, key, fallback) {
 
 function requireAdmin(request, env) {
   const secret = env.INDEXER_SYNC_SECRET;
-  if (!secret) return true;
+  if (!secret) return false;
   return request.headers.get('X-Indexer-Secret') === secret;
 }
 
