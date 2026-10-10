@@ -4,10 +4,18 @@ export const PROJECTS_URL = '../frontend/data/Projects.json';
 export const NET_COLORS = ['#22d3ee','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c','#4ade80'];
 
 export function $(id) { return document.getElementById(id); }
+
 export function getSecret() {
-  return sessionStorage.getItem('classchain_indexer_secret') || localStorage.getItem('classchain_indexer_secret') || '';
+  return sessionStorage.getItem('classchain_indexer_secret') || '';
 }
-export function setSecret(s) { if (s) sessionStorage.setItem('classchain_indexer_secret', s.trim()); }
+
+export function setSecret(s) {
+  // پاک کردن نسخه قدیمی از localStorage (اگر وجود داشته باشد)
+  try { localStorage.removeItem('classchain_indexer_secret'); } catch (_) {}
+  if (s) sessionStorage.setItem('classchain_indexer_secret', s.trim());
+  else sessionStorage.removeItem('classchain_indexer_secret');
+}
+
 export function fmtUsdt(n, digits = 1) {
   if (n == null || Number.isNaN(n)) return '—';
   const x = Number(n);
