@@ -10,7 +10,6 @@ export function getSecret() {
 }
 
 export function setSecret(s) {
-  // پاک کردن نسخه قدیمی از localStorage (اگر وجود داشته باشد)
   try { localStorage.removeItem('classchain_indexer_secret'); } catch (_) {}
   if (s) sessionStorage.setItem('classchain_indexer_secret', s.trim());
   else sessionStorage.removeItem('classchain_indexer_secret');
