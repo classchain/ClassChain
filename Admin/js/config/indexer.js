@@ -6,15 +6,13 @@ export const INDEXER_URL =
   'https://classchain-indexer.classchain.workers.dev';
 
 export function getIndexerSecret() {
-  return (
-    sessionStorage.getItem('classchain_indexer_secret') ||
-    localStorage.getItem('classchain_indexer_secret') ||
-    ''
-  );
+  return sessionStorage.getItem('classchain_indexer_secret') || '';
 }
 
 export function setIndexerSecret(secret) {
+  try { localStorage.removeItem('classchain_indexer_secret'); } catch (_) {}
   if (secret) sessionStorage.setItem('classchain_indexer_secret', secret.trim());
+  else sessionStorage.removeItem('classchain_indexer_secret');
 }
 
 /**
