@@ -59,7 +59,7 @@ function decodeAndValidate(content) {
   if (typeof content !== 'string' || !content) throw new Error('Invalid content');
   let decoded;
   try {
-    const binary = atob(content.replace(/\\s/g, ''));
+    const binary = atob(content.replace(/\s/g, ''));
     const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
     decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
   } catch {
@@ -153,7 +153,7 @@ export default {
     }
 
     const contentLength = request.headers.get('Content-Length');
-    if (contentLength && (!/^\\d+$/.test(contentLength) || Number(contentLength) > MAX_REQUEST_BYTES)) {
+    if (contentLength && (!/^\d+$/.test(contentLength) || Number(contentLength) > MAX_REQUEST_BYTES)) {
       return response({ error: 'Request too large or invalid length' }, 413, headers);
     }
 
@@ -203,7 +203,7 @@ export default {
           },
           body: JSON.stringify({
             message: body.message.trim(),
-            content: body.content.replace(/\\s/g, ''),
+            content: body.content.replace(/\s/g, ''),
             sha: body.sha,
             branch: BRANCH,
           }),
