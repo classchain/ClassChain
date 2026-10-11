@@ -822,7 +822,7 @@
         "funds": {
           "polygon_amoy": {
             "address": "0x8EfD89e54d2edf2F61F8c4d7492e2C57cE98805E",
-            "multisigAddress": null,
+            "multisigAddress": "0xfBb36945B1bb4ADf8f983DCBf77CBD09D017724a",
             "owners": [
               "0x9626438503C8832A65eCc931B124825c417e467e",
               "0x45caEd6C67f0dCAafec6b69475a43bc5Dec20961"
