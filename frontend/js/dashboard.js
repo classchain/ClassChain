@@ -1287,7 +1287,7 @@ document.addEventListener(
 
             btnMeta.addEventListener(
                 "click",
-                connectMetaMask
+                () => connectMetaMask(false)
             );
         }
 
