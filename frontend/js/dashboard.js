@@ -159,7 +159,7 @@ function shortAddress(address, start = 8, end = 6) {
  * ============================================================
  */
 
-async function connectMetaMask() {
+async function connectMetaMask(forceWalletConnect = false) {
 
     console.log("[Dashboard] MetaMask clicked");
 
@@ -192,7 +192,9 @@ async function connectMetaMask() {
         }
 
         const wm = new window.ClassChainWalletManager();
-        const conn = await wm.connect(net);
+        const conn = forceWalletConnect
+            ? await wm.connectWithWalletConnect(net)
+            : await wm.connect(net);
 
         userAddress = normalizeAddress(conn.account);
         userAddressType = "EVM";
@@ -200,7 +202,7 @@ async function connectMetaMask() {
         const accountDisplay = getElement("accountDisplay");
         if (accountDisplay) {
             accountDisplay.textContent =
-                `وصل شد (MetaMask): ${shortAddress(userAddress, 8, 6)}`;
+                `وصل شد (${forceWalletConnect ? "WalletConnect" : "MetaMask"}): ${shortAddress(userAddress, 8, 6)}`;
         }
 
         const connectSection = getElement("connectSection");
@@ -223,7 +225,7 @@ async function connectMetaMask() {
             alert("اتصال MetaMask لغو شد.");
         } else {
             alert(
-                "خطا در اتصال MetaMask: " +
+                (forceWalletConnect ? "خطا در اتصال WalletConnect: " : "خطا در اتصال MetaMask: ") +
                 (error?.message || "مشکل ناشناخته")
             );
         }
@@ -1275,6 +1277,11 @@ document.addEventListener(
                 "btnTronLink"
             );
 
+        const btnWalletConnect =
+            getElement(
+                "btnWalletConnect"
+            );
+
 
         if (btnMeta) {
 
@@ -1293,6 +1300,13 @@ document.addEventListener(
             );
         }
 
+
+        if (btnWalletConnect) {
+            btnWalletConnect.addEventListener(
+                "click",
+                () => connectMetaMask(true)
+            );
+        }
 
         console.log(
             "[Dashboard] آماده شد."

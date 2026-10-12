@@ -123,7 +123,8 @@ button {
 }
 
 .btn-metamask,
-.btn-tronlink {
+.btn-tronlink,
+.btn-walletconnect {
     padding: 1rem 1.8rem;
     border: none;
     border-radius: 12px;
@@ -152,4 +153,29 @@ button {
 .btn-tronlink:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(255, 6, 10, 0.4);
+}
+
+
+.btn-walletconnect {
+    background: linear-gradient(135deg, #3b99fc, #1e40af);
+    color: white;
+}
+
+.btn-walletconnect:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(59, 153, 252, 0.4);
+}
+
+@media (max-width: 640px) {
+    .wallet-buttons {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .btn-metamask,
+    .btn-tronlink,
+    .btn-walletconnect {
+        width: 100%;
+        min-width: 0;
+    }
 }
