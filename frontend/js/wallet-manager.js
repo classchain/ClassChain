@@ -951,28 +951,32 @@
             }
 
             const tronProvider = window.tron || window.tronWeb;
-            let tronWeb = window.tronWeb;
+            let tronWeb = tronProvider?.tronWeb || window.tronWeb;
+            let accounts = [];
 
-            if (window.tron && window.tron.tronWeb) {
-                tronWeb = window.tron.tronWeb;
-            }
-
+            // روش رسمی جدید: درخواست اتصال از افزونه، که در حالت قفل
+            // باید پنجره تأیید/بازکردن قفل TronLink را فعال کند.
             if (tronProvider && typeof tronProvider.request === 'function') {
-                try {
-                    await tronProvider.request({
-                        method: 'tron_requestAccounts'
-                    });
-                } catch (e) {
-                    // بعضی نسخه‌ها این متد را ندارند
-                }
+                accounts = await tronProvider.request({
+                    method: 'eth_requestAccounts'
+                });
             } else if (tronWeb && typeof tronWeb.request === 'function') {
-                await tronWeb.request({ method: 'tron_requestAccounts' });
+                // سازگاری با نسخه‌های قدیمی که provider جداگانه ندارند.
+                const result = await tronWeb.request({
+                    method: 'eth_requestAccounts'
+                });
+                accounts = Array.isArray(result) ? result : [];
             }
 
-            const account = tronWeb?.defaultAddress?.base58;
-            if (!account) {
+            // بعد از تأیید اتصال، TronLink ممکن است tronWeb را تازه‌سازی کند.
+            tronWeb = tronProvider?.tronWeb || window.tronWeb || tronWeb;
+            const account =
+                (Array.isArray(accounts) && accounts[0]) ||
+                tronWeb?.defaultAddress?.base58;
+
+            if (!account || !tronWeb || tronWeb === false) {
                 throw new Error(
-                    'TronLink قفل است یا هیچ حسابی انتخاب نشده است'
+                    'اتصال TronLink تأیید نشد یا حسابی انتخاب نشده است. قفل کیف پول را باز کنید و دوباره تلاش کنید.'
                 );
             }
 
