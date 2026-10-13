@@ -176,24 +176,6 @@ function cors(request, env) {
   return headers;
 }
 
-// Hash first, then compare fixed-length digests to avoid a character-by-character
-// early exit. This does not replace a proper identity/session system.
-async function secretMatches(provided, expected) {
-  if (typeof provided !== 'string' || typeof expected !== 'string' || !provided || !expected) return false;
-  if (provided.length > 512 || expected.length > 512) return false;
-
-  const encoder = new TextEncoder();
-  const [a, b] = await Promise.all([
-    crypto.subtle.digest('SHA-256', encoder.encode(provided)),
-    crypto.subtle.digest('SHA-256', encoder.encode(expected)),
-  ]);
-  const left = new Uint8Array(a);
-  const right = new Uint8Array(b);
-  let diff = 0;
-  for (let i = 0; i < left.length; i++) diff |= left[i] ^ right[i];
-  return diff === 0;
-}
-
 function decodeAndValidate(content) {
   if (typeof content !== 'string' || !content) throw new Error('Invalid content');
   let decoded;
@@ -261,7 +243,6 @@ export default {
       return response({ error: 'GitHub integration unavailable' }, 503, headers);
     }
 
-    const url = new URL(request.url);
     if (request.method === 'GET') {
       if (url.searchParams.get('path') !== ALLOWED_PATH) {
         return response({ error: 'Path not allowed' }, 403, headers);
