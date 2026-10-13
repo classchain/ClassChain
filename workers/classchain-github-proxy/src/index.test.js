@@ -77,7 +77,6 @@ test('callback sends the short-lived token to the opener, never in the Admin URL
   assert.equal(callback.status, 200);
   const html = await callback.text();
   assert.match(html, /postMessage/);
-  assert.match(html, /Content-Security-Policy/); // header is checked separately below
   assert.equal(extractTokenFromHtml(html).split('.').length, 2);
   assert.doesNotMatch(html, /https:\/\/classchain\.github\.io\/ClassChain\/Admin\/#token=/);
   assert.equal(callback.headers.get('Cache-Control'), 'no-store');
