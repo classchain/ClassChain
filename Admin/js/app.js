@@ -9,6 +9,7 @@ import {
 import { NetworkManager } from './core/NetworkManager.js';
 import { ContractManager } from './core/ContractManager.js';
 import { ProjectManager } from './core/ProjectManager.js';
+import { getAdminToken, startAdminLogin, clearAdminAuth } from './core/AdminAuth.js';
 import { setupAddProject } from './addProject.js';
 
 // نرمال‌سازی آدرس Tron (از helper مشترک config)
@@ -31,18 +32,46 @@ function normalizeAddressesForNetwork(fundAddress, ownerOrMultisig, owners) {
 // ============================================
 // احراز هویت ادمین (رمز فقط در session نگه داشته میشه)
 // ============================================
+// احراز هویت با GitHub OAuth؛ توکن فقط در حافظه صفحه می‌ماند
 function ensureAdminAuth() {
-  let key = sessionStorage.getItem('classchain_admin_key');
-  if (!key) {
-    key = prompt('🔐 رمز ادمین را وارد کنید:');
-    if (key && key.trim()) {
-      sessionStorage.setItem('classchain_admin_key', key.trim());
-    } else {
-      alert('بدون رمز ادمین، امکان ذخیره خزانه‌ها روی گیت‌هاب نخواهد بود.');
-    }
-  }
-  return sessionStorage.getItem('classchain_admin_key');
+    return Boolean(getAdminToken());
 }
+
+window.ensureAdminAuth = ensureAdminAuth;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const loginButton = document.getElementById('adminLoginBtn');
+    const status = document.getElementById('adminAuthStatus');
+
+    const updateStatus = () => {
+        const loggedIn = Boolean(getAdminToken());
+
+        if (status) {
+            status.textContent = loggedIn
+                ? '✅ ورود ادمین تأیید شد'
+                : '🔒 ورود ادمین لازم است';
+        }
+
+        if (loginButton) {
+            loginButton.textContent = loggedIn
+                ? 'خروج ادمین'
+                : 'ورود با GitHub';
+        }
+    };
+
+    window.addEventListener('classchain-admin-auth-changed', updateStatus);
+
+    loginButton?.addEventListener('click', () => {
+        if (getAdminToken()) {
+            clearAdminAuth();
+            updateStatus();
+        } else {
+            startAdminLogin();
+        }
+    });
+
+    updateStatus();
+});
 
 // اجرای فوری هنگام بارگذاری صفحه
 ensureAdminAuth();
@@ -1155,39 +1184,18 @@ window.pushToGitHub = async () => {
     const textarea = document.getElementById('jsonOutput');
     if (!textarea) return;
 
-    // بررسی توکن
-    const token = localStorage.getItem('github_token');
-    if (!token) {
-        // نمایش پیام برای وارد کردن توکن
-        const result = document.getElementById('createResult');
-        if (result) {
-            result.innerHTML += `
-                <div style="margin-top:15px;padding:15px;background:#fde8e8;border:2px solid #e74c3c;border-radius:8px;">
-                    <h4 style="color:#e74c3c;">❌ توکن GitHub تنظیم نشده است</h4>
-                    <p style="font-size:13px;">لطفاً توکن خود را در بخش <strong>تنظیمات</strong> وارد کنید.</p>
-                    <button onclick="document.querySelector('[data-section=\\"settings\\"]')?.click();" 
-                            style="padding:8px 16px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer;">
-                        ⚙️ رفتن به تنظیمات
-                    </button>
-                </div>
-            `;
-        }
-        return;
+    const btn = document.querySelector(
+        '#createResult button[onclick="window.pushToGitHub()"]'
+    );
+
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ در حال آپلود...';
     }
 
     try {
-        // نمایش لودینگ
-        const btn = event?.target;
-        if (btn) {
-            btn.disabled = true;
-            btn.textContent = '⏳ در حال آپلود...';
-        }
-
         await projectManager.pushToGitHub(textarea.value);
-
-        // پیام موفقیت
         showTemporaryMessage('✅ فایل با موفقیت به GitHub آپلود شد!');
-
     } catch (error) {
         console.error('❌ خطا در آپلود:', error);
         showError('❌ خطا در آپلود به GitHub: ' + (error.message || 'نامشخص'));
@@ -1311,19 +1319,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             } catch (error) {
                 console.error('خطا در auto-complete:', error);
-            }
-        });
-    }
-
-    // ذخیره توکن GitHub
-    const saveTokenBtn = document.querySelector('[onclick="saveGitHubToken()"]');
-    if (saveTokenBtn) {
-        saveTokenBtn.addEventListener('click', () => {
-            const input = document.getElementById('githubToken');
-            if (input && input.value) {
-                localStorage.setItem('github_token', input.value);
-                alert('✅ توکن ذخیره شد!');
-                input.value = '';
             }
         });
     }
