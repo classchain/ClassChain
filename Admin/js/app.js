@@ -10,6 +10,7 @@ import { NetworkManager } from './core/NetworkManager.js';
 import { ContractManager } from './core/ContractManager.js';
 import { ProjectManager } from './core/ProjectManager.js';
 import { setupAddProject } from './addProject.js';
+import { consumeAuthFragment, getAdminToken, startAdminLogin, clearAdminAuth } from './core/AdminAuth.js';
 
 // نرمال‌سازی آدرس Tron (از helper مشترک config)
 function toTronBase58(address) {
@@ -29,26 +30,38 @@ function normalizeAddressesForNetwork(fundAddress, ownerOrMultisig, owners) {
 
 
 // ============================================
-// احراز هویت ادمین (رمز فقط در session نگه داشته میشه)
+// احراز هویت با GitHub OAuth؛ توکن فقط در حافظه صفحه می‌ماند
 // ============================================
+consumeAuthFragment();
+
 function ensureAdminAuth() {
-  let key = sessionStorage.getItem('classchain_admin_key');
-  if (!key) {
-    key = prompt('🔐 رمز ادمین را وارد کنید:');
-    if (key && key.trim()) {
-      sessionStorage.setItem('classchain_admin_key', key.trim());
-    } else {
-      alert('بدون رمز ادمین، امکان ذخیره خزانه‌ها روی گیت‌هاب نخواهد بود.');
-    }
-  }
-  return sessionStorage.getItem('classchain_admin_key');
+  return Boolean(getAdminToken());
 }
-
-// اجرای فوری هنگام بارگذاری صفحه
-ensureAdminAuth();
-
-// در دسترس بودن برای دکمه‌ی احتمالی "تغییر رمز" در آینده
 window.ensureAdminAuth = ensureAdminAuth;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const loginButton = document.getElementById('adminLoginBtn');
+  const status = document.getElementById('adminAuthStatus');
+  const updateStatus = () => {
+    const loggedIn = Boolean(getAdminToken());
+    if (status) status.textContent = loggedIn ? '✅ ورود ادمین تأیید شد' : '🔒 ورود ادمین لازم است';
+    if (loginButton) loginButton.textContent = loggedIn ? 'خروج ادمین' : 'ورود با GitHub';
+  };
+  loginButton?.addEventListener('click', () => {
+    if (getAdminToken()) {
+      clearAdminAuth();
+      updateStatus();
+    } else {
+      startAdminLogin();
+    }
+  });
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('auth') === 'denied') alert('این حساب گیت‌هاب اجازه ورود به پنل ادمین را ندارد.');
+  else if (params.get('auth') === 'failed') alert('ورود با GitHub ناموفق بود؛ دوباره تلاش کنید.');
+  if (params.has('auth')) window.history.replaceState(null, document.title, window.location.pathname);
+  updateStatus();
+});
+// ============================================
 // ============================================
 // نمونه‌سازی از کلاس‌ها
 // ============================================
