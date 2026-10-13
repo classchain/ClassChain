@@ -15,6 +15,12 @@ const env = {
 const sha = 'a'.repeat(40);
 const validContent = Buffer.from(JSON.stringify({ features: [] }), 'utf8').toString('base64');
 
+function extractTokenFromHtml(html) {
+  const match = html.match(/postMessage\((\{"type":"classchain-admin-auth","token":"([A-Za-z0-9_.-]+)"\}),/);
+  assert.ok(match, 'callback should hand token to opener without putting it in the Admin URL');
+  return match[2];
+}
+
 async function obtainToken(login = 'classchain') {
   const loginResponse = await worker.fetch(new Request('https://proxy.example/auth/login'), env);
   assert.equal(loginResponse.status, 302);
@@ -66,12 +72,16 @@ test('login redirects to GitHub with state and secure HttpOnly state cookie', as
   assert.match(response.headers.get('Set-Cookie'), /Secure/);
 });
 
-test('callback issues a short-lived token only for the allowlisted GitHub login', async () => {
+test('callback sends the short-lived token to the opener, never in the Admin URL', async () => {
   const { callback } = await obtainToken();
-  assert.equal(callback.status, 302);
-  const location = new URL(callback.headers.get('Location'));
-  assert.equal(location.origin + location.pathname, env.ADMIN_APP_URL);
-  assert.match(location.hash, /^#token=/);
+  assert.equal(callback.status, 200);
+  const html = await callback.text();
+  assert.match(html, /postMessage/);
+  assert.match(html, /Content-Security-Policy/); // header is checked separately below
+  assert.equal(extractTokenFromHtml(html).split('.').length, 2);
+  assert.doesNotMatch(html, /https:\/\/classchain\.github\.io\/ClassChain\/Admin\/#token=/);
+  assert.equal(callback.headers.get('Cache-Control'), 'no-store');
+  assert.match(callback.headers.get('Content-Security-Policy'), /default-src 'none'/);
 });
 
 test('callback denies a different GitHub account', async () => {
@@ -93,8 +103,7 @@ test('API rejects missing and tampered bearer tokens', async () => {
 
 test('API accepts a valid token and restricts reads to Projects.json on admin branch', async () => {
   const { callback } = await obtainToken();
-  const location = new URL(callback.headers.get('Location'));
-  const token = decodeURIComponent(location.hash.slice('#token='.length));
+  const token = extractTokenFromHtml(await callback.text());
   const originalFetch = globalThis.fetch;
   let requestedUrl = '';
   globalThis.fetch = async (url) => {
@@ -113,7 +122,7 @@ test('API accepts a valid token and restricts reads to Projects.json on admin br
 
 test('API rejects unapproved origins and missing GitHub token', async () => {
   const { callback } = await obtainToken();
-  const token = decodeURIComponent(new URL(callback.headers.get('Location')).hash.slice('#token='.length));
+  const token = extractTokenFromHtml(await callback.text());
   const request = apiRequest(token);
   const badOrigin = new Request(request, { headers: { ...Object.fromEntries(request.headers), Origin: 'https://attacker.example' } });
   assert.equal((await worker.fetch(badOrigin, env)).status, 403);
