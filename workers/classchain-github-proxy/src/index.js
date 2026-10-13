@@ -46,7 +46,7 @@ async function verifyAdminToken(token, env) {
   try { payload = JSON.parse(fromBase64url(parts[0])); } catch { return false; }
   if (!payload || payload.iss !== 'classchain-github-proxy' ||
       payload.aud !== 'classchain-admin' ||
-      payload.sub !== (env.ADMIN_GITHUB_USER || 'classchain') ||
+      payload.sub !== env.ADMIN_GITHUB_USER.toLowerCase() ||
       !Number.isInteger(payload.exp) || payload.exp <= Math.floor(Date.now() / 1000) ||
       !Number.isInteger(payload.iat) || payload.iat > Math.floor(Date.now() / 1000) + 30 ||
       payload.exp - payload.iat > TOKEN_TTL_SECONDS) return false;
@@ -72,7 +72,7 @@ function cookieValue(request, name) {
 }
 
 async function handleOAuth(request, env, url) {
-  if (!env.GITHUB_OAUTH_CLIENT_ID || !env.GITHUB_OAUTH_CLIENT_SECRET || !env.AUTH_SIGNING_SECRET) {
+  if (!env.GITHUB_OAUTH_CLIENT_ID || !env.GITHUB_OAUTH_CLIENT_SECRET || !env.AUTH_SIGNING_SECRET || !env.ADMIN_GITHUB_USER) {
     return response({ error: 'GitHub OAuth is not configured' }, 503);
   }
   const redirectUri = env.OAUTH_REDIRECT_URI || 'https://classchain-github-proxy.classchain.workers.dev/auth/callback';
@@ -124,12 +124,32 @@ async function handleOAuth(request, env, url) {
       });
       if (!userResponse.ok) return redirect(appUrl + '?auth=failed#login', { 'Set-Cookie': clearCookie });
       const user = await userResponse.json();
-      const allowedUser = (env.ADMIN_GITHUB_USER || 'classchain').toLowerCase();
+      const allowedUser = env.ADMIN_GITHUB_USER.toLowerCase();
       if (typeof user.login !== 'string' || user.login.toLowerCase() !== allowedUser) {
         return redirect(appUrl + '?auth=denied#login', { 'Set-Cookie': clearCookie });
       }
       const adminToken = await issueAdminToken(user.login.toLowerCase(), env);
-      return redirect(appUrl + '#token=' + encodeURIComponent(adminToken), { 'Set-Cookie': clearCookie });
+      const appOrigin = new URL(appUrl).origin;
+      const message = JSON.stringify({ type: 'classchain-admin-auth', token: adminToken })
+        .replace(/</g, '\\u003c')
+        .replace(/>/g, '\\u003e')
+        .replace(/&/g, '\\u0026');
+      return new Response(
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">' +
+        '<meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+        '<title>ClassChain Admin sign-in</title></head><body>' +
+        '<p>Sign-in complete. You may close this window.</p>' +
+        '<script>if (window.opener) { window.opener.postMessage(' + message + ', ' + JSON.stringify(appOrigin) + '); window.close(); }</script>' +
+        '</body></html>',
+        { status: 200, headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-store',
+          'Pragma': 'no-cache',
+          'Referrer-Policy': 'no-referrer',
+          'X-Content-Type-Options': 'nosniff',
+          'Content-Security-Policy': "default-src 'none'; script-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+        }}
+      );
     } catch {
       return redirect(appUrl + '?auth=failed#login', { 'Set-Cookie': clearCookie });
     }
