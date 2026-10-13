@@ -1,0 +1,33 @@
+name: Admin OAuth Worker Tests
+
+on:
+  push:
+    branches:
+      - security/admin-github-oauth
+    paths:
+      - 'workers/classchain-github-proxy/**'
+      - '.github/workflows/admin-oauth-tests.yml'
+  pull_request:
+    paths:
+      - 'workers/classchain-github-proxy/**'
+      - '.github/workflows/admin-oauth-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/classchain-github-proxy
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Worker tests
+        run: npm test
