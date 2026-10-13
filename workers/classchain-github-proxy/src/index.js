@@ -7,7 +7,7 @@ function base64url(bytes) {
   const binary = typeof bytes === 'string'
     ? bytes
     : Array.from(bytes, (b) => String.fromCharCode(b)).join('');
-  return btoa(binary).replace(/=/g, '').replace(/\\+/g, '-').replace(/\\//g, '_');
+  return btoa(binary).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 }
 
 function fromBase64url(value) {
