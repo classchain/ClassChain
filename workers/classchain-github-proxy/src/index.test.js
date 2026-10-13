@@ -3,111 +3,106 @@ import assert from 'node:assert/strict';
 import worker from './index.js';
 
 const env = {
-  ADMIN_SECRET: 'test-secret',
-  GITHUB_TOKEN: 'test-token',
+  AUTH_SIGNING_SECRET: 'test-signing-secret-that-is-long-enough-for-tests',
+  GITHUB_OAUTH_CLIENT_ID: 'test-client-id',
+  GITHUB_OAUTH_CLIENT_SECRET: 'test-client-secret',
+  GITHUB_TOKEN: 'test-github-token',
+  ADMIN_GITHUB_USER: 'classchain',
+  ADMIN_APP_URL: 'https://classchain.github.io/ClassChain/Admin/',
+  OAUTH_REDIRECT_URI: 'https://classchain-github-proxy.classchain.workers.dev/auth/callback',
   ADMIN_ORIGINS: 'https://classchain.github.io',
 };
-const validContent = Buffer.from(JSON.stringify({ features: [] }), 'utf8').toString('base64');
 const sha = 'a'.repeat(40);
+const validContent = Buffer.from(JSON.stringify({ features: [] }), 'utf8').toString('base64');
 
-function makeRequest({
-  path = 'frontend/data/Projects.json',
-  method = 'GET',
-  key = 'test-secret',
-  origin = 'https://classchain.github.io',
-  body,
-  headers: extraHeaders = {},
-} = {}) {
-  const url = 'https://proxy.example/' + (path ? '?path=' + encodeURIComponent(path) : '');
-  const headers = { ...extraHeaders };
-  if (key) headers['X-Admin-Key'] = key;
-  if (origin) headers.Origin = origin;
-  if (body !== undefined && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+async function obtainToken(login = 'classchain') {
+  const loginResponse = await worker.fetch(new Request('https://proxy.example/auth/login'), env);
+  assert.equal(loginResponse.status, 302);
+  const authorizeUrl = new URL(loginResponse.headers.get('Location'));
+  const state = authorizeUrl.searchParams.get('state');
+  const cookie = loginResponse.headers.get('Set-Cookie').split(';')[0];
+
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url) === 'https://github.com/login/oauth/access_token') {
+      return new Response(JSON.stringify({ access_token: 'mock-access-token' }), { status: 200 });
+    }
+    if (String(url) === 'https://api.github.com/user') {
+      return new Response(JSON.stringify({ login }), { status: 200 });
+    }
+    throw new Error('Unexpected upstream request: ' + url);
+  };
+  try {
+    const callback = await worker.fetch(new Request(
+      'https://proxy.example/auth/callback?code=mock-code&state=' + encodeURIComponent(state),
+      { headers: { Cookie: cookie } }
+    ), env);
+    return { callback, state, cookie };
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+function apiRequest(token, method = 'GET', body) {
+  const url = 'https://proxy.example/' + (method === 'GET' ? '?path=frontend%2Fdata%2FProjects.json' : '');
   return new Request(url, {
     method,
-    headers,
+    headers: {
+      Origin: 'https://classchain.github.io',
+      Authorization: 'Bearer ' + token,
+      ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+    },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 }
 
-test('rejects missing and incorrect keys', async () => {
-  assert.equal((await worker.fetch(makeRequest({ key: '' }), env)).status, 401);
-  assert.equal((await worker.fetch(makeRequest({ key: 'wrong' }), env)).status, 401);
+test('login redirects to GitHub with state and secure HttpOnly state cookie', async () => {
+  const response = await worker.fetch(new Request('https://proxy.example/auth/login'), env);
+  assert.equal(response.status, 302);
+  const url = new URL(response.headers.get('Location'));
+  assert.equal(url.origin + url.pathname, 'https://github.com/login/oauth/authorize');
+  assert.ok(url.searchParams.get('state'));
+  assert.match(response.headers.get('Set-Cookie'), /HttpOnly/);
+  assert.match(response.headers.get('Set-Cookie'), /Secure/);
 });
 
-test('rejects requests without an Origin and non-allowlisted origins', async () => {
-  assert.equal((await worker.fetch(makeRequest({ origin: null }), env)).status, 403);
-  assert.equal((await worker.fetch(makeRequest({ origin: 'https://attacker.example' }), env)).status, 403);
+test('callback issues a short-lived token only for the allowlisted GitHub login', async () => {
+  const { callback } = await obtainToken();
+  assert.equal(callback.status, 302);
+  const location = new URL(callback.headers.get('Location'));
+  assert.equal(location.origin + location.pathname, env.ADMIN_APP_URL);
+  assert.match(location.hash, /^#token=/);
 });
 
-test('allows preflight only from the configured admin origin', async () => {
-  assert.equal((await worker.fetch(new Request('https://proxy.example/', {
-    method: 'OPTIONS',
-    headers: { Origin: 'https://classchain.github.io' },
-  }), env)).status, 204);
-  assert.equal((await worker.fetch(new Request('https://proxy.example/', {
-    method: 'OPTIONS',
-    headers: { Origin: 'https://attacker.example' },
-  }), env)).status, 403);
+test('callback denies a different GitHub account', async () => {
+  const { callback } = await obtainToken('someone-else');
+  assert.match(callback.headers.get('Location'), /auth=denied/);
 });
 
-test('rejects unsupported methods', async () => {
-  assert.equal((await worker.fetch(new Request('https://proxy.example/', {
-    method: 'DELETE',
-    headers: { Origin: 'https://classchain.github.io', 'X-Admin-Key': 'test-secret' },
-  }), env)).status, 405);
-});
-
-test('rejects non-allowlisted paths and invalid JSON content without calling GitHub', async () => {
-  const originalFetch = globalThis.fetch;
-  let called = false;
-  globalThis.fetch = async () => { called = true; throw new Error('should not be called'); };
-  try {
-    assert.equal((await worker.fetch(makeRequest({ path: 'README.md' }), env)).status, 403);
-    const wrongPath = await worker.fetch(makeRequest({
-      path: '',
-      method: 'POST',
-      body: { path: 'README.md', message: 'test', content: validContent, sha },
-    }), env);
-    assert.equal(wrongPath.status, 403);
-    const invalid = await worker.fetch(makeRequest({
-      path: '',
-      method: 'POST',
-      body: { path: 'frontend/data/Projects.json', message: 'test', content: Buffer.from('{}').toString('base64'), sha },
-    }), env);
-    assert.equal(invalid.status, 400);
-    assert.equal(called, false);
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test('requires a valid existing file SHA before writing', async () => {
-  const response = await worker.fetch(makeRequest({
-    path: '',
-    method: 'POST',
-    body: { path: 'frontend/data/Projects.json', message: 'test', content: validContent },
+test('callback rejects missing or mismatched OAuth state', async () => {
+  const response = await worker.fetch(new Request('https://proxy.example/auth/callback?code=mock-code&state=wrong', {
+    headers: { Cookie: 'cc_oauth_state=right' },
   }), env);
-  assert.equal(response.status, 400);
+  assert.match(response.headers.get('Location'), /auth=failed/);
 });
 
-test('rejects missing GitHub token before making upstream requests', async () => {
-  const response = await worker.fetch(makeRequest(), { ...env, GITHUB_TOKEN: '' });
-  assert.equal(response.status, 503);
+test('API rejects missing and tampered bearer tokens', async () => {
+  assert.equal((await worker.fetch(apiRequest(''), env)).status, 401);
+  assert.equal((await worker.fetch(apiRequest('fake.payload'), env)).status, 401);
 });
 
-test('GET reads only the allowlisted file from the fixed admin branch', async () => {
+test('API accepts a valid token and restricts reads to Projects.json on admin branch', async () => {
+  const { callback } = await obtainToken();
+  const location = new URL(callback.headers.get('Location'));
+  const token = decodeURIComponent(location.hash.slice('#token='.length));
   const originalFetch = globalThis.fetch;
   let requestedUrl = '';
   globalThis.fetch = async (url) => {
     requestedUrl = String(url);
-    return new Response(JSON.stringify({ path: 'frontend/data/Projects.json', sha }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(JSON.stringify({ path: 'frontend/data/Projects.json', sha }), { status: 200 });
   };
   try {
-    const response = await worker.fetch(makeRequest(), env);
+    const response = await worker.fetch(apiRequest(token), env);
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { sha });
     assert.equal(requestedUrl, 'https://api.github.com/repos/classchain/ClassChain/contents/frontend/data/Projects.json?ref=admin');
@@ -116,43 +111,11 @@ test('GET reads only the allowlisted file from the fixed admin branch', async ()
   }
 });
 
-test('POST writes only the allowlisted file and fixed admin branch', async () => {
-  const originalFetch = globalThis.fetch;
-  let requestedUrl = '';
-  let requestOptions;
-  globalThis.fetch = async (url, options) => {
-    requestedUrl = String(url);
-    requestOptions = options;
-    return new Response(JSON.stringify({
-      content: { path: 'frontend/data/Projects.json', sha: 'b'.repeat(40) },
-      commit: { sha: 'c'.repeat(40) },
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-  };
-  try {
-    const response = await worker.fetch(makeRequest({
-      path: '',
-      method: 'POST',
-      body: { path: 'frontend/data/Projects.json', message: 'test update', content: validContent, sha },
-    }), env);
-    assert.equal(response.status, 200);
-    assert.equal(requestedUrl, 'https://api.github.com/repos/classchain/ClassChain/contents/frontend/data/Projects.json');
-    const upstreamBody = JSON.parse(requestOptions.body);
-    assert.equal(upstreamBody.branch, 'admin');
-    assert.equal(upstreamBody.sha, sha);
-    assert.equal(upstreamBody.message, 'test update');
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
-test('does not leak upstream response bodies on GitHub errors', async () => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response('sensitive upstream diagnostic', { status: 500 });
-  try {
-    const response = await worker.fetch(makeRequest(), env);
-    assert.equal(response.status, 502);
-    assert.deepEqual(await response.json(), { error: 'GitHub read failed', upstreamStatus: 500 });
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+test('API rejects unapproved origins and missing GitHub token', async () => {
+  const { callback } = await obtainToken();
+  const token = decodeURIComponent(new URL(callback.headers.get('Location')).hash.slice('#token='.length));
+  const request = apiRequest(token);
+  const badOrigin = new Request(request, { headers: { ...Object.fromEntries(request.headers), Origin: 'https://attacker.example' } });
+  assert.equal((await worker.fetch(badOrigin, env)).status, 403);
+  assert.equal((await worker.fetch(apiRequest(token), { ...env, GITHUB_TOKEN: '' })).status, 503);
 });
