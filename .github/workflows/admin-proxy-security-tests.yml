@@ -1,0 +1,30 @@
+name: Admin proxy security tests
+
+on:
+  push:
+    branches:
+      - security/admin-github-proxy-hardening
+  pull_request:
+    branches:
+      - admin
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check changed JavaScript syntax
+        run: |
+          node --check Admin/js/app.js
+          node --check Admin/js/core/ProjectManager.js
+          node --check workers/classchain-github-proxy/src/index.js
+      - name: Run Worker security tests
+        run: node --test workers/classchain-github-proxy/src/index.test.js

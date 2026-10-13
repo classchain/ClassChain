@@ -1,5 +1,6 @@
 // js/core/ProjectManager.js
 // Phase 3: Canonical model = attributes.funds[networkId]
+import { getAdminToken } from './AdminAuth.js';
 // Legacy network-specific contract fields are no longer supported.
 
 export class ProjectManager {
@@ -232,21 +233,21 @@ export class ProjectManager {
   // ============================================
   async pushToGitHub(jsonContent, message = 'به‌روزرسانی پروژه‌ها') {
     const WORKER_URL = 'https://classchain-github-proxy.classchain.workers.dev';
-    const ADMIN_KEY = sessionStorage.getItem('classchain_admin_key');
+    const adminToken = getAdminToken();
 
-    if (!ADMIN_KEY) {
-      throw new Error('رمز ادمین تنظیم نشده است. لطفاً وارد شوید.');
+    if (!adminToken) {
+      throw new Error('برای ذخیره تغییرات، ابتدا با حساب مجاز GitHub وارد شوید.');
     }
 
     const PATH = 'frontend/data/Projects.json';
 
     try {
-      const sha = await this._getFileSha(WORKER_URL, ADMIN_KEY, PATH);
+      const sha = await this._getFileSha(WORKER_URL, adminToken, PATH);
 
       const response = await fetch(WORKER_URL, {
         method: 'POST',
         headers: {
-          'X-Admin-Key': ADMIN_KEY,
+          'Authorization': 'Bearer ' + adminToken,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -271,22 +272,26 @@ export class ProjectManager {
     }
   }
 
-  async _getFileSha(workerUrl, adminKey, path) {
+  async _getFileSha(workerUrl, adminToken, path) {
+    const response = await fetch(`${workerUrl}?path=${encodeURIComponent(path)}`, {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + adminToken }
+    });
+
+    let data = {};
     try {
-      const response = await fetch(`${workerUrl}?path=${encodeURIComponent(path)}`, {
-        method: 'GET',
-        headers: { 'X-Admin-Key': adminKey }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        return data.sha;
-      }
-
-      return null;
-    } catch (error) {
-      return null;
+      data = await response.json();
+    } catch {
+      // Keep the generic error below; do not expose upstream response details.
     }
+
+    if (!response.ok) {
+      throw new Error(data.error || `دریافت نسخه فعلی فایل ناموفق بود (HTTP ${response.status})`);
+    }
+    if (typeof data.sha !== 'string' || !/^[a-f0-9]{40}$/i.test(data.sha)) {
+      throw new Error('نسخه فعلی Projects.json از GitHub دریافت نشد؛ برای جلوگیری از بازنویسی ناخواسته، ذخیره متوقف شد.');
+    }
+    return data.sha;
   }
 
   getProjectsByNetwork(networkId) {
