@@ -1,0 +1,18 @@
+name = "classchain-github-proxy"
+main = "src/index.js"
+compatibility_date = "2026-07-29"
+
+[vars]
+ADMIN_ORIGINS = "https://classchain.github.io"
+ADMIN_GITHUB_USER = "classchain"
+ADMIN_APP_URL = "https://classchain.github.io/ClassChain/Admin/"
+OAUTH_REDIRECT_URI = "https://classchain-github-proxy.classchain.workers.dev/auth/callback"
+
+[observability]
+enabled = true
+head_sampling_rate = 0.1
+
+[observability.logs]
+enabled = true
+invocation_logs = false
+persist = false
