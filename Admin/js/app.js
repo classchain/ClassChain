@@ -10,7 +10,7 @@ import { NetworkManager } from './core/NetworkManager.js';
 import { ContractManager } from './core/ContractManager.js';
 import { ProjectManager } from './core/ProjectManager.js';
 import { setupAddProject } from './addProject.js';
-import { consumeAuthFragment, getAdminToken, startAdminLogin, clearAdminAuth } from './core/AdminAuth.js';
+import { getAdminToken, startAdminLogin, clearAdminAuth } from './core/AdminAuth.js';
 
 // نرمال‌سازی آدرس Tron (از helper مشترک config)
 function toTronBase58(address) {
@@ -32,8 +32,6 @@ function normalizeAddressesForNetwork(fundAddress, ownerOrMultisig, owners) {
 // ============================================
 // احراز هویت با GitHub OAuth؛ توکن فقط در حافظه صفحه می‌ماند
 // ============================================
-consumeAuthFragment();
-
 function ensureAdminAuth() {
   return Boolean(getAdminToken());
 }
@@ -47,6 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (status) status.textContent = loggedIn ? '✅ ورود ادمین تأیید شد' : '🔒 ورود ادمین لازم است';
     if (loginButton) loginButton.textContent = loggedIn ? 'خروج ادمین' : 'ورود با GitHub';
   };
+  window.addEventListener('classchain-admin-auth-changed', updateStatus);
   loginButton?.addEventListener('click', () => {
     if (getAdminToken()) {
       clearAdminAuth();
@@ -55,10 +54,6 @@ document.addEventListener('DOMContentLoaded', () => {
       startAdminLogin();
     }
   });
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('auth') === 'denied') alert('این حساب گیت‌هاب اجازه ورود به پنل ادمین را ندارد.');
-  else if (params.get('auth') === 'failed') alert('ورود با GitHub ناموفق بود؛ دوباره تلاش کنید.');
-  if (params.has('auth')) window.history.replaceState(null, document.title, window.location.pathname);
   updateStatus();
 });
 // ============================================
