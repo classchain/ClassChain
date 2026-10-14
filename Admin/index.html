@@ -34,8 +34,6 @@
                     <a href="#" class="active" data-section="add-project">➕ افزودن پروژه</a>
                     <a href="#" data-section="create">🏗️ ساخت خزانه</a>
                     <a href="#" data-section="projects">📋 پروژه‌ها</a>
-                    <a href="#" data-section="pre-vote">📋 صف FIFO</a>
-                    <a href="#" data-section="post-vote">🗳️ ثبت رأی و تخصیص</a>
                     <a href="#" data-section="settings">⚙️ تنظیمات</a>
                 </nav>
             </aside>
@@ -70,51 +68,6 @@
                     <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h2>📋 لیست پروژه‌ها</h2><div class="filters" style="display:flex;gap:10px;"><select id="networkFilter" style="padding:8px 14px;border-radius:6px;border:1px solid #ddd;"><option value="all">همه شبکه‌ها</option></select><button onclick="window.loadProjectsTable()" class="btn-secondary" style="padding:8px 16px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer;">🔄 Refresh</button></div></div>
                     <div class="table-wrapper" style="overflow-x:auto;background:white;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.05);padding:4px;"><table id="projectsTable" style="width:100%;border-collapse:collapse;font-size:14px;"><thead style="background:#f8f9fa;"></thead><tbody></tbody><tfoot></tfoot></table></div>
                 </section>
-                <section id="section-pre-vote" class="section" style="display:none;">
-                    <div class="workflow-hero">
-                        <div>
-                            <span class="workflow-kicker">خزانه عمومی · GENERAL_POOL</span>
-                            <h2>صف FIFO</h2>
-                            <p>موجودی واریزی‌ها و صف تخصیص خزانه عمومی روی همه شبکه‌ها.</p>
-                        </div>
-                        <div id="generalPoolTreasuryInfo" class="treasury-info-panel">
-                            <div class="treasury-info-loading muted">در حال بارگذاری اطلاعات خزانه…</div>
-                        </div>
-                    </div>
-                    <div class="workflow-card">
-                        <div class="card-header"><div><h3>واریزی‌های خزانه عمومی</h3><p>همه واریزی‌های ایندکس‌شده از ابتدای ساخت خزانه، روی همه شبکه‌ها.</p></div><span class="workflow-badge">Transfers</span></div>
-                        <div id="generalPoolDeposits"></div>
-                    </div>
-                    <div class="workflow-card">
-                        <div class="card-header"><div><h3>صف FIFO</h3><p>اولویت تخصیص بر اساس زمان ورود مشارکت.</p></div><span class="workflow-badge">FIFO</span></div>
-                        <div id="communityQueue"></div>
-                    </div>
-                    <div class="workflow-card">
-                        <div class="card-header"><div><h3>راندهای رأی‌گیری</h3><p>راندها را ببینید یا یک راند جدید برای جامعه باز کنید.</p></div><button type="button" id="votingRefreshBtn" class="btn-secondary">🔄 بروزرسانی راندها</button></div>
-                        <div id="votingRoundsList"></div>
-                    </div>
-                    <div class="workflow-card workflow-create-round">
-                        <div class="card-header"><div><h3>باز کردن راند جدید</h3><p>پروژه‌های کاندید را از فهرست پروژه‌های دارای خزانه انتخاب کنید.</p></div></div>
-                        <div class="round-form-grid">
-                            <div><label>عنوان راند</label><input type="text" id="votingNewTitle" placeholder="مثلاً انتخاب پروژه مهر ۱۴۰۵"></div>
-                            <div><label>پروژه‌های کاندید</label><select id="votingNewCandidates" multiple size="7"></select><small>با نگه‌داشتن Ctrl / Command می‌توانید چند پروژه انتخاب کنید.</small></div>
-                        </div>
-                        <button type="button" id="votingOpenBtn" class="btn-connect workflow-primary">🚀 باز کردن راند</button>
-                    </div>
-                </section>
-                <section id="section-post-vote" class="section" style="display:none;">
-                    <div class="workflow-card">
-                        <div class="card-header"><div><h3>ثبت نتیجه رأی و بستن راند</h3><p>نتیجه تلگرام را ثبت و پروژه برنده را انتخاب کنید.</p></div></div>
-                        <div id="votingClosePanel"></div>
-                    </div>
-                    <div class="workflow-card">
-                        <div class="card-header"><div><h3>انتقال از خزانه عمومی</h3><p>پس از تخصیص، درخواست‌های انتقال اینجا آماده امضا هستند.</p></div><button type="button" id="disburseRefreshBtn" class="btn-secondary">🔄 بروزرسانی</button></div>
-                        <div class="toolbar disburse-toolbar"><label>شبکه</label><select id="disburseNetworkFilter"><option value="">همه شبکه‌ها</option></select></div>
-                        <input type="hidden" id="disburseDetailId" value="">
-                        <div id="disbursePendingList"></div>
-                        <div id="disburseDetailBox" style="margin-top:16px;"></div>
-                    </div>
-                </section>
                 <section id="section-settings" class="section" style="display:none;">
                     <h2>⚙️ تنظیمات</h2>
                     <div class="settings-group" style="background:white;padding:20px;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
@@ -127,36 +80,7 @@
         </div>
     </div>
     <script type="module" src="js/app.js"></script>
-    <script type="module">
-        import { loadQueue, loadGeneralPoolTreasuryInfo } from './js/community.js';
-        import { initVotingPanel, loadVotingRounds } from './js/voting.js';
-        import { initDisbursePanel, loadDisbursePending } from './js/disburse.js';
-        import { setIndexerSecret } from './js/config/indexer.js';
-        document.addEventListener('DOMContentLoaded', () => {
-            initVotingPanel();
-            initDisbursePanel();
-            document.getElementById('saveIndexerSecretBtn')?.addEventListener('click', () => {
-                const v = document.getElementById('indexerSecret')?.value;
-                if (v && v.trim()) {
-                    setIndexerSecret(v.trim());
-                    alert('Indexer secret saved');
-                    document.getElementById('indexerSecret').value = '';
-                }
-            });
-            document.querySelectorAll('.sidebar-nav a').forEach(link => {
-                link.addEventListener('click', function () {
-                    const section = this.dataset.section;
-                    if (section === 'pre-vote') {
-                        loadGeneralPoolTreasuryInfo();
-                        loadQueue();
-                        loadVotingRounds();
-                    }
-                    if (section === 'post-vote') { loadDisbursePending(); }
-                });
-            });
-        });
-    </script>
-    <script>
+<script>
         document.addEventListener('DOMContentLoaded', function() {
             document.querySelectorAll('.sidebar-nav a').forEach(link => {
                 link.addEventListener('click', function(e) {
