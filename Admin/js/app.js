@@ -399,7 +399,7 @@ async function createFund() {
 
         // بارگذاری مجدد جدول
         if (typeof loadProjectsTable === 'function') {
-            await loadProjectsTable();
+            await loadProjectsTable(false);
         }
 
     } catch (error) {
@@ -760,11 +760,10 @@ async function createFundFromCheck() {
         // نمایش نتیجه
         showSuccess(projectId, fundAddress, ownerOrMultisig, isMultisig, updatedJson);
 
-        // بارگذاری مجدد جدول و بررسی مجدد
-        await loadProjectsTable();
-
-        // بررسی مجدد پروژه برای نمایش وضعیت جدید
-        await checkProject();
+        // فقط جدول را رفرش کن؛ createResult را دست نزن تا کاربر بتواند JSON را ببیند و به GitHub پوش کند
+        if (typeof loadProjectsTable === 'function') {
+            await loadProjectsTable(false);
+        }
 
     } catch (error) {
         console.error('خطا:', error);
