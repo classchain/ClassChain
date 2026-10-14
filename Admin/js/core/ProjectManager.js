@@ -5,7 +5,9 @@ import { getAdminToken } from './AdminAuth.js';
 export class ProjectManager {
   constructor() {
     this.projects = null;
-    this.jsonPath = '/ClassChain/frontend/data/Projects.json';
+    // Projects.json is the canonical shared registry. Always read the admin branch,
+    // even when this Admin UI is being tested from a feature branch.
+    this.jsonPath = 'https://raw.githubusercontent.com/classchain/ClassChain/admin/frontend/data/Projects.json';
     this.basePath = '/ClassChain/frontend/data/';
   }
 
