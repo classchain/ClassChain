@@ -19,9 +19,11 @@ export class ProjectManager {
       console.log(`🔄 در حال بارگذاری پروژه‌ها از: ${this.jsonPath}`);
 
       const response = await fetch(this.jsonPath, {
+        // Avoid a custom Cache-Control request header: on a cross-origin fetch it
+        // can trigger a CORS preflight. cache: 'no-store' avoids that header.
+        cache: 'no-store',
         headers: {
-          Accept: 'application/json',
-          'Cache-Control': 'no-cache'
+          Accept: 'application/json'
         }
       });
 
