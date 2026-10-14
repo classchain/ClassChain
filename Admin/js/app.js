@@ -451,12 +451,14 @@ async function checkProject() {
     try {
         // بارگذاری پروژه‌ها فقط در صورت نیاز؛ پروژه‌ی تازه‌ساخته‌شده ممکن است هنوز روی GitHub نباشد
         if (!projectManager.projects) {
-            await projectManager.loadProjects();
+            ;
         }
         const project = await projectManager.getProjectById(projectId);
 
         if (!project) {
-            showError(`❌ پروژه ${projectId} در سیستم یافت نشد`);
+            showError(
+                `پروژه ${projectId} در سیستم یافت نشد. اگر همین الان اضافه کرده‌اید، ابتدا در بخش «افزودن پروژه» دکمهٔ «آپلود به GitHub» را بزنید، چند ثانیه صبر کنید، بعد دوباره بررسی کنید.`
+            );
             return;
         }
 
@@ -614,12 +616,17 @@ async function createFundFromCheck() {
     }
 
     // بررسی اینکه آیا پروژه در شبکه فعلی خزانه دارد
+    // فقط اگر هنوز بارگذاری نشده؛ پروژهٔ تازه‌اضافه‌شده ممکن است هنوز روی GitHub نباشد
     try {
-        await projectManager.loadProjects();
+        if (!projectManager.projects) {
+            await projectManager.loadProjects();
+        }
         const project = await projectManager.getProjectById(projectId);
 
         if (!project) {
-            showError(`پروژه ${projectId} یافت نشد`);
+            showError(
+                `پروژه ${projectId} یافت نشد. اگر تازه اضافه کرده‌اید، اول «آپلود به GitHub» را بزنید و چند ثانیه صبر کنید.`
+            );
             return;
         }
 
