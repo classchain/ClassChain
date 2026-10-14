@@ -184,6 +184,30 @@ export class ContractManager {
     }
   }
 
+  async getFundOwner(fundAddress) {
+  await this._ensureContract();
+  const connection = this.networkManager.getConnection();
+
+  // ABI ساده برای owner()
+  const ownerAbi = [{
+    "inputs": [],
+    "name": "owner",
+    "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+    "stateMutability": "view",
+    "type": "function"
+  }];
+
+  if (this.networkManager.isEVM()) {
+    const fund = new connection.web3.eth.Contract(ownerAbi, fundAddress);
+    return await fund.methods.owner().call();
+  }
+
+  if (this.networkManager.isTVM()) {
+    const fund = await connection.tronWeb.contract(ownerAbi, fundAddress);
+    return await fund.owner().call();
+  }
+}
+
   async _ensureContract() {
     if (!this.factoryContract) {
       await this.initFactory();
