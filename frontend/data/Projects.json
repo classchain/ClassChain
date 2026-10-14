@@ -940,6 +940,19 @@
         "status": null,
         "raisedAmount": null,
         "funds": {
+          "tron_nile": {
+            "address": "TGXcnVwZutebFjDFq6n1FMZEhg6pYF5gf4",
+            "multisigAddress": null,
+            "owners": [
+              "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1",
+              "TWriCnUmTXBBZNoGRgS9m8iqJMs3efrYHd"
+            ],
+            "requiredSignatures": 2,
+            "createdAt": "2026-10-14T07:42:09.657Z",
+            "network": "tron_nile",
+            "isMultisig": true,
+            "scanFromBlock": 71810771
+          },
           "polygon_amoy": {
             "address": "0xb5d64f19FbBc9726aEC17fF7EF5914f9Af03D189",
             "multisigAddress": null,
