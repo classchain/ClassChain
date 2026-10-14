@@ -1041,6 +1041,19 @@
             "network": "tron_nile",
             "isMultisig": true,
             "scanFromBlock": 71812957
+          },
+          "polygon_amoy": {
+            "address": "0x29353d2757e3650DF439F0dbb3981ff2BbA3e1D5",
+            "multisigAddress": "0xc99D3D074AD81089fab7b49e7e45541fDde297eE",
+            "owners": [
+              "0x9626438503C8832A65eCc931B124825c417e467e",
+              "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
+            ],
+            "requiredSignatures": 2,
+            "createdAt": "2026-10-14T09:34:20.315Z",
+            "network": "polygon_amoy",
+            "isMultisig": true,
+            "scanFromBlock": 50147930
           }
         }
       }
