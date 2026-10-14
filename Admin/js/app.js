@@ -366,12 +366,22 @@ async function createFund() {
             console.error('📦 تراکنش:', tx);
             throw new Error('آدرس خزانه دریافت نشد. لطفاً تراکنش را در Explorer بررسی کنید.');
         }
-
+        
         // اگر کاربر Multisig انتخاب کرده، حتماً isMultisig را true کن
         if (ownershipType === 'multisig') {
             isMultisig = true;
         }
-
+        
+        // 🔑 Fallback: اگر مولتی‌سیگ است و آدرس از رویداد نیامد → از owner() خزانه بخوان
+        if (isMultisig && !ownerOrMultisig && fundAddress) {
+            try {
+                ownerOrMultisig = await contractManager.getFundOwner(fundAddress);
+                console.log('✅ مالک/Multisig از owner() خزانه:', ownerOrMultisig);
+            } catch (e) {
+                console.warn('خطا در خواندن owner خزانه:', e);
+            }
+        }
+        
         // نرمال‌سازی آدرس‌های Tron به Base58
         ({ fundAddress, ownerOrMultisig, owners } = normalizeAddressesForNetwork(
             fundAddress, ownerOrMultisig, owners
