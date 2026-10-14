@@ -87,7 +87,7 @@ export class ProjectManager {
     }
 
     const project = this.projects.features?.find(
-      f => f.attributes?.ProjectID === projectId
+      f => String(f.attributes?.ProjectID) === String(projectId)
     );
 
     if (!project) {
@@ -374,7 +374,7 @@ async _getFileSha(workerUrl, adminToken, path) {
 
     // بررسی یکتایی
     const existing = this.projects.features?.find(
-      f => f.attributes?.ProjectID === projectId
+      f => String(f.attributes?.ProjectID) === String(projectId)
     );
     if (existing) {
       throw new Error(`پروژه با شناسه ${projectId} از قبل وجود دارد`);
