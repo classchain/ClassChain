@@ -939,7 +939,21 @@
         "targetAmount(USDT)": 1211,
         "status": null,
         "raisedAmount": null,
-        "funds": {}
+        "funds": {
+          "polygon_amoy": {
+            "address": "0xb5d64f19FbBc9726aEC17fF7EF5914f9Af03D189",
+            "multisigAddress": null,
+            "owners": [
+              "0x9626438503C8832A65eCc931B124825c417e467e",
+              "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a"
+            ],
+            "requiredSignatures": 2,
+            "createdAt": "2026-10-14T07:38:13.973Z",
+            "network": "polygon_amoy",
+            "isMultisig": true,
+            "scanFromBlock": 50140965
+          }
+        }
       }
     }
   ]
