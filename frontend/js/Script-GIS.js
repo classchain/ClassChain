@@ -763,6 +763,52 @@ function bindMapControl(el, handler) {
     el.addEventListener('touchend', run, { passive: false });
 }
 
+// ========== حالت انتخاب محل از Admin ==========
+(function initPickLocationMode() {
+    if (!isPickLocationMode) return;
+
+    // بنر راهنما
+    const banner = document.createElement('div');
+    banner.id = 'pickLocationBanner';
+    banner.style.cssText = [
+        'position:fixed', 'top:12px', 'left:50%', 'transform:translateX(-50%)',
+        'z-index:9999', 'background:#1a1a2e', 'color:#fff',
+        'padding:12px 20px', 'border-radius:10px', 'font-family:Vazirmatn,Tahoma,sans-serif',
+        'font-size:14px', 'box-shadow:0 4px 20px rgba(0,0,0,.25)',
+        'display:flex', 'align-items:center', 'gap:12px', 'max-width:90vw'
+    ].join(';');
+    banner.innerHTML = `
+        <span>📍 روی نقشه کلیک کنید تا محل پروژه انتخاب شود</span>
+        <button type="button" id="pickLocationCancelBtn"
+            style="background:#e74c3c;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-family:inherit;">
+            انصراف
+        </button>
+    `;
+    document.body.appendChild(banner);
+
+    document.getElementById('pickLocationCancelBtn')?.addEventListener('click', () => {
+        // برگشت بدون مختصات
+        const ret = sessionStorage.getItem('classchain-pick-return') || '../Admin/index.html';
+        window.location.href = ret;
+    });
+
+    // کرسر ضربدر برای حس «انتخاب نقطه»
+    try { map.getContainer().style.cursor = 'crosshair'; } catch (e) {}
+
+    function finishPick(latlng) {
+        if (!latlng) return;
+        const x = Number(latlng.lng.toFixed(6)); // طول
+        const y = Number(latlng.lat.toFixed(6)); // عرض
+        sessionStorage.setItem('classchain-picked-location', JSON.stringify({ x, y, t: Date.now() }));
+        const ret = sessionStorage.getItem('classchain-pick-return') || '../Admin/index.html';
+        window.location.href = ret;
+    }
+
+    map.on('click', (e) => {
+        finishPick(e.latlng);
+    });
+})();
+
 bindMapControl(homeBtn, zoomToIran);
 bindMapControl(contributeActionBtn, () => redirectToDonate(currentProjectId));
 
