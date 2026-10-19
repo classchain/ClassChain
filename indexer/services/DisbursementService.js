@@ -142,22 +142,45 @@ export class DisbursementService {
 
     async approve(disbursementId, approver, onchain = {}) {
         if (!approver) throw new Error('approver is required');
+        if (!onchain.onchainTxHash) throw new Error('on-chain transaction hash is required');
 
         const row = await this.repo.get(disbursementId);
         if (!row) throw new Error('disbursement not found');
         if (row.status !== 'PENDING_APPROVAL' && row.status !== 'APPROVED') {
+            if (row.status === 'EXECUTED') return this.get(disbursementId);
             throw new Error(`cannot approve status=${row.status}`);
         }
 
-        const count = await this.repo.addApproval(
-            disbursementId,
-            String(approver).toLowerCase(),
-            Math.floor(Date.now() / 1000),
-            onchain.onchainTxIndex ?? null,
-            onchain.onchainTxHash ?? null
-        );
-
         const required = Number(row.required_signatures) || 1;
+        const txIndex = onchain.onchainTxIndex ?? null;
+        if (required > 1 && (!Number.isInteger(Number(txIndex)) || Number(txIndex) < 0)) {
+            throw new Error('on-chain multisig transaction index is required');
+        }
+        if (required <= 1 && txIndex !== null) {
+            throw new Error('single-signature disbursement must not include a multisig transaction index');
+        }
+
+        // EVM addresses are case-insensitive; TRON Base58 addresses are case-sensitive.
+        const normalizedApprover = String(approver).trim();
+        const storedApprover = String(row.network_id || '').startsWith('tron_')
+            ? normalizedApprover
+            : normalizedApprover.toLowerCase();
+        const existingApprovals = await this.repo.listApprovals(disbursementId);
+        const alreadyRecorded = existingApprovals.some((a) =>
+            String(a.approver || '') === storedApprover
+        );
+        if (!alreadyRecorded) {
+            await this.repo.addApproval(
+                disbursementId,
+                storedApprover,
+                Math.floor(Date.now() / 1000),
+                txIndex,
+                String(onchain.onchainTxHash)
+            );
+        }
+
+        const approvals = await this.repo.listApprovals(disbursementId);
+        const count = approvals.length;
         if (count >= required && row.status === 'PENDING_APPROVAL') {
             await this.repo.setStatus(disbursementId, 'APPROVED');
         }
@@ -171,10 +194,35 @@ export class DisbursementService {
         const row = await this.repo.get(disbursementId);
         if (!row) throw new Error('disbursement not found');
         if (row.status === 'EXECUTED') {
+            // Idempotent retry: a lost HTTP response must not re-finalize or resend funds.
+            if (row.execute_tx_hash && String(row.execute_tx_hash).toLowerCase() !== String(executeTxHash).toLowerCase()) {
+                throw new Error('disbursement is already executed with a different transaction hash');
+            }
             return { disbursement: row, round_finalize: null };
         }
         if (row.status === 'NO_DESTINATION' || row.status === 'FAILED') {
             throw new Error(`cannot execute status=${row.status}`);
+        }
+
+        const required = Number(row.required_signatures) || 1;
+        if (required <= 1 && onchainTxIndex !== null) {
+            throw new Error('single-signature disbursement must not include a multisig transaction index');
+        }
+        if (required > 1 && (!Number.isInteger(Number(onchainTxIndex)) || Number(onchainTxIndex) < 0)) {
+            throw new Error('on-chain multisig transaction index is required');
+        }
+        const approvals = await this.repo.listApprovals(disbursementId);
+        if (approvals.length < required) {
+            throw new Error('cannot mark executed before required approvals are recorded');
+        }
+        const matchingApproval = approvals.some((a) =>
+            String(a.onchain_tx_hash || '').toLowerCase() === String(executeTxHash).toLowerCase() &&
+            (required <= 1
+                ? a.onchain_tx_index == null
+                : Number(a.onchain_tx_index) === Number(onchainTxIndex))
+        );
+        if (!matchingApproval) {
+            throw new Error('execution hash/index does not match a recorded on-chain approval');
         }
 
         const updated = await this.repo.setStatus(disbursementId, 'EXECUTED', {
