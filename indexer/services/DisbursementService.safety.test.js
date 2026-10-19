@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { DisbursementService } from './DisbursementService.js';
+import { getTokenAddress } from '../../shared/network-config.js';
 
 function makeDb(initialRow) {
   const row = { ...initialRow };
@@ -121,5 +122,51 @@ assert.ok(claimant, 'claim should retain the claimant while PROCESSING');
 await service.releaseSingleSignatureClaim(41, claimant);
 assert.equal(db.row.status, 'PENDING_APPROVAL');
 assert.equal(db.row.error, null);
+
+const verifyDb = makeDb({
+  id: 42,
+  network_id: 'polygon_amoy',
+  required_signatures: 1,
+  status: 'APPROVED',
+  error: null,
+  project_id: '1004',
+  allocation_batch_id: 'batch-42',
+  from_address: '0x0000000000000000000000000000000000000001',
+  to_address: '0x0000000000000000000000000000000000000002',
+  amount_raw: '1000000',
+});
+const verifier = new DisbursementService(verifyDb, { loadProjects: async () => registry });
+const tokenAddress = getTokenAddress('polygon_amoy', 'USDT').toLowerCase();
+const transferTopic = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+const topicAddress = (address) => '0x' + address.toLowerCase().replace(/^0x/, '').padStart(64, '0');
+const validReceipt = {
+  status: '0x1',
+  logs: [{
+    address: tokenAddress,
+    topics: [
+      transferTopic,
+      topicAddress(verifyDb.row.from_address),
+      topicAddress(verifyDb.row.to_address),
+    ],
+    data: '0x' + BigInt(verifyDb.row.amount_raw).toString(16).padStart(64, '0'),
+  }],
+};
+const originalFetch = globalThis.fetch;
+try {
+  globalThis.fetch = async () => new Response(JSON.stringify({ jsonrpc: '2.0', id: 1, result: validReceipt }), {
+    status: 200, headers: { 'content-type': 'application/json' },
+  });
+  assert.equal(await verifier._verifyOnChainTransfer(verifyDb.row, '0xvalidhash'), true);
+
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    jsonrpc: '2.0', id: 1, result: { status: '0x1', logs: [] },
+  }), { status: 200, headers: { 'content-type': 'application/json' } });
+  await assert.rejects(
+    () => verifier._verifyOnChainTransfer(verifyDb.row, '0xunrelatedhash'),
+    /no matching USDT Transfer/
+  );
+} finally {
+  globalThis.fetch = originalFetch;
+}
 
 console.log('Disbursement safety tests passed');
