@@ -393,15 +393,22 @@ async function sendEvmTransaction(provider, web3, tx) {
   // Leave gas-price selection to the wallet so EIP-1559 networks remain compatible.
   const estimated = BigInt(await web3.eth.estimateGas(transaction));
   transaction.gas = '0x' + ((estimated * 120n + 99n) / 100n).toString(16);
-  const txHash = await provider.request({
-    method: 'eth_sendTransaction',
-    params: [transaction]
-  });
+  let txHash;
+  try {
+    txHash = await provider.request({
+      method: 'eth_sendTransaction',
+      params: [transaction]
+    });
+  } catch (error) {
+    // User rejection is definitive; other provider failures may have happened after broadcast.
+    if (error?.code !== 4001) error.broadcastUnknown = true;
+    throw error;
+  }
 
   for (let i = 0; i < 90; i++) {
     const receipt = await web3.eth.getTransactionReceipt(txHash);
     if (receipt) {
-      if (receipt.status === false || receipt.status === 0 || receipt.status === '0x0' || receipt.status === '0') {
+      if (receipt.status === false || receipt.status === 0 || receipt.status === 0n || receipt.status === '0x0' || receipt.status === '0') {
         const error = new Error('تراکنش روی شبکه ناموفق شد: ' + txHash);
         error.txHash = txHash;
         error.txFailed = true;
@@ -529,12 +536,22 @@ function extractTronTxId(result) {
  * So we always send with shouldPollResponse:false and only keep the txID.
  */
 async function sendTronVoid(methodCall) {
-  const result = await methodCall.send({
-    callValue: 0,
-    shouldPollResponse: false
-  });
+  let result;
+  try {
+    result = await methodCall.send({
+      callValue: 0,
+      shouldPollResponse: false
+    });
+  } catch (error) {
+    if (error?.code !== 4001) error.broadcastUnknown = true;
+    throw error;
+  }
   const txHash = extractTronTxId(result);
-  if (!txHash) throw new Error('تراکنش ارسال شد ولی txID از TronLink دریافت نشد.');
+  if (!txHash) {
+    const error = new Error('پاسخ ارسال TRON فاقد txID است؛ وضعیت شبکه را بررسی کنید و دوباره ارسال نکنید.');
+    error.broadcastUnknown = true;
+    throw error;
+  }
   const tronWeb = getTronWeb();
   if (typeof tronWeb?.trx?.getTransactionInfo === 'function') {
     for (let i = 0; i < 90; i++) {
@@ -545,6 +562,11 @@ async function sendTronVoid(methodCall) {
           const error = new Error('تراکنش TRON روی شبکه ناموفق شد: ' + txHash + (info.resMessage ? ' · ' + info.resMessage : ''));
           error.txHash = txHash;
           error.txFailed = true;
+          throw error;
+        }
+        if (result !== 'SUCCESS') {
+          const error = new Error('رسید TRON موجود است اما نتیجه موفقیت قابل تأیید نیست؛ انتقال را دوباره ارسال نکنید: ' + txHash);
+          error.txHash = txHash;
           throw error;
         }
         return txHash;
@@ -607,7 +629,10 @@ async function finalizeSingleSig(row, approver, txHash) {
 async function walletAction(row) {
   const latestData = await api('/api/disburse/' + row.id);
   const latest = latestData.disbursement || {};
-  if (latest.status === 'EXECUTED') throw new Error('این انتقال قبلاً اجرا شده است؛ ارسال دوباره مجاز نیست.');
+  if (latest.status === 'EXECUTED') {
+    clearSingleSigRecovery(row);
+    throw new Error('این انتقال قبلاً اجرا شده است؛ ارسال دوباره مجاز نیست.');
+  }
   const requiredSignatures = Number(row.required_signatures || 1);
   const recovery = requiredSignatures <= 1 ? readSingleSigRecovery(row) : null;
   if (requiredSignatures <= 1 && (latest.status === 'APPROVED' || latest.status === 'PROCESSING') && !recovery) {
@@ -655,7 +680,7 @@ async function walletAction(row) {
         ).encodeABI()
         });
       } catch (error) {
-        if (!error.txHash || error.txFailed) {
+        if (error.txFailed || (!error.txHash && !error.broadcastUnknown)) {
           await api('/api/disburse/' + row.id + '/release-claim', {
             method: 'POST',
             body: JSON.stringify({ approver: account })
