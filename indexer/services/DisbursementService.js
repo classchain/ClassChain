@@ -209,6 +209,9 @@ export class DisbursementService {
 
         // EVM addresses are case-insensitive; TRON Base58 addresses are case-sensitive.
         const normalizedApprover = this._normalizeApprover(row.network_id, approver);
+        if (row.status === 'PROCESSING' && row.error !== 'single_sig_claim:' + normalizedApprover) {
+            throw new Error('single-signature transfer is claimed by another wallet');
+        }
         const storedApprover = normalizedApprover;
         const existingApprovals = await this.repo.listApprovals(disbursementId);
         const isTron = String(row.network_id || '').startsWith('tron_');
