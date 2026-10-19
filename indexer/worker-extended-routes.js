@@ -318,24 +318,33 @@ export async function handleExtendedRoutes(ctx) {
           .map((f) => f?.attributes)
           .find((a) => a && String(a.ProjectID) === 'GENERAL_POOL');
         const fund = general?.funds?.[current.network_id];
-        const owners = (fund?.owners || []).map((o) => String(o).toLowerCase());
-        const addr = String(approver).toLowerCase();
-        if (owners.length && !owners.includes(addr)) {
+        const isTron = String(current.network_id || '').startsWith('tron_');
+        const owners = (fund?.owners || []).map((o) => String(o).trim());
+        const addr = String(approver).trim();
+        const isOwner = owners.some((owner) => isTron
+          ? owner === addr
+          : owner.toLowerCase() === addr.toLowerCase());
+        if (owners.length && !isOwner) {
           return jsonResponse({
             ok: false,
             error: `wallet ${approver} is not a GENERAL_POOL owner on ${current.network_id}`,
           }, 403);
         }
-        const txIndex = body.onchain_tx_index ?? body.onchainTxIndex;
+        const txIndexRaw = body.onchain_tx_index ?? body.onchainTxIndex ?? null;
+        const txIndex = txIndexRaw === null ? null : Number(txIndexRaw);
         const txHash = body.onchain_tx_hash ?? body.onchainTxHash;
-        if (txIndex === undefined || txIndex === null || !txHash) {
+        const required = Number(current.required_signatures) || 1;
+        if (!txHash || (required > 1 && (!Number.isInteger(txIndex) || txIndex < 0)) ||
+            (required <= 1 && txIndex !== null)) {
           return jsonResponse({
             ok: false,
-            error: 'on-chain multisig transaction index and confirmation tx hash are required',
+            error: required > 1
+              ? 'on-chain multisig transaction index and confirmation tx hash are required'
+              : 'single-signature approval requires a transaction hash and no multisig index',
           }, 400);
         }
         const row = await svc.approve(Number(approveMatch[1]), String(approver), {
-          onchainTxIndex: Number(txIndex),
+          onchainTxIndex: txIndex,
           onchainTxHash: String(txHash),
         });
         return jsonResponse({ ok: true, disbursement: row });
