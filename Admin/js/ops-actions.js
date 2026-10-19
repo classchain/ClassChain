@@ -932,6 +932,9 @@ function renderSignerRows(row) {
       <span class="disb-signer-act">${btn}</span></div></div>`;
   }
 
+  const reconcileButton = row.status === 'APPROVED' && required > 1
+    ? `<button type="button" class="primary" data-reconcile="${row.id}">بازبینی اجرای شبکه</button>`
+    : '';
   const rowsHtml = owners.map((owner, i) => {
     const done = approvedSet.has(normalizeApprover(owner));
     const awaitingReconciliation = row.status === 'APPROVED' && required > 1 && !done;
@@ -953,7 +956,8 @@ function renderSignerRows(row) {
 
   return `<div class="disb-signers">
     <div class="disb-signers-head"><strong>امضاها: ${confCount}/${required}</strong>
-      <span class="muted">${owners.length} مالک Multisig · ${networkLabel(row.network_id)}</span></div>
+      <span class="muted">${owners.length} مالک Multisig · ${networkLabel(row.network_id)}</span>
+      ${reconcileButton}</div>
     ${rowsHtml}
   </div>`;
 }
@@ -1033,6 +1037,37 @@ export async function loadDisbursePending() {
           await loadDisburseRounds();
         } catch (e) {
           alert(e.message);
+          await loadDisbursePending();
+        }
+      };
+    });
+
+    box.querySelectorAll('[data-reconcile]').forEach((b) => {
+      b.onclick = async () => {
+        b.disabled = true;
+        b.textContent = 'در حال بررسی…';
+        try {
+          const d = await api('/api/disburse/' + b.dataset.reconcile);
+          const row = d.disbursement;
+          const approvals = Array.isArray(row?.approvals) ? row.approvals : [];
+          const finalApproval = approvals
+            .filter((a) => a.onchain_tx_index !== null && a.onchain_tx_index !== undefined && a.onchain_tx_hash)
+            .sort((a, c) => Number(c.approved_at || 0) - Number(a.approved_at || 0))[0];
+          if (!finalApproval) {
+            throw new Error('هش و شماره تراکنش امضای نهایی در D1 موجود نیست؛ از ارسال مجدد خودداری کنید.');
+          }
+          await api('/api/disburse/' + b.dataset.reconcile + '/executed', {
+            method: 'POST',
+            body: JSON.stringify({
+              execute_tx_hash: finalApproval.onchain_tx_hash,
+              onchain_tx_index: Number(finalApproval.onchain_tx_index),
+            }),
+          });
+          alert('اجرای واقعی USDT روی شبکه تأیید و وضعیت D1 اصلاح شد.');
+          await loadDisbursePending();
+          await loadDisburseRounds();
+        } catch (e) {
+          alert('وضعیت همچنان تأیید نشده است: ' + e.message);
           await loadDisbursePending();
         }
       };
