@@ -26,5 +26,8 @@ jobs:
           node --check indexer/worker-extended-routes.js
           node --check indexer/services/DisbursementService.js
           node --check indexer/db/DisbursementRepository.js
+          node --check indexer/services/DisbursementService.safety.test.js
+      - name: Run disbursement safety regression test
+        run: node indexer/services/DisbursementService.safety.test.js
       - name: Run existing indexer integration test
         run: node indexer/core/discovery/Discovery.integration.test.js
