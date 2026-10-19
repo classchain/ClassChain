@@ -14,6 +14,10 @@
 import { DisbursementRepository } from '../db/DisbursementRepository.js';
 import { AllocationRepository } from '../db/AllocationRepository.js';
 import { VotingService } from './VotingService.js';
+import { EvmClient } from '../adapters/evm/EvmClient.js';
+import { TronClient } from '../adapters/tron/TronClient.js';
+import { getTokenAddress } from '../../shared/network-config.js';
+import { tronAddressToHex } from '../adapters/tron/TronAddress.js';
 
 export const GENERAL_PROJECT_ID = 'GENERAL_POOL';
 
@@ -242,6 +246,68 @@ export class DisbursementService {
         return this.get(disbursementId);
     }
 
+    async _verifyOnChainTransfer(row, txHash) {
+        const tokenAddress = getTokenAddress(row.network_id, 'USDT');
+        if (!tokenAddress) throw new Error(`USDT contract is not configured for ${row.network_id}`);
+        const expectedAmount = BigInt(String(row.amount_raw));
+        const transferTopic = 'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+
+        if (String(row.network_id || '').startsWith('tron_')) {
+            const client = new TronClient(row.network_id);
+            const info = await client.getTransactionInfo(txHash);
+            const blockNumber = info?.blockNumber ?? info?.block_number;
+            const result = String(info?.receipt?.result || info?.result || '').toUpperCase();
+            if (!blockNumber || result !== 'SUCCESS') {
+                throw new Error('TRON transaction receipt is missing or unsuccessful; D1 status was not changed');
+            }
+
+            const address20 = (value) => {
+                const hex = String(value || '').replace(/^0x/i, '').toLowerCase();
+                if (/^[0-9a-f]{40}$/.test(hex)) return hex;
+                if (/^41[0-9a-f]{40}$/.test(hex)) return hex.slice(2);
+                return tronAddressToHex(value).slice(-40).toLowerCase();
+            };
+            const token20 = address20(tokenAddress);
+            const from20 = address20(row.from_address);
+            const to20 = address20(row.to_address);
+            const logs = info.log || info.logs || [];
+            const matched = logs.some((log) => {
+                const topics = (log.topics || []).map((x) => String(x || '').replace(/^0x/i, '').toLowerCase());
+                if (address20(log.address) !== token20 || topics[0] !== transferTopic) return false;
+                const from = topics[1]?.slice(-40);
+                const to = topics[2]?.slice(-40);
+                const data = String(log.data || '').replace(/^0x/i, '');
+                try {
+                    return from === from20 && to === to20 && BigInt('0x' + data) === expectedAmount;
+                } catch (_) { return false; }
+            });
+            if (!matched) throw new Error('TRON receipt has no matching USDT Transfer for this disbursement');
+            return true;
+        }
+
+        const client = new EvmClient(row.network_id);
+        const receipt = await client.request('eth_getTransactionReceipt', [txHash]);
+        if (!receipt) throw new Error('EVM transaction receipt not found; D1 status was not changed');
+        let successful = false;
+        try { successful = BigInt(receipt.status) === 1n; } catch (_) {}
+        if (!successful) throw new Error('EVM transaction receipt is unsuccessful; D1 status was not changed');
+
+        const normalize = (value) => String(value || '').toLowerCase();
+        const token = normalize(tokenAddress);
+        const fromTopic = '0x' + normalize(row.from_address).replace(/^0x/, '').padStart(64, '0');
+        const toTopic = '0x' + normalize(row.to_address).replace(/^0x/, '').padStart(64, '0');
+        const matched = (receipt.logs || []).some((log) => {
+            const topics = (log.topics || []).map((x) => normalize(x));
+            if (normalize(log.address) !== token || topics[0] !== '0x' + transferTopic) return false;
+            const data = String(log.data || '');
+            try {
+                return topics[1] === fromTopic && topics[2] === toTopic && BigInt(data) === expectedAmount;
+            } catch (_) { return false; }
+        });
+        if (!matched) throw new Error('EVM receipt has no matching USDT Transfer for this disbursement');
+        return true;
+    }
+
     async markExecuted(disbursementId, executeTxHash, onchainTxIndex = null) {
         if (!executeTxHash) throw new Error('executeTxHash is required');
 
@@ -269,6 +335,8 @@ export class DisbursementService {
         if (approvals.length < required) {
             throw new Error('cannot mark executed before required approvals are recorded');
         }
+        // D1 is updated only after independently verifying the actual USDT Transfer log.
+        await this._verifyOnChainTransfer(row, String(executeTxHash));
         const matchingApproval = approvals.some((a) =>
             String(a.onchain_tx_hash || '').toLowerCase() === String(executeTxHash).toLowerCase() &&
             (required <= 1
