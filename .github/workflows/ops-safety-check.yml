@@ -1,0 +1,30 @@
+name: Ops disbursement safety checks
+
+on:
+  push:
+    branches: ["fix/ops-disbursement-safety"]
+  pull_request:
+    branches: ["admin", "main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check changed JavaScript modules
+        run: |
+          node --check Admin/js/ops-actions.js
+          node --check indexer/worker-extended-routes.js
+          node --check indexer/services/DisbursementService.js
+          node --check indexer/db/DisbursementRepository.js
+      - name: Run existing indexer integration test
+        run: node indexer/core/discovery/Discovery.integration.test.js
