@@ -49,20 +49,117 @@
                     <div id="createResult" style="display:none;"></div>
                 </section>
                 <section id="section-add-project" class="section active">
-                    <h2>➕ افزودن پروژه جدید</h2>
-                    <p style="color:#666;font-size:14px;margin-bottom:20px;">پروژه جدید به فایل Projects.json اضافه می‌شود و سپس می‌توانید برای آن خزانه بسازید.</p>
-                    <div class="form-group"><label>آیدی پروژه (ProjectID) <span style="color:red">*</span></label><input type="text" id="newProjectId" placeholder="مثل 2501" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div>
-                    <div class="form-group"><label>نام پروژه <span style="color:red">*</span></label><input type="text" id="newProjectName" placeholder="نام کامل پروژه/مدرسه" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;"><div class="form-group"><label>استان</label><input type="text" id="newProvince" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div><div class="form-group"><label>منطقه</label><input type="text" id="newRegion" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div></div>
-                    <div class="form-group"><label>آدرس پروژه</label><input type="text" id="newAddress" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;"><div class="form-group"><label>تعداد کلاس</label><input type="number" id="newClassCount" min="0" value="0" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div><div class="form-group"><label>زیربنا (متر)</label><input type="number" id="newArea" min="0" value="0" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div><div class="form-group"><label>هدف مالی (USDT) <span style="color:red">*</span></label><input type="number" id="newTargetAmount" min="0" value="0" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div></div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;"><div class="form-group"><label>طول جغرافیایی (x)</label><input type="number" id="newX" step="any" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div><div class="form-group"><label>عرض جغرافیایی (y)</label><input type="number" id="newY" step="any" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div></div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;"><div class="form-group"><label>محل اجرا</label><select id="newLocationType" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"><option value="شهری">شهری</option><option value="روستایی">روستایی</option></select></div><div class="form-group"><label>ماهیت پروژه</label><input type="text" id="newNature" value="خیرین" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div></div>
-                    <div class="form-group"><label>نوع پروژه (نیاز)</label><input type="text" id="newProjectType" value="احداث فضای آموزشی جهت ارتقاء سرانه فضا" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;"><div class="form-group"><label>مسئول پروژه</label><input type="text" id="newManager" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div><div class="form-group"><label>شماره تلفن مسئول</label><input type="text" id="newManagerPhone" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div></div>
-                    <div class="form-group"><label>کد فضا</label><input type="text" id="newSpaceCode" style="width:100%;padding:10px 14px;border:2px solid #e0e0e0;border-radius:8px;"></div>
-                    <button id="btnAddProject" class="btn-create" style="width:100%;padding:14px;background:#27ae60;color:white;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;margin-top:10px;">💾 ذخیره پروژه جدید</button>
-                    <div id="addProjectResult" style="display:none;margin-top:20px;"></div>
+                    <div class="add-project-panel">
+                        <div class="add-project-header">
+                            <div>
+                                <h2>➕ افزودن پروژه جدید</h2>
+                                <p class="add-project-subtitle">پروژه به <code>Projects.json</code> اضافه می‌شود؛ بعد می‌توانید برای آن خزانه بسازید.</p>
+                            </div>
+                            <span class="add-project-badge">فیلدهای ستاره‌دار الزامی‌اند</span>
+                        </div>
+
+                        <div class="add-project-grid">
+                            <div class="add-card">
+                                <div class="add-card-title">شناسه و عنوان</div>
+                                <div class="add-fields cols-2">
+                                    <div class="form-group compact">
+                                        <label>آیدی پروژه (ProjectID) <span class="req">*</span></label>
+                                        <input type="text" id="newProjectId" placeholder="مثل 2501">
+                                    </div>
+                                    <div class="form-group compact">
+                                        <label>نام پروژه <span class="req">*</span></label>
+                                        <input type="text" id="newProjectName" placeholder="نام کامل پروژه/مدرسه">
+                                    </div>
+                                </div>
+                                <div class="form-group compact">
+                                    <label>نوع پروژه (نیاز)</label>
+                                    <input type="text" id="newProjectType" value="احداث فضای آموزشی جهت ارتقاء سرانه فضا">
+                                </div>
+                            </div>
+
+                            <div class="add-card">
+                                <div class="add-card-title">موقعیت</div>
+                                <div class="add-fields cols-3">
+                                    <div class="form-group compact">
+                                        <label>استان</label>
+                                        <input type="text" id="newProvince" placeholder="مثلاً کرمان">
+                                    </div>
+                                    <div class="form-group compact">
+                                        <label>منطقه</label>
+                                        <input type="text" id="newRegion" placeholder="مثلاً بافت">
+                                    </div>
+                                    <div class="form-group compact">
+                                        <label>محل اجرا</label>
+                                        <select id="newLocationType">
+                                            <option value="شهری">شهری</option>
+                                            <option value="روستایی">روستایی</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group compact">
+                                    <label>آدرس پروژه</label>
+                                    <input type="text" id="newAddress" placeholder="آدرس کامل">
+                                </div>
+                                <div class="add-fields cols-2">
+                                    <div class="form-group compact">
+                                        <label>طول جغرافیایی (x)</label>
+                                        <input type="number" id="newX" step="any" placeholder="مثلاً 56.7">
+                                    </div>
+                                    <div class="form-group compact">
+                                        <label>عرض جغرافیایی (y)</label>
+                                        <input type="number" id="newY" step="any" placeholder="مثلاً 29.2">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="add-card">
+                                <div class="add-card-title">ابعاد و بودجه</div>
+                                <div class="add-fields cols-3">
+                                    <div class="form-group compact">
+                                        <label>تعداد کلاس</label>
+                                        <input type="number" id="newClassCount" min="0" value="0">
+                                    </div>
+                                    <div class="form-group compact">
+                                        <label>زیربنا (متر)</label>
+                                        <input type="number" id="newArea" min="0" value="0">
+                                    </div>
+                                    <div class="form-group compact">
+                                        <label>هدف مالی (USDT) <span class="req">*</span></label>
+                                        <input type="number" id="newTargetAmount" min="0" value="0">
+                                    </div>
+                                </div>
+                                <div class="add-fields cols-2">
+                                    <div class="form-group compact">
+                                        <label>ماهیت پروژه</label>
+                                        <input type="text" id="newNature" value="خیرین">
+                                    </div>
+                                    <div class="form-group compact">
+                                        <label>کد فضا</label>
+                                        <input type="text" id="newSpaceCode" placeholder="اختیاری">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="add-card">
+                                <div class="add-card-title">مسئول پروژه</div>
+                                <div class="add-fields cols-2">
+                                    <div class="form-group compact">
+                                        <label>نام مسئول</label>
+                                        <input type="text" id="newManager" placeholder="نام و نام خانوادگی">
+                                    </div>
+                                    <div class="form-group compact">
+                                        <label>شماره تلفن</label>
+                                        <input type="text" id="newManagerPhone" placeholder="09xxxxxxxxx">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="add-project-actions">
+                            <button id="btnAddProject" class="btn-create add-project-submit" type="button">💾 ذخیره پروژه جدید</button>
+                        </div>
+                        <div id="addProjectResult" style="display:none;"></div>
+                    </div>
                 </section>
                 <section id="section-projects" class="section" style="display:none;">
                     <div class="section-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h2>📋 لیست پروژه‌ها</h2><div class="filters" style="display:flex;gap:10px;"><select id="networkFilter" style="padding:8px 14px;border-radius:6px;border:1px solid #ddd;"><option value="all">همه شبکه‌ها</option></select><button onclick="window.loadProjectsTable()" class="btn-secondary" style="padding:8px 16px;background:#3498db;color:white;border:none;border-radius:6px;cursor:pointer;">🔄 Refresh</button></div></div>
