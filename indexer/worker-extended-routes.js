@@ -300,6 +300,40 @@ export async function handleExtendedRoutes(ctx) {
       }
     }
 
+    const claimMatch = path.match(/^\/api\/disburse\/(\d+)\/claim$/);
+    if (method === 'POST' && claimMatch) {
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
+      const body = await readJsonBody(request);
+      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
+      try {
+        const svc = new DisbursementService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
+        const disbursement = await svc.claimSingleSignature(
+          Number(claimMatch[1]),
+          body.approver || body.wallet || body.address
+        );
+        return jsonResponse({ ok: true, disbursement });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 409);
+      }
+    }
+
+    const releaseMatch = path.match(/^\/api\/disburse\/(\d+)\/release-claim$/);
+    if (method === 'POST' && releaseMatch) {
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
+      const body = await readJsonBody(request);
+      if (!body) return jsonResponse({ ok: false, error: 'invalid json' }, 400);
+      try {
+        const svc = new DisbursementService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
+        const disbursement = await svc.releaseSingleSignatureClaim(
+          Number(releaseMatch[1]),
+          body.approver || body.wallet || body.address
+        );
+        return jsonResponse({ ok: true, disbursement });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 409);
+      }
+    }
+
     const approveMatch = path.match(/^\/api\/disburse\/(\d+)\/approve$/);
     if (method === 'POST' && approveMatch) {
       if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
