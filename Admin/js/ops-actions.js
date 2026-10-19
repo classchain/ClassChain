@@ -386,10 +386,14 @@ async function waitForEvmReceipt(web3, txHash, attempts = 90) {
   for (let i = 0; i < attempts; i++) {
     const receipt = await web3.eth.getTransactionReceipt(txHash).catch(() => null);
     if (receipt) {
-      if (receipt.status === false || receipt.status === 0 || receipt.status === 0n || receipt.status === '0x0' || receipt.status === '0') {
-        const error = new Error('تراکنش روی شبکه ناموفق شد: ' + txHash);
+      let successful = false;
+      try { successful = BigInt(receipt.status) === 1n; } catch (_) {}
+      if (!successful) {
+        const error = new Error('نتیجه موفقیت Receipt تراکنش قابل تأیید نیست: ' + txHash);
         error.txHash = txHash;
-        error.txFailed = true;
+        if (receipt.status === false || receipt.status === 0 || receipt.status === 0n || receipt.status === '0x0' || receipt.status === '0') {
+          error.txFailed = true;
+        }
         throw error;
       }
       return receipt;
