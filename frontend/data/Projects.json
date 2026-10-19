@@ -1167,6 +1167,19 @@
             "network": "polygon_amoy",
             "isMultisig": true,
             "scanFromBlock": 50569916
+          },
+          "tron_nile": {
+            "address": "TNaH9maQw3hvMrgKwoUVUjqNFzF9kuutcM",
+            "multisigAddress": "TYTZModVHGTTRnNdd7H38rWXNehkKfJxHt",
+            "owners": [
+              "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1",
+              "TWriCnUmTXBBZNoGRgS9m8iqJMs3efrYHd"
+            ],
+            "requiredSignatures": 2,
+            "createdAt": "2026-10-19T06:55:08.589Z",
+            "network": "tron_nile",
+            "isMultisig": true,
+            "scanFromBlock": 71953355
           }
         }
       }
