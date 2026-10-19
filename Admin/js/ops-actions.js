@@ -382,6 +382,25 @@ async function ensureEvmNetwork(provider, chainId) {
   await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: wanted }] });
 }
 
+async function waitForEvmReceipt(web3, txHash, attempts = 90) {
+  for (let i = 0; i < attempts; i++) {
+    const receipt = await web3.eth.getTransactionReceipt(txHash);
+    if (receipt) {
+      if (receipt.status === false || receipt.status === 0 || receipt.status === 0n || receipt.status === '0x0' || receipt.status === '0') {
+        const error = new Error('تراکنش روی شبکه ناموفق شد: ' + txHash);
+        error.txHash = txHash;
+        error.txFailed = true;
+        throw error;
+      }
+      return receipt;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  const error = new Error('تراکنش ارسال شده اما Receipt هنوز در دسترس نیست؛ قبل از تلاش مجدد وضعیت این هش را بررسی کنید: ' + txHash);
+  error.txHash = txHash;
+  throw error;
+}
+
 async function sendEvmTransaction(provider, web3, tx) {
   const transaction = {
     from: tx.from,
@@ -400,28 +419,11 @@ async function sendEvmTransaction(provider, web3, tx) {
       params: [transaction]
     });
   } catch (error) {
-    // User rejection is definitive; other provider failures may have happened after broadcast.
     if (error?.code !== 4001) error.broadcastUnknown = true;
     throw error;
   }
-
-  for (let i = 0; i < 90; i++) {
-    const receipt = await web3.eth.getTransactionReceipt(txHash);
-    if (receipt) {
-      if (receipt.status === false || receipt.status === 0 || receipt.status === 0n || receipt.status === '0x0' || receipt.status === '0') {
-        const error = new Error('تراکنش روی شبکه ناموفق شد: ' + txHash);
-        error.txHash = txHash;
-        error.txFailed = true;
-        throw error;
-      }
-      return { ...receipt, transactionHash: txHash };
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
-  // Do not retry the transfer automatically: the transaction may still be pending.
-  const error = new Error('تراکنش ارسال شده اما Receipt هنوز در دسترس نیست؛ قبل از تلاش مجدد وضعیت این هش را بررسی کنید: ' + txHash);
-  error.txHash = txHash;
-  throw error;
+  const receipt = await waitForEvmReceipt(web3, txHash);
+  return { ...receipt, transactionHash: txHash };
 }
 async function getEvmFundOwner(web3, fundAddress) {
   const fund = new web3.eth.Contract([{
@@ -535,6 +537,36 @@ function extractTronTxId(result) {
  *   data out-of-bounds (buffer=0x, length=0, offset=32, BUFFER_OVERRUN)
  * So we always send with shouldPollResponse:false and only keep the txID.
  */
+async function waitForTronReceipt(tronWeb, txHash, attempts = 90) {
+  if (typeof tronWeb?.trx?.getTransactionInfo !== 'function') {
+    const error = new Error('امکان بررسی Receipt تراکنش TRON وجود ندارد؛ دوباره ارسال نکنید: ' + txHash);
+    error.txHash = txHash;
+    throw error;
+  }
+  for (let i = 0; i < attempts; i++) {
+    const info = await tronWeb.trx.getTransactionInfo(txHash).catch(() => null);
+    if (info && (info.blockNumber || info.block_number)) {
+      const result = String(info.receipt?.result || info.result || '').toUpperCase();
+      if (result && result !== 'SUCCESS') {
+        const error = new Error('تراکنش TRON روی شبکه ناموفق شد: ' + txHash + (info.resMessage ? ' · ' + info.resMessage : ''));
+        error.txHash = txHash;
+        error.txFailed = true;
+        throw error;
+      }
+      if (result !== 'SUCCESS') {
+        const error = new Error('رسید TRON موجود است اما نتیجه موفقیت قابل تأیید نیست؛ انتقال را دوباره ارسال نکنید: ' + txHash);
+        error.txHash = txHash;
+        throw error;
+      }
+      return txHash;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  const error = new Error('تراکنش TRON ارسال شد ولی نتیجه نهایی هنوز تأیید نشده است؛ قبل از تلاش مجدد این هش را بررسی کنید: ' + txHash);
+  error.txHash = txHash;
+  throw error;
+}
+
 async function sendTronVoid(methodCall) {
   let result;
   try {
@@ -552,34 +584,9 @@ async function sendTronVoid(methodCall) {
     error.broadcastUnknown = true;
     throw error;
   }
-  const tronWeb = getTronWeb();
-  if (typeof tronWeb?.trx?.getTransactionInfo === 'function') {
-    for (let i = 0; i < 90; i++) {
-      const info = await tronWeb.trx.getTransactionInfo(txHash).catch(() => null);
-      if (info && (info.blockNumber || info.block_number)) {
-        const result = String(info.receipt?.result || info.result || '').toUpperCase();
-        if (result && result !== 'SUCCESS') {
-          const error = new Error('تراکنش TRON روی شبکه ناموفق شد: ' + txHash + (info.resMessage ? ' · ' + info.resMessage : ''));
-          error.txHash = txHash;
-          error.txFailed = true;
-          throw error;
-        }
-        if (result !== 'SUCCESS') {
-          const error = new Error('رسید TRON موجود است اما نتیجه موفقیت قابل تأیید نیست؛ انتقال را دوباره ارسال نکنید: ' + txHash);
-          error.txHash = txHash;
-          throw error;
-        }
-        return txHash;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-  }
-  // Never resend automatically when confirmation cannot be established.
-  const error = new Error('تراکنش TRON ارسال شد ولی نتیجه نهایی هنوز تأیید نشده است؛ قبل از تلاش مجدد این هش را بررسی کنید: ' + txHash);
-  error.txHash = txHash;
-  throw error;
+  await waitForTronReceipt(getTronWeb(), txHash);
+  return txHash;
 }
-
 async function submitTronDisbursement(row, tronWeb) {
   const token = window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT');
   if (!token) throw new Error('آدرس USDT شبکه پیدا نشد.');
@@ -648,6 +655,7 @@ async function walletAction(row) {
     if (!account) throw new Error('کیف پول متصل نیست.');
 
     if (recovery?.txHash) {
+      await waitForEvmReceipt(web3, recovery.txHash);
       return finalizeSingleSig(row, recovery.approver || account, recovery.txHash);
     }
     const priorApprovals = Array.isArray(row.approvals) ? row.approvals : [];
@@ -680,7 +688,15 @@ async function walletAction(row) {
         ).encodeABI()
         });
       } catch (error) {
-        if (error.txFailed || (!error.txHash && !error.broadcastUnknown)) {
+        if (error.txFailed) {
+          clearSingleSigRecovery(row);
+          await api('/api/disburse/' + row.id + '/release-claim', {
+            method: 'POST',
+            body: JSON.stringify({ approver: account })
+          }).catch(() => {});
+        } else if (error.txHash) {
+          saveSingleSigRecovery(row, { txHash: error.txHash, approver: account, createdAt: Date.now() });
+        } else if (!error.broadcastUnknown) {
           await api('/api/disburse/' + row.id + '/release-claim', {
             method: 'POST',
             body: JSON.stringify({ approver: account })
@@ -744,6 +760,7 @@ async function walletAction(row) {
   if (!account) throw new Error('TronLink قفل است یا حسابی انتخاب نشده است.');
 
   if (recovery?.txHash) {
+    await waitForTronReceipt(tronWeb, recovery.txHash);
     return finalizeSingleSig(row, recovery.approver || account, recovery.txHash);
   }
   const priorApprovalsT = Array.isArray(row.approvals) ? row.approvals : [];
@@ -782,7 +799,15 @@ async function walletAction(row) {
       )
       );
     } catch (error) {
-      if (!error.txHash || error.txFailed) {
+      if (error.txFailed) {
+        clearSingleSigRecovery(row);
+        await api('/api/disburse/' + row.id + '/release-claim', {
+          method: 'POST',
+          body: JSON.stringify({ approver: account })
+        }).catch(() => {});
+      } else if (error.txHash) {
+        saveSingleSigRecovery(row, { txHash: error.txHash, approver: account, createdAt: Date.now() });
+      } else if (!error.broadcastUnknown) {
         await api('/api/disburse/' + row.id + '/release-claim', {
           method: 'POST',
           body: JSON.stringify({ approver: account })
