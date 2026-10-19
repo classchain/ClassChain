@@ -402,14 +402,19 @@ async function sendEvmTransaction(provider, web3, tx) {
     const receipt = await web3.eth.getTransactionReceipt(txHash);
     if (receipt) {
       if (receipt.status === false || receipt.status === 0 || receipt.status === '0x0' || receipt.status === '0') {
-        throw new Error('تراکنش روی شبکه ناموفق شد: ' + txHash);
+        const error = new Error('تراکنش روی شبکه ناموفق شد: ' + txHash);
+        error.txHash = txHash;
+        error.txFailed = true;
+        throw error;
       }
       return { ...receipt, transactionHash: txHash };
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   // Do not retry the transfer automatically: the transaction may still be pending.
-  throw new Error('تراکنش ارسال شده اما Receipt هنوز در دسترس نیست؛ قبل از تلاش مجدد وضعیت این هش را بررسی کنید: ' + txHash);
+  const error = new Error('تراکنش ارسال شده اما Receipt هنوز در دسترس نیست؛ قبل از تلاش مجدد وضعیت این هش را بررسی کنید: ' + txHash);
+  error.txHash = txHash;
+  throw error;
 }
 async function getEvmFundOwner(web3, fundAddress) {
   const fund = new web3.eth.Contract([{
@@ -537,7 +542,10 @@ async function sendTronVoid(methodCall) {
       if (info && (info.blockNumber || info.block_number)) {
         const result = String(info.receipt?.result || info.result || '').toUpperCase();
         if (result && result !== 'SUCCESS') {
-          throw new Error('تراکنش TRON روی شبکه ناموفق شد: ' + txHash + (info.resMessage ? ' · ' + info.resMessage : ''));
+          const error = new Error('تراکنش TRON روی شبکه ناموفق شد: ' + txHash + (info.resMessage ? ' · ' + info.resMessage : ''));
+          error.txHash = txHash;
+          error.txFailed = true;
+          throw error;
         }
         return txHash;
       }
@@ -545,7 +553,9 @@ async function sendTronVoid(methodCall) {
     }
   }
   // Never resend automatically when confirmation cannot be established.
-  throw new Error('تراکنش TRON ارسال شد ولی نتیجه نهایی هنوز تأیید نشده است؛ قبل از تلاش مجدد این هش را بررسی کنید: ' + txHash);
+  const error = new Error('تراکنش TRON ارسال شد ولی نتیجه نهایی هنوز تأیید نشده است؛ قبل از تلاش مجدد این هش را بررسی کنید: ' + txHash);
+  error.txHash = txHash;
+  throw error;
 }
 
 async function submitTronDisbursement(row, tronWeb) {
@@ -600,8 +610,8 @@ async function walletAction(row) {
   if (latest.status === 'EXECUTED') throw new Error('این انتقال قبلاً اجرا شده است؛ ارسال دوباره مجاز نیست.');
   const requiredSignatures = Number(row.required_signatures || 1);
   const recovery = requiredSignatures <= 1 ? readSingleSigRecovery(row) : null;
-  if (requiredSignatures <= 1 && latest.status === 'APPROVED' && !recovery) {
-    throw new Error('وضعیت این انتقال APPROVED است اما هش بازیابی محلی وجود ندارد؛ قبل از هر تلاش مجدد، تراکنش روی شبکه و D1 را بررسی کنید.');
+  if (requiredSignatures <= 1 && (latest.status === 'APPROVED' || latest.status === 'PROCESSING') && !recovery) {
+    throw new Error('این انتقال قبلاً آغاز شده یا وضعیت آن نامشخص است؛ برای جلوگیری از پرداخت تکراری، ابتدا تراکنش روی شبکه و D1 را بررسی کنید.');
   }
   const wallet = getWalletForRow(row);
 
@@ -628,8 +638,14 @@ async function walletAction(row) {
     const required = Number(row.required_signatures || 1);
 
     if (required <= 1) {
+      await api('/api/disburse/' + row.id + '/claim', {
+        method: 'POST',
+        body: JSON.stringify({ approver: account })
+      });
       const fund = new web3.eth.Contract(FUND_WITHDRAW_ABI, row.from_address);
-      const receipt = await sendEvmTransaction(wallet.provider, web3, {
+      let receipt;
+      try {
+        receipt = await sendEvmTransaction(wallet.provider, web3, {
         from: account,
         to: row.from_address,
         data: fund.methods.withdrawToken(
@@ -637,7 +653,16 @@ async function walletAction(row) {
           row.to_address,
           String(row.amount_raw)
         ).encodeABI()
-      });
+        });
+      } catch (error) {
+        if (!error.txHash || error.txFailed) {
+          await api('/api/disburse/' + row.id + '/release-claim', {
+            method: 'POST',
+            body: JSON.stringify({ approver: account })
+          }).catch(() => {});
+        }
+        throw error;
+      }
       const txHash = receipt?.transactionHash || null;
       // Persist the hash before any API call; a failed D1/API write must not trigger a second transfer.
       saveSingleSigRecovery(row, { txHash, approver: account, createdAt: Date.now() });
@@ -717,14 +742,29 @@ async function walletAction(row) {
   const fundOwner = getTronBase58(await getTronFundOwner(tronWeb, row.from_address));
 
   if (required <= 1) {
+    await api('/api/disburse/' + row.id + '/claim', {
+      method: 'POST',
+      body: JSON.stringify({ approver: account })
+    });
     const fund = await tronWeb.contract(FUND_WITHDRAW_TRON_ABI, row.from_address);
-    const txHash = await sendTronVoid(
+    let txHash;
+    try {
+      txHash = await sendTronVoid(
       fund.withdrawToken(
         getTronBase58(window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT'), tronWeb),
         getTronBase58(row.to_address, tronWeb),
         String(row.amount_raw)
       )
-    );
+      );
+    } catch (error) {
+      if (!error.txHash || error.txFailed) {
+        await api('/api/disburse/' + row.id + '/release-claim', {
+          method: 'POST',
+          body: JSON.stringify({ approver: account })
+        }).catch(() => {});
+      }
+      throw error;
+    }
 
     // Persist the hash before any API call; a failed D1/API write must not trigger a second transfer.
     saveSingleSigRecovery(row, { txHash, approver: account, createdAt: Date.now() });
@@ -798,9 +838,9 @@ function renderSignerRows(row) {
   }
 
   if (isSingle || !owners.length) {
-    const already = approvals.length > 0 || row.status === 'APPROVED';
+    const already = approvals.length > 0 || row.status === 'APPROVED' || row.status === 'PROCESSING';
     const btn = already
-      ? `<button type="button" class="ghost" disabled>قفل — امضا ثبت شده</button>`
+      ? `<button type="button" class="ghost" disabled>${row.status === 'PROCESSING' ? 'قفل — بررسی نتیجه تراکنش' : 'قفل — امضا ثبت شده'}</button>`
       : `<button type="button" class="primary" data-a="${row.id}">اتصال ${walletLabel(row.network_id)} و انتقال</button>`;
     return `<div class="disb-signers"><div class="disb-signers-head"><strong>تک‌امضا / Owner</strong>
       <span class="muted">${confCount}/${required}</span></div>
