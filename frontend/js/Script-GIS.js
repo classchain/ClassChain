@@ -25,6 +25,7 @@ let selectedCountyLayer = null;
 let selectedProjectMarker = null;
 let geo, countiesLayer = null, projectsLayer = null;
 
+const isPickLocationMode = new URLSearchParams(window.location.search).get('pickLocation') === '1';
 const infoPanelWrapper = document.getElementById('infoPanelWrapper');
 const fixedContributeBtn = document.getElementById('fixedContributeBtn');
 const contributeActionBtn = document.getElementById('contributeActionBtn');
@@ -491,7 +492,11 @@ fetch('data/ir-new.json').then(r => r.json()).then(data => {
             layer.on('mouseover', () => { if (selectedLayer !== layer) layer.setStyle({ weight: 5 }); });
             layer.on('mouseout', () => { if (selectedLayer !== layer) geo.resetStyle(layer); });
         }
-    }).addTo(map);
+    });
+        // در حالت pick از Admin، لایه استان روی نقشه نیاید
+        if (!isPickLocationMode) {
+            geo.addTo(map);
+        }        
 });
 
 fetch('data/Projects.json').then(r => r.json()).then(data => {
@@ -577,6 +582,7 @@ fetch('data/Projects.json').then(r => r.json()).then(data => {
 }).catch(err => console.error('خطا در بارگذاری پروژه‌ها:', err));
 
 function showCountiesOfProvince(provinceName) {
+    if (isPickLocationMode) return;
     if (!countiesLayer) {
         fetch('data/counties.json').then(r => r.json()).then(raw => {
             let features = raw.features?.[0]?.geometry?.rings
