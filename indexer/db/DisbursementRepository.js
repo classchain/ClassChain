@@ -96,7 +96,7 @@ export class DisbursementRepository {
             const result = await this.db
                 .prepare(`
                     SELECT * FROM disbursements
-                    WHERE status IN ('PENDING_APPROVAL', 'APPROVED', 'EXECUTED') AND network_id = ?
+                    WHERE status IN ('PENDING_APPROVAL', 'APPROVED', 'PROCESSING', 'EXECUTED') AND network_id = ?
                     ORDER BY id ASC
                     LIMIT ?
                 `)
@@ -107,13 +107,41 @@ export class DisbursementRepository {
         const result = await this.db
             .prepare(`
                 SELECT * FROM disbursements
-                WHERE status IN ('PENDING_APPROVAL', 'APPROVED', 'EXECUTED')
+                WHERE status IN ('PENDING_APPROVAL', 'APPROVED', 'PROCESSING', 'EXECUTED')
                 ORDER BY id ASC
                 LIMIT ?
             `)
             .bind(lim)
             .all();
         return result.results || [];
+    }
+
+    async claimSingleSignature(id, approver) {
+        const now = new Date().toISOString();
+        const marker = 'single_sig_claim:' + String(approver);
+        const result = await this.db
+            .prepare(`
+                UPDATE disbursements
+                SET status = 'PROCESSING', error = ?, updated_at = ?
+                WHERE id = ? AND status = 'PENDING_APPROVAL' AND required_signatures <= 1
+            `)
+            .bind(marker, now, id)
+            .run();
+        return { claimed: result.meta?.changes === 1, disbursement: await this.get(id) };
+    }
+
+    async releaseSingleSignatureClaim(id, approver) {
+        const now = new Date().toISOString();
+        const marker = 'single_sig_claim:' + String(approver);
+        const result = await this.db
+            .prepare(`
+                UPDATE disbursements
+                SET status = 'PENDING_APPROVAL', error = NULL, updated_at = ?
+                WHERE id = ? AND status = 'PROCESSING' AND error = ?
+            `)
+            .bind(now, id, marker)
+            .run();
+        return { released: result.meta?.changes === 1, disbursement: await this.get(id) };
     }
 
     async addApproval(disbursementId, approver, approvedAt, onchainTxIndex = null, onchainTxHash = null) {
