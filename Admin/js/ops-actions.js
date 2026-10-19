@@ -384,7 +384,7 @@ async function ensureEvmNetwork(provider, chainId) {
 
 async function waitForEvmReceipt(web3, txHash, attempts = 90) {
   for (let i = 0; i < attempts; i++) {
-    const receipt = await web3.eth.getTransactionReceipt(txHash);
+    const receipt = await web3.eth.getTransactionReceipt(txHash).catch(() => null);
     if (receipt) {
       if (receipt.status === false || receipt.status === 0 || receipt.status === 0n || receipt.status === '0x0' || receipt.status === '0') {
         const error = new Error('تراکنش روی شبکه ناموفق شد: ' + txHash);
@@ -900,9 +900,14 @@ function renderSignerRows(row) {
 
   const rowsHtml = owners.map((owner, i) => {
     const done = approvedSet.has(normalizeApprover(owner));
-    const locked = done || isExecuted;
+    const awaitingReconciliation = row.status === 'APPROVED' && required > 1 && !done;
+    const locked = done || isExecuted || row.status === 'APPROVED';
+    const lockLabel = awaitingReconciliation
+      ? 'قفل — بررسی اجرای شبکه'
+      : done ? '✓ امضا شد — قفل'
+      : row.status === 'APPROVED' ? 'قفل — بررسی اجرای شبکه' : 'قفل';
     const btn = locked
-      ? `<button type="button" class="ghost" disabled>${done ? '✓ امضا شد — قفل' : 'قفل'}</button>`
+      ? `<button type="button" class="ghost" disabled>${lockLabel}</button>`
       : `<button type="button" class="primary" data-a="${row.id}" data-owner="${String(owner).replace(/"/g, '&quot;')}">امضا با ${walletLabel(row.network_id)}</button>`;
     return `<div class="disb-signer-row ${done ? 'is-signed' : ''}">
       <span class="disb-signer-idx">${i + 1}</span>
