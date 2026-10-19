@@ -140,13 +140,60 @@ export class DisbursementService {
         });
     }
 
+    _normalizeApprover(networkId, approver) {
+        const value = String(approver || '').trim();
+        return String(networkId || '').startsWith('tron_') ? value : value.toLowerCase();
+    }
+
+    async claimSingleSignature(disbursementId, approver) {
+        if (!approver) throw new Error('approver is required');
+        const row = await this.repo.get(disbursementId);
+        if (!row) throw new Error('disbursement not found');
+        if ((Number(row.required_signatures) || 1) > 1) {
+            throw new Error('claim endpoint is only for single-signature disbursements');
+        }
+        if (row.status !== 'PENDING_APPROVAL') {
+            throw new Error(`disbursement cannot be claimed from status=${row.status}; check the on-chain transaction before retrying`);
+        }
+
+        if (this.loadProjects) {
+            const registry = await this.loadProjects();
+            const general = this._findProject(registry, GENERAL_PROJECT_ID);
+            const owners = general?.funds?.[row.network_id]?.owners || [];
+            const normalized = this._normalizeApprover(row.network_id, approver);
+            const allowed = owners.some((owner) =>
+                this._normalizeApprover(row.network_id, owner) === normalized
+            );
+            if (owners.length && !allowed) throw new Error('wallet is not a GENERAL_POOL owner on this network');
+        }
+
+        const normalized = this._normalizeApprover(row.network_id, approver);
+        const result = await this.repo.claimSingleSignature(disbursementId, normalized);
+        if (!result.claimed) {
+            throw new Error('another attempt already claimed this transfer; do not retry until its transaction is reconciled');
+        }
+        return result.disbursement;
+    }
+
+    async releaseSingleSignatureClaim(disbursementId, approver) {
+        if (!approver) throw new Error('approver is required');
+        const row = await this.repo.get(disbursementId);
+        if (!row) throw new Error('disbursement not found');
+        const normalized = this._normalizeApprover(row.network_id, approver);
+        const result = await this.repo.releaseSingleSignatureClaim(disbursementId, normalized);
+        if (!result.released) {
+            throw new Error('claim cannot be released; the transfer may already have been broadcast or claimed by another wallet');
+        }
+        return result.disbursement;
+    }
+
     async approve(disbursementId, approver, onchain = {}) {
         if (!approver) throw new Error('approver is required');
         if (!onchain.onchainTxHash) throw new Error('on-chain transaction hash is required');
 
         const row = await this.repo.get(disbursementId);
         if (!row) throw new Error('disbursement not found');
-        if (row.status !== 'PENDING_APPROVAL' && row.status !== 'APPROVED') {
+        if (row.status !== 'PENDING_APPROVAL' && row.status !== 'APPROVED' && row.status !== 'PROCESSING') {
             if (row.status === 'EXECUTED') return this.get(disbursementId);
             throw new Error(`cannot approve status=${row.status}`);
         }
@@ -161,14 +208,18 @@ export class DisbursementService {
         }
 
         // EVM addresses are case-insensitive; TRON Base58 addresses are case-sensitive.
-        const normalizedApprover = String(approver).trim();
-        const storedApprover = String(row.network_id || '').startsWith('tron_')
-            ? normalizedApprover
-            : normalizedApprover.toLowerCase();
+        const normalizedApprover = this._normalizeApprover(row.network_id, approver);
+        const storedApprover = normalizedApprover;
         const existingApprovals = await this.repo.listApprovals(disbursementId);
-        const alreadyRecorded = existingApprovals.some((a) =>
-            String(a.approver || '') === storedApprover
-        );
+        const isTron = String(row.network_id || '').startsWith('tron_');
+        const alreadyRecorded = existingApprovals.some((a) => {
+            const existing = String(a.approver || '');
+            if (existing === storedApprover) return true;
+            // Older builds lowercased TRON Base58 values. Recognize those legacy rows
+            // without applying case-insensitive matching to normal Base58 addresses.
+            return isTron && existing.startsWith('t') &&
+                existing === normalizedApprover.toLowerCase();
+        });
         if (!alreadyRecorded) {
             await this.repo.addApproval(
                 disbursementId,
@@ -181,8 +232,8 @@ export class DisbursementService {
 
         const approvals = await this.repo.listApprovals(disbursementId);
         const count = approvals.length;
-        if (count >= required && row.status === 'PENDING_APPROVAL') {
-            await this.repo.setStatus(disbursementId, 'APPROVED');
+        if (count >= required && row.status !== 'APPROVED') {
+            await this.repo.setStatus(disbursementId, 'APPROVED', { error: null });
         }
 
         return this.get(disbursementId);
