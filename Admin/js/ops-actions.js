@@ -405,7 +405,7 @@ async function waitForEvmReceipt(web3, txHash, attempts = 90) {
   throw error;
 }
 
-async function sendEvmTransaction(provider, web3, tx) {
+async function sendEvmTransaction(provider, web3, tx, onBroadcast = null) {
   const transaction = {
     from: tx.from,
     to: tx.to,
@@ -426,6 +426,7 @@ async function sendEvmTransaction(provider, web3, tx) {
     if (error?.code !== 4001) error.broadcastUnknown = true;
     throw error;
   }
+  if (typeof onBroadcast === 'function') onBroadcast(txHash);
   const receipt = await waitForEvmReceipt(web3, txHash);
   return { ...receipt, transactionHash: txHash };
 }
@@ -571,7 +572,7 @@ async function waitForTronReceipt(tronWeb, txHash, attempts = 90) {
   throw error;
 }
 
-async function sendTronVoid(methodCall) {
+async function sendTronVoid(methodCall, onBroadcast = null) {
   let result;
   try {
     result = await methodCall.send({
@@ -588,6 +589,7 @@ async function sendTronVoid(methodCall) {
     error.broadcastUnknown = true;
     throw error;
   }
+  if (typeof onBroadcast === 'function') onBroadcast(txHash);
   await waitForTronReceipt(getTronWeb(), txHash);
   return txHash;
 }
@@ -701,7 +703,7 @@ async function walletAction(row) {
           row.to_address,
           String(row.amount_raw)
         ).encodeABI()
-        });
+        }, (txHash) => saveSingleSigRecovery(row, { txHash, approver: account, createdAt: Date.now() }));
       } catch (error) {
         if (error.txFailed) {
           clearSingleSigRecovery(row);
@@ -822,7 +824,8 @@ async function walletAction(row) {
         getTronBase58(window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT'), tronWeb),
         getTronBase58(row.to_address, tronWeb),
         String(row.amount_raw)
-      )
+      ),
+      (broadcastHash) => saveSingleSigRecovery(row, { txHash: broadcastHash, approver: account, createdAt: Date.now() })
       );
     } catch (error) {
       if (error.txFailed) {
