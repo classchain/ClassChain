@@ -1154,7 +1154,21 @@
         "targetAmount(USDT)": 2123,
         "status": null,
         "raisedAmount": null,
-        "funds": {}
+        "funds": {
+          "polygon_amoy": {
+            "address": "0xA6176d5B6c4Ec1c0F013E8841595e3181cc8CE84",
+            "multisigAddress": "0xc394D18eED3f5DC3af36E14BD6DE9a5503DdD9f7",
+            "owners": [
+              "0x529A3B2EeDD0BB80dD8eFB47E5A9dC3c09bbb40a",
+              "0x9626438503C8832A65eCc931B124825c417e467e"
+            ],
+            "requiredSignatures": 2,
+            "createdAt": "2026-10-19T06:48:10.946Z",
+            "network": "polygon_amoy",
+            "isMultisig": true,
+            "scanFromBlock": 50569916
+          }
+        }
       }
     }
   ]
