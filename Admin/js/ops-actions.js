@@ -659,7 +659,18 @@ async function walletAction(row) {
     if (!account) throw new Error('کیف پول متصل نیست.');
 
     if (recovery?.txHash) {
-      await waitForEvmReceipt(web3, recovery.txHash);
+      try {
+        await waitForEvmReceipt(web3, recovery.txHash);
+      } catch (error) {
+        if (error.txFailed) {
+          clearSingleSigRecovery(row);
+          await api('/api/disburse/' + row.id + '/release-claim', {
+            method: 'POST',
+            body: JSON.stringify({ approver: recovery.approver || account })
+          }).catch(() => {});
+        }
+        throw error;
+      }
       return finalizeSingleSig(row, recovery.approver || account, recovery.txHash);
     }
     const priorApprovals = Array.isArray(row.approvals) ? row.approvals : [];
@@ -764,7 +775,18 @@ async function walletAction(row) {
   if (!account) throw new Error('TronLink قفل است یا حسابی انتخاب نشده است.');
 
   if (recovery?.txHash) {
-    await waitForTronReceipt(tronWeb, recovery.txHash);
+    try {
+      await waitForTronReceipt(tronWeb, recovery.txHash);
+    } catch (error) {
+      if (error.txFailed) {
+        clearSingleSigRecovery(row);
+        await api('/api/disburse/' + row.id + '/release-claim', {
+          method: 'POST',
+          body: JSON.stringify({ approver: recovery.approver || account })
+        }).catch(() => {});
+      }
+      throw error;
+    }
     return finalizeSingleSig(row, recovery.approver || account, recovery.txHash);
   }
   const priorApprovalsT = Array.isArray(row.approvals) ? row.approvals : [];
@@ -892,10 +914,15 @@ function renderSignerRows(row) {
   }
 
   if (isSingle || !owners.length) {
+    const recovery = readSingleSigRecovery(row);
+    const canRecover = required <= 1 && Boolean(recovery?.txHash) &&
+      (row.status === 'PROCESSING' || row.status === 'APPROVED');
     const already = approvals.length > 0 || row.status === 'APPROVED' || row.status === 'PROCESSING';
-    const btn = already
-      ? `<button type="button" class="ghost" disabled>${row.status === 'PROCESSING' ? 'قفل — بررسی نتیجه تراکنش' : 'قفل — امضا ثبت شده'}</button>`
-      : `<button type="button" class="primary" data-a="${row.id}">اتصال ${walletLabel(row.network_id)} و انتقال</button>`;
+    const btn = canRecover
+      ? `<button type="button" class="primary" data-a="${row.id}">بررسی و تکمیل تراکنش قبلی</button>`
+      : already
+        ? `<button type="button" class="ghost" disabled>${row.status === 'PROCESSING' ? 'قفل — بررسی نتیجه تراکنش' : 'قفل — امضا ثبت شده'}</button>`
+        : `<button type="button" class="primary" data-a="${row.id}">اتصال ${walletLabel(row.network_id)} و انتقال</button>`;
     return `<div class="disb-signers"><div class="disb-signers-head"><strong>تک‌امضا / Owner</strong>
       <span class="muted">${confCount}/${required}</span></div>
       <div class="disb-signer-row"><span class="disb-signer-addr muted">Owner خزانه GENERAL</span>
