@@ -2,10 +2,18 @@
 // Phase 3: Canonical model = attributes.funds[networkId]
 // Legacy network-specific contract fields are no longer supported.
 import { getAdminToken } from './AdminAuth.js';
+// منبع canonical مشترک — همیشه برنچ admin
+export const PROJECTS_JSON_URL =
+  'https://raw.githubusercontent.com/classchain/ClassChain/admin/frontend/data/Projects.json';
+
 export class ProjectManager {
+  static PROJECTS_JSON_URL = PROJECTS_JSON_URL;
   constructor() {
     this.projects = null;
-    this.jsonPath = '/ClassChain/frontend/data/Projects.json';
+    // Projects.json is the canonical shared registry. Always read the admin branch,
+    // even when this Admin UI is being tested from a feature branch.
+    // this.jsonPath = 'https://raw.githubusercontent.com/classchain/ClassChain/admin/frontend/data/Projects.json';
+    this.jsonPath = ProjectManager.PROJECTS_JSON_URL;
     this.basePath = '/ClassChain/frontend/data/';
   }
 
@@ -17,9 +25,11 @@ export class ProjectManager {
       console.log(`🔄 در حال بارگذاری پروژه‌ها از: ${this.jsonPath}`);
 
       const response = await fetch(this.jsonPath, {
+        // Avoid a custom Cache-Control request header: on a cross-origin fetch it
+        // can trigger a CORS preflight. cache: 'no-store' avoids that header.
+        cache: 'no-store',
         headers: {
-          Accept: 'application/json',
-          'Cache-Control': 'no-cache'
+          Accept: 'application/json'
         }
       });
 
@@ -77,7 +87,7 @@ export class ProjectManager {
     }
 
     const project = this.projects.features?.find(
-      f => f.attributes?.ProjectID === projectId
+      f => String(f.attributes?.ProjectID) === String(projectId)
     );
 
     if (!project) {
@@ -364,7 +374,7 @@ async _getFileSha(workerUrl, adminToken, path) {
 
     // بررسی یکتایی
     const existing = this.projects.features?.find(
-      f => f.attributes?.ProjectID === projectId
+      f => String(f.attributes?.ProjectID) === String(projectId)
     );
     if (existing) {
       throw new Error(`پروژه با شناسه ${projectId} از قبل وجود دارد`);

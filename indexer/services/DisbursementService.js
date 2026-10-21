@@ -14,6 +14,10 @@
 import { DisbursementRepository } from '../db/DisbursementRepository.js';
 import { AllocationRepository } from '../db/AllocationRepository.js';
 import { VotingService } from './VotingService.js';
+import { EvmClient } from '../adapters/evm/EvmClient.js';
+import { TronClient } from '../adapters/tron/TronClient.js';
+import { getTokenAddress } from '../../shared/network-config.js';
+import { tronAddressToHex } from '../adapters/tron/TronAddress.js';
 
 export const GENERAL_PROJECT_ID = 'GENERAL_POOL';
 
@@ -140,29 +144,168 @@ export class DisbursementService {
         });
     }
 
+    _normalizeApprover(networkId, approver) {
+        const value = String(approver || '').trim();
+        return String(networkId || '').startsWith('tron_') ? value : value.toLowerCase();
+    }
+
+    async claimSingleSignature(disbursementId, approver) {
+        if (!approver) throw new Error('approver is required');
+        const row = await this.repo.get(disbursementId);
+        if (!row) throw new Error('disbursement not found');
+        if ((Number(row.required_signatures) || 1) > 1) {
+            throw new Error('claim endpoint is only for single-signature disbursements');
+        }
+        if (row.status !== 'PENDING_APPROVAL') {
+            throw new Error(`disbursement cannot be claimed from status=${row.status}; check the on-chain transaction before retrying`);
+        }
+
+        if (this.loadProjects) {
+            const registry = await this.loadProjects();
+            const general = this._findProject(registry, GENERAL_PROJECT_ID);
+            const owners = general?.funds?.[row.network_id]?.owners || [];
+            const normalized = this._normalizeApprover(row.network_id, approver);
+            const allowed = owners.some((owner) =>
+                this._normalizeApprover(row.network_id, owner) === normalized
+            );
+            if (owners.length && !allowed) throw new Error('wallet is not a GENERAL_POOL owner on this network');
+        }
+
+        const normalized = this._normalizeApprover(row.network_id, approver);
+        const result = await this.repo.claimSingleSignature(disbursementId, normalized);
+        if (!result.claimed) {
+            throw new Error('another attempt already claimed this transfer; do not retry until its transaction is reconciled');
+        }
+        return result.disbursement;
+    }
+
+    async releaseSingleSignatureClaim(disbursementId, approver) {
+        if (!approver) throw new Error('approver is required');
+        const row = await this.repo.get(disbursementId);
+        if (!row) throw new Error('disbursement not found');
+        const normalized = this._normalizeApprover(row.network_id, approver);
+        const result = await this.repo.releaseSingleSignatureClaim(disbursementId, normalized);
+        if (!result.released) {
+            throw new Error('claim cannot be released; the transfer may already have been broadcast or claimed by another wallet');
+        }
+        return result.disbursement;
+    }
+
     async approve(disbursementId, approver, onchain = {}) {
         if (!approver) throw new Error('approver is required');
+        if (!onchain.onchainTxHash) throw new Error('on-chain transaction hash is required');
 
         const row = await this.repo.get(disbursementId);
         if (!row) throw new Error('disbursement not found');
-        if (row.status !== 'PENDING_APPROVAL' && row.status !== 'APPROVED') {
+        if (row.status !== 'PENDING_APPROVAL' && row.status !== 'APPROVED' && row.status !== 'PROCESSING') {
+            if (row.status === 'EXECUTED') return this.get(disbursementId);
             throw new Error(`cannot approve status=${row.status}`);
         }
 
-        const count = await this.repo.addApproval(
-            disbursementId,
-            String(approver).toLowerCase(),
-            Math.floor(Date.now() / 1000),
-            onchain.onchainTxIndex ?? null,
-            onchain.onchainTxHash ?? null
-        );
-
         const required = Number(row.required_signatures) || 1;
-        if (count >= required && row.status === 'PENDING_APPROVAL') {
-            await this.repo.setStatus(disbursementId, 'APPROVED');
+        const txIndex = onchain.onchainTxIndex ?? null;
+        if (required > 1 && (!Number.isInteger(Number(txIndex)) || Number(txIndex) < 0)) {
+            throw new Error('on-chain multisig transaction index is required');
+        }
+        if (required <= 1 && txIndex !== null) {
+            throw new Error('single-signature disbursement must not include a multisig transaction index');
+        }
+
+        // EVM addresses are case-insensitive; TRON Base58 addresses are case-sensitive.
+        const normalizedApprover = this._normalizeApprover(row.network_id, approver);
+        if (row.status === 'PROCESSING' && row.error !== 'single_sig_claim:' + normalizedApprover) {
+            throw new Error('single-signature transfer is claimed by another wallet');
+        }
+        const storedApprover = normalizedApprover;
+        const existingApprovals = await this.repo.listApprovals(disbursementId);
+        const isTron = String(row.network_id || '').startsWith('tron_');
+        const alreadyRecorded = existingApprovals.some((a) => {
+            const existing = String(a.approver || '');
+            if (existing === storedApprover) return true;
+            // Older builds lowercased TRON Base58 values. Recognize those legacy rows
+            // without applying case-insensitive matching to normal Base58 addresses.
+            return isTron && existing.startsWith('t') &&
+                existing === normalizedApprover.toLowerCase();
+        });
+        if (!alreadyRecorded) {
+            await this.repo.addApproval(
+                disbursementId,
+                storedApprover,
+                Math.floor(Date.now() / 1000),
+                txIndex,
+                String(onchain.onchainTxHash)
+            );
+        }
+
+        const approvals = await this.repo.listApprovals(disbursementId);
+        const count = approvals.length;
+        if (count >= required && row.status !== 'APPROVED') {
+            await this.repo.setStatus(disbursementId, 'APPROVED', { error: null });
         }
 
         return this.get(disbursementId);
+    }
+
+    async _verifyOnChainTransfer(row, txHash) {
+        const tokenAddress = getTokenAddress(row.network_id, 'USDT');
+        if (!tokenAddress) throw new Error(`USDT contract is not configured for ${row.network_id}`);
+        const expectedAmount = BigInt(String(row.amount_raw));
+        const transferTopic = 'ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
+
+        if (String(row.network_id || '').startsWith('tron_')) {
+            const client = new TronClient(row.network_id);
+            const info = await client.getTransactionInfo(txHash);
+            const blockNumber = info?.blockNumber ?? info?.block_number;
+            const result = String(info?.receipt?.result || info?.result || '').toUpperCase();
+            if (!blockNumber || result !== 'SUCCESS') {
+                throw new Error('TRON transaction receipt is missing or unsuccessful; D1 status was not changed');
+            }
+
+            const address20 = (value) => {
+                const hex = String(value || '').replace(/^0x/i, '').toLowerCase();
+                if (/^[0-9a-f]{40}$/.test(hex)) return hex;
+                if (/^41[0-9a-f]{40}$/.test(hex)) return hex.slice(2);
+                return tronAddressToHex(value).slice(-40).toLowerCase();
+            };
+            const token20 = address20(tokenAddress);
+            const from20 = address20(row.from_address);
+            const to20 = address20(row.to_address);
+            const logs = info.log || info.logs || [];
+            const matched = logs.some((log) => {
+                const topics = (log.topics || []).map((x) => String(x || '').replace(/^0x/i, '').toLowerCase());
+                if (address20(log.address) !== token20 || topics[0] !== transferTopic) return false;
+                const from = topics[1]?.slice(-40);
+                const to = topics[2]?.slice(-40);
+                const data = String(log.data || '').replace(/^0x/i, '');
+                try {
+                    return from === from20 && to === to20 && BigInt('0x' + data) === expectedAmount;
+                } catch (_) { return false; }
+            });
+            if (!matched) throw new Error('TRON receipt has no matching USDT Transfer for this disbursement');
+            return true;
+        }
+
+        const client = new EvmClient(row.network_id);
+        const receipt = await client.request('eth_getTransactionReceipt', [txHash]);
+        if (!receipt) throw new Error('EVM transaction receipt not found; D1 status was not changed');
+        let successful = false;
+        try { successful = BigInt(receipt.status) === 1n; } catch (_) {}
+        if (!successful) throw new Error('EVM transaction receipt is unsuccessful; D1 status was not changed');
+
+        const normalize = (value) => String(value || '').toLowerCase();
+        const token = normalize(tokenAddress);
+        const fromTopic = '0x' + normalize(row.from_address).replace(/^0x/, '').padStart(64, '0');
+        const toTopic = '0x' + normalize(row.to_address).replace(/^0x/, '').padStart(64, '0');
+        const matched = (receipt.logs || []).some((log) => {
+            const topics = (log.topics || []).map((x) => normalize(x));
+            if (normalize(log.address) !== token || topics[0] !== '0x' + transferTopic) return false;
+            const data = String(log.data || '');
+            try {
+                return topics[1] === fromTopic && topics[2] === toTopic && BigInt(data) === expectedAmount;
+            } catch (_) { return false; }
+        });
+        if (!matched) throw new Error('EVM receipt has no matching USDT Transfer for this disbursement');
+        return true;
     }
 
     async markExecuted(disbursementId, executeTxHash, onchainTxIndex = null) {
@@ -171,10 +314,37 @@ export class DisbursementService {
         const row = await this.repo.get(disbursementId);
         if (!row) throw new Error('disbursement not found');
         if (row.status === 'EXECUTED') {
+            // Idempotent retry: a lost HTTP response must not re-finalize or resend funds.
+            if (row.execute_tx_hash && String(row.execute_tx_hash).toLowerCase() !== String(executeTxHash).toLowerCase()) {
+                throw new Error('disbursement is already executed with a different transaction hash');
+            }
             return { disbursement: row, round_finalize: null };
         }
         if (row.status === 'NO_DESTINATION' || row.status === 'FAILED') {
             throw new Error(`cannot execute status=${row.status}`);
+        }
+
+        const required = Number(row.required_signatures) || 1;
+        if (required <= 1 && onchainTxIndex !== null) {
+            throw new Error('single-signature disbursement must not include a multisig transaction index');
+        }
+        if (required > 1 && (!Number.isInteger(Number(onchainTxIndex)) || Number(onchainTxIndex) < 0)) {
+            throw new Error('on-chain multisig transaction index is required');
+        }
+        const approvals = await this.repo.listApprovals(disbursementId);
+        if (approvals.length < required) {
+            throw new Error('cannot mark executed before required approvals are recorded');
+        }
+        // D1 is updated only after independently verifying the actual USDT Transfer log.
+        await this._verifyOnChainTransfer(row, String(executeTxHash));
+        const matchingApproval = approvals.some((a) =>
+            String(a.onchain_tx_hash || '').toLowerCase() === String(executeTxHash).toLowerCase() &&
+            (required <= 1
+                ? a.onchain_tx_index == null
+                : Number(a.onchain_tx_index) === Number(onchainTxIndex))
+        );
+        if (!matchingApproval) {
+            throw new Error('execution hash/index does not match a recorded on-chain approval');
         }
 
         const updated = await this.repo.setStatus(disbursementId, 'EXECUTED', {

@@ -27,6 +27,8 @@
  * Phase 4:
  *   GET  /api/disburse/pending
  *   GET  /api/disburse/:id
+ *   POST /api/disburse/:id/claim        (admin, single-signature claim)
+ *   POST /api/disburse/:id/release-claim (admin, only before broadcast / on confirmed failure)
  *   POST /api/disburse/:id/approve
  *   POST /api/disburse/:id/executed      (admin)
  *   POST /api/disburse/prepare           (admin)
