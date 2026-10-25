@@ -311,81 +311,135 @@ export class DisbursementService {
     }
 
     async markExecuted(disbursementId, executeTxHash, onchainTxIndex = null) {
-        if (!executeTxHash) throw new Error('executeTxHash is required');
+        const txHash = String(executeTxHash || '').trim();
+        if (!txHash) throw new Error('executeTxHash is required');
 
         const row = await this.repo.get(disbursementId);
         if (!row) throw new Error('disbursement not found');
-        if (row.status === 'EXECUTED') {
-            // Idempotent retry: a lost HTTP response must not re-finalize or resend funds.
-            if (row.execute_tx_hash && String(row.execute_tx_hash).toLowerCase() !== String(executeTxHash).toLowerCase()) {
+
+        const wasExecuted = row.status === 'EXECUTED';
+        let updated;
+
+        if (wasExecuted) {
+            // A retry must resume local ledger finalization, never resend the transfer.
+            if (!row.execute_tx_hash) {
+                throw new Error(
+                    'disbursement is already EXECUTED but has no recorded execute_tx_hash; manual reconciliation is required'
+                );
+            }
+            if (String(row.execute_tx_hash).toLowerCase() !== txHash.toLowerCase()) {
                 throw new Error('disbursement is already executed with a different transaction hash');
             }
-            return { disbursement: row, round_finalize: null };
-        }
-        if (row.status === 'NO_DESTINATION' || row.status === 'FAILED') {
-            throw new Error(`cannot execute status=${row.status}`);
+            if (
+                onchainTxIndex !== null &&
+                row.onchain_tx_index != null &&
+                Number(onchainTxIndex) !== Number(row.onchain_tx_index)
+            ) {
+                throw new Error('execution transaction index does not match the recorded disbursement');
+            }
+
+            // Re-check the exact token transfer before repairing local bookkeeping.
+            await this._verifyOnChainTransfer(row, txHash);
+            updated = row;
+        } else {
+            if (row.status === 'NO_DESTINATION' || row.status === 'FAILED') {
+                throw new Error(`cannot execute status=${row.status}`);
+            }
+
+            const required = Number(row.required_signatures) || 1;
+            if (required <= 1 && onchainTxIndex !== null) {
+                throw new Error('single-signature disbursement must not include a multisig transaction index');
+            }
+            if (required > 1 && (!Number.isInteger(Number(onchainTxIndex)) || Number(onchainTxIndex) < 0)) {
+                throw new Error('on-chain multisig transaction index is required');
+            }
+
+            const approvals = await this.repo.listApprovals(disbursementId);
+            if (approvals.length < required) {
+                throw new Error('cannot mark executed before required approvals are recorded');
+            }
+
+            // D1 status changes only after independently verifying the actual USDT Transfer log.
+            await this._verifyOnChainTransfer(row, txHash);
+            const matchingApproval = approvals.some((approval) =>
+                String(approval.onchain_tx_hash || '').toLowerCase() === txHash.toLowerCase() &&
+                (required <= 1
+                    ? approval.onchain_tx_index == null
+                    : Number(approval.onchain_tx_index) === Number(onchainTxIndex))
+            );
+            if (!matchingApproval) {
+                throw new Error('execution hash/index does not match a recorded on-chain approval');
+            }
+
+            updated = await this.repo.setStatus(disbursementId, 'EXECUTED', {
+                executeTxHash: txHash,
+                onchainTxIndex,
+                executedAt: Math.floor(Date.now() / 1000),
+                error: null,
+            });
+            if (!updated || updated.status !== 'EXECUTED') {
+                throw new Error('on-chain transfer was verified, but D1 failed to record the EXECUTED status');
+            }
         }
 
-        const required = Number(row.required_signatures) || 1;
-        if (required <= 1 && onchainTxIndex !== null) {
-            throw new Error('single-signature disbursement must not include a multisig transaction index');
-        }
-        if (required > 1 && (!Number.isInteger(Number(onchainTxIndex)) || Number(onchainTxIndex) < 0)) {
-            throw new Error('on-chain multisig transaction index is required');
-        }
-        const approvals = await this.repo.listApprovals(disbursementId);
-        if (approvals.length < required) {
-            throw new Error('cannot mark executed before required approvals are recorded');
-        }
-        // D1 is updated only after independently verifying the actual USDT Transfer log.
-        await this._verifyOnChainTransfer(row, String(executeTxHash));
-        const matchingApproval = approvals.some((a) =>
-            String(a.onchain_tx_hash || '').toLowerCase() === String(executeTxHash).toLowerCase() &&
-            (required <= 1
-                ? a.onchain_tx_index == null
-                : Number(a.onchain_tx_index) === Number(onchainTxIndex))
-        );
-        if (!matchingApproval) {
-            throw new Error('execution hash/index does not match a recorded on-chain approval');
+        // Commit the FIFO ledger for THIS network. If this fails after EXECUTED was
+        // stored, a repeat call with the same tx hash enters the recovery path above.
+        let ledger;
+        try {
+            ledger = await this.allocationEngine.commitNetwork({
+                allocationBatchId: updated.allocation_batch_id,
+                networkId: updated.network_id,
+            });
+            if (!ledger || ledger.ok !== true) {
+                throw new Error(ledger?.error || 'allocation ledger commit did not confirm success');
+            }
+
+            // A successful return is not enough if this network still has PLANNED slices.
+            const afterCommit = await this.allocationRepo.listByBatch(updated.allocation_batch_id);
+            const networkSlices = afterCommit.filter(
+                (slice) => String(slice.network_id) === String(updated.network_id)
+            );
+            if (!networkSlices.length) {
+                throw new Error('no allocation slices found for this disbursement network');
+            }
+            const stillPlanned = networkSlices.some(
+                (slice) => String(slice.allocation_status || 'COMMITTED') === 'PLANNED'
+            );
+            if (stillPlanned) {
+                throw new Error('one or more FIFO allocation slices remain PLANNED after commit');
+            }
+            const unusable = networkSlices.some(
+                (slice) => String(slice.allocation_status || 'COMMITTED') === 'RELEASED'
+            );
+            if (unusable) {
+                throw new Error('one or more allocation slices were RELEASED and cannot be finalized as executed');
+            }
+        } catch (error) {
+            throw new Error(
+                `on-chain disbursement is EXECUTED in D1, but FIFO ledger commit failed. Retry this same endpoint with the same transaction hash after resolving the error: ${error.message}`
+            );
         }
 
-    const updated = await this.repo.setStatus(disbursementId, 'EXECUTED', {
-        executeTxHash,
-        onchainTxIndex,
-        executedAt: Math.floor(Date.now() / 1000),
-        error: null,
-    });
-    
-    // Commit ledger for THIS network only (per-network decision)
-    let ledger = null;
-    try {
-        ledger = await this.allocationEngine.commitNetwork({
-            allocationBatchId: updated.allocation_batch_id,
-            networkId: updated.network_id,
-        });
-    } catch (e) {
-        ledger = { ok: false, error: e.message };
+        // Do not finalize the round unless the corresponding FIFO ledger commit succeeded.
+        let round_finalize = null;
+        try {
+            const voting = new VotingService(this.db, {
+                loadProjects: this.loadProjects,
+            });
+            round_finalize = await voting.finalizeRoundIfBatchComplete(
+                updated.allocation_batch_id,
+                (batchId) => this.repo.listByBatch(batchId)
+            );
+        } catch (error) {
+            round_finalize = { finalized: false, error: error.message };
+        }
+
+        return {
+            disbursement: updated,
+            ledger,
+            round_finalize,
+        };
     }
-    
-    // Finalize overall round only when ALL disbursements of the batch are EXECUTED
-    let round_finalize = null;
-    try {
-        const voting = new VotingService(this.db, {
-            loadProjects: this.loadProjects,
-        });
-        round_finalize = await voting.finalizeRoundIfBatchComplete(
-            updated.allocation_batch_id,
-            (batchId) => this.repo.listByBatch(batchId)
-        );
-    } catch (e) {
-        round_finalize = { finalized: false, error: e.message };
-    }
-    
-    return {
-        disbursement: updated,
-        ledger,
-        round_finalize
-    };
 
     async markFailed(disbursementId, errorMessage) {
         return this.repo.setStatus(disbursementId, 'FAILED', {
