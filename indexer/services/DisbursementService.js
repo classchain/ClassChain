@@ -393,6 +393,15 @@ export class DisbursementService {
         });
     }
 
+    /**
+     * Controlled retry for a failed / stuck disbursement.
+     * Resets the same row to PENDING_APPROVAL (keeps audit trail in error field).
+     */
+    async prepareRetry(disbursementId, reason = null) {
+        if (!disbursementId) throw new Error('disbursementId is required');
+        const updated = await this.repo.prepareRetry(disbursementId, reason);
+        return this.get(updated.id);
+    }
     _findProject(registry, projectId) {
         const features = registry?.features || [];
         const id = String(projectId);
