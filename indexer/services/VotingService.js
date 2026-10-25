@@ -271,47 +271,49 @@ export class VotingService {
      * After disburse EXECUTED: if every disburse for the batch is terminal,
      * commit balances and mark round ALLOCATED.
      */
-    async finalizeRoundIfBatchComplete(allocationBatchId, listDisbursementsFn) {
-        if (!allocationBatchId) return { finalized: false, reason: 'no_batch' };
+/**
+ * After disburse EXECUTED: if every disburse for the batch is EXECUTED,
+ * mark the round ALLOCATED.
+ * Note: per-network ledger commit already happened inside DisbursementService.markExecuted.
+ */
+async finalizeRoundIfBatchComplete(allocationBatchId, listDisbursementsFn) {
+    if (!allocationBatchId) return { finalized: false, reason: 'no_batch' };
 
-        const round = await this.votingRepo.findByAllocationBatchId(allocationBatchId);
-        if (!round) return { finalized: false, reason: 'no_round_for_batch' };
-        if (round.status === 'ALLOCATED') {
-            return { finalized: false, reason: 'already_allocated', round };
-        }
-        if (round.status !== 'CLOSED') {
-            return { finalized: false, reason: 'round_not_closed', round };
-        }
+    const round = await this.votingRepo.findByAllocationBatchId(allocationBatchId);
+    if (!round) return { finalized: false, reason: 'no_round_for_batch' };
+    if (round.status === 'ALLOCATED') {
+        return { finalized: false, reason: 'already_allocated', round };
+    }
+    if (round.status !== 'CLOSED') {
+        return { finalized: false, reason: 'round_not_closed', round };
+    }
 
-        const rows = await listDisbursementsFn(allocationBatchId);
-        if (!rows.length) {
-            return { finalized: false, reason: 'no_disbursements' };
-        }
+    const rows = await listDisbursementsFn(allocationBatchId);
+    if (!rows.length) {
+        return { finalized: false, reason: 'no_disbursements' };
+    }
 
-        const terminal = new Set(['EXECUTED']);
-        const pending = rows.filter((r) => !terminal.has(String(r.status)));
-        if (pending.length) {
-            return {
-                finalized: false,
-                reason: 'disbursements_pending',
-                pending: pending.map((r) => ({ id: r.id, status: r.status, network_id: r.network_id }))
-            };
-        }
-
-        const allExecuted = rows.every((r) => String(r.status) === 'EXECUTED');
-        if (!allExecuted) {
-            return { finalized: false, reason: 'not_all_disbursements_executed' };
-        }
-
-        await this.allocationEngine.commitBatchBalances(allocationBatchId);
-
-        const updated = await this.votingRepo.markAllocated(round.id, allocationBatchId);
+    const pending = rows.filter((r) => String(r.status) !== 'EXECUTED');
+    if (pending.length) {
         return {
-            finalized: true,
-            round: updated,
-            allocation_batch_id: allocationBatchId
+            finalized: false,
+            reason: 'disbursements_pending',
+            pending: pending.map((r) => ({
+                id: r.id,
+                status: r.status,
+                network_id: r.network_id
+            }))
         };
     }
+
+    // All disbursements are EXECUTED → finalize overall round status
+    const updated = await this.votingRepo.markAllocated(round.id, allocationBatchId);
+    return {
+        finalized: true,
+        round: updated,
+        allocation_batch_id: allocationBatchId
+    };
+}
 
     _findProject(registry, projectId) {
         const features = registry?.features || [];
