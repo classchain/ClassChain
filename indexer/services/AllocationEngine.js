@@ -4,12 +4,18 @@
  * Rules:
  * - Consumes allocation_queue in contribution_timestamp order
  * - Vote preference is NOT used here (allocation is independent of votes)
- * - Manual confirmation: only runs when explicitly invoked (admin)
  *
- * commitBalances:
- * - true (default): debit contribution_balances immediately (legacy / direct allocate)
- * - false: reserve FIFO capacity + record PLANNED allocation rows; balances and queue
- *          remain unchanged until every related on-chain disbursement is EXECUTED
+ * Two-phase flow (money-first):
+ *   1) allocate(..., { commitBalances: false })  → write PLANNED rows only
+ *      (queue remaining + unallocated balances stay untouched)
+ *   2) commitNetwork() after on-chain disburse EXECUTED for that network:
+ *      reduce queue, debit unallocated, mark those slices COMMITTED
+ *
+ * Overall allocation status stays incomplete until every required network
+ * has been committed (or cancelled under the agreed rules).
+ *
+ * Legacy allocate() with commitBalances=true still commits immediately
+ * (will later be forced through the secure disbursement path).
  */
 
 import { AllocationQueueRepository } from '../db/AllocationQueueRepository.js';
@@ -38,8 +44,8 @@ export class AllocationEngine {
      * @param {object} params
      * @param {string} params.projectId
      * @param {string} params.requiredAmountRaw  integer string (base units)
-     * @param {string[]|null} params.networkIds  allowed treasury networks for the selected project
-     * @param {boolean} [params.commitBalances=true]  when false, do not debit unallocated yet
+     * @param {string[]|null} params.networkIds  allowed treasury networks
+     * @param {boolean} [params.commitBalances=true]
      * @returns {Promise<object>} summary
      */
     async allocate({ projectId, requiredAmountRaw, networkIds = null, networkId = null, commitBalances = true }) {
@@ -58,6 +64,9 @@ export class AllocationEngine {
             : (networkId ? [networkId] : null);
         const allowedNetworks = resolvedNetworkIds ? new Set(resolvedNetworkIds) : null;
 
+        // Snapshot so we do not over-plan the same queue entry inside one plan
+        const remainingByEntry = new Map();
+
         while (remainingNeeded > 0n) {
             const openEntries = await this.queueRepo.peekOpen(
                 500,
@@ -67,18 +76,18 @@ export class AllocationEngine {
 
             if (!openEntries.length) break;
 
+            let progressed = false;
+
             for (const entry of openEntries) {
                 if (remainingNeeded <= 0n) break;
 
-                const available = BigInt(entry.available_raw ?? entry.remaining_raw);
+                const liveRemaining = BigInt(entry.available_raw ?? entry.remaining_raw);
+                const alreadyPlanned = remainingByEntry.get(entry.id) || 0n;
+                const available = liveRemaining - alreadyPlanned;
                 if (available <= 0n) continue;
 
                 const take = available < remainingNeeded ? available : remainingNeeded;
 
-                // Planning reserves capacity through the allocation row itself.
-                // Queue remaining and balances are consumed only after on-chain execution.
-
-                // Record allocation plan / slice
                 await this.allocationRepo.insert({
                     queueEntryId: entry.id,
                     projectId,
@@ -89,6 +98,8 @@ export class AllocationEngine {
                     allocatedAt
                 });
 
+                remainingByEntry.set(entry.id, alreadyPlanned + take);
+
                 slices.push({
                     queue_entry_id: entry.id,
                     donor: entry.donor,
@@ -97,10 +108,14 @@ export class AllocationEngine {
                 });
 
                 remainingNeeded -= take;
+                progressed = true;
             }
+
+            if (!progressed) break;
         }
 
         if (commitBalances !== false && slices.length) {
+            // Immediate full commit (legacy path)
             await this.allocationRepo.commitBatch(batchId);
         }
 
@@ -121,7 +136,19 @@ export class AllocationEngine {
     }
 
     /**
-     * Commit balance debits for a previously planned batch (commitBalances=false path).
+     * Commit PLANNED slices for ONE network after on-chain EXECUTED.
+     * Reduces queue remaining and debits unallocated for that network only.
+     * Overall batch remains open until all networks are committed.
+     */
+    async commitNetwork({ allocationBatchId, networkId }) {
+        if (!allocationBatchId) throw new Error('allocationBatchId is required');
+        if (!networkId) throw new Error('networkId is required');
+
+        return this.allocationRepo.commitNetwork(allocationBatchId, networkId);
+    }
+
+    /**
+     * Commit all remaining PLANNED slices of a batch (legacy / full finalization).
      */
     async commitBatchBalances(allocationBatchId) {
         return this.allocationRepo.commitBatch(allocationBatchId);
