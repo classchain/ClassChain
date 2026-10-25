@@ -149,13 +149,24 @@ export class AllocationRepository {
             if (!Number.isSafeInteger(queueId) || queueId <= 0) {
                 throw new Error(`allocation ${slice.id} has an invalid queue_entry_id`);
             }
-            queueTotals.set(queueId, (queueTotals.get(queueId) || 0n) + amount);
-
             const donor = String(slice.donor || '');
             const sliceNetwork = String(slice.network_id || '');
             if (!donor || !sliceNetwork) {
                 throw new Error(`allocation ${slice.id} is missing donor or network_id`);
             }
+
+            const queueTotal = queueTotals.get(queueId) || {
+                amount: 0n,
+                donor,
+                networkId: sliceNetwork,
+            };
+            if (queueTotal.donor !== donor || queueTotal.networkId !== sliceNetwork) {
+                throw new Error(
+                    `allocations referencing queue entry ${queueId} disagree on donor or network_id`
+                );
+            }
+            queueTotal.amount += amount;
+            queueTotals.set(queueId, queueTotal);
 
             const balanceKey = JSON.stringify([donor, sliceNetwork]);
             const balance = balanceTotals.get(balanceKey) || {
@@ -172,13 +183,22 @@ export class AllocationRepository {
         // causes a constraint failure inside D1's batch transaction and rolls
         // the whole batch back instead of silently committing a partial ledger.
         const queueSnapshots = new Map();
-        for (const [queueId, amount] of queueTotals) {
+        for (const [queueId, queueTotal] of queueTotals) {
             const queue = await this.db
-                .prepare('SELECT remaining_raw FROM allocation_queue WHERE id = ? LIMIT 1')
+                .prepare('SELECT remaining_raw, donor, network_id FROM allocation_queue WHERE id = ? LIMIT 1')
                 .bind(queueId)
                 .first();
             if (!queue) throw new Error(`Queue entry ${queueId} not found`);
+            if (
+                String(queue.donor || '') !== queueTotal.donor ||
+                String(queue.network_id || '') !== queueTotal.networkId
+            ) {
+                throw new Error(
+                    `Queue entry ${queueId} donor/network does not match its planned allocation slices`
+                );
+            }
 
+            const amount = queueTotal.amount;
             const remaining = this._parseRaw(queue.remaining_raw, `queue entry ${queueId} remaining_raw`);
             if (amount > remaining) {
                 throw new Error(`Cannot commit ${amount} from queue entry ${queueId}; remaining ${remaining}`);
