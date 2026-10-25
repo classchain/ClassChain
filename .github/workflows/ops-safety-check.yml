@@ -1,4 +1,4 @@
-name: Ops disbursement safety checks
+name: Ops disbursement and FIFO ledger safety checks
 
 on:
   push:
