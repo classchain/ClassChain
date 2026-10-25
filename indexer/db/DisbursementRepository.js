@@ -2,6 +2,11 @@
  * DisbursementRepository — on-chain transfer requests after FIFO allocation.
  */
 
+/**
+ * Controlled retry: reset a FAILED (or stuck) disbursement back to PENDING_APPROVAL.
+ * Keeps previous error text for audit. Does not create a new row.
+ */
+
 export class DisbursementRepository {
 
     constructor(db) {
@@ -193,6 +198,46 @@ export class DisbursementRepository {
         return result.results || [];
     }
 
+    async prepareRetry(id, reason = null) {
+        const row = await this.get(id);
+        if (!row) throw new Error('disbursement not found');
+    
+        const status = String(row.status || '');
+        if (status === 'EXECUTED') {
+            throw new Error('cannot retry an already EXECUTED disbursement');
+        }
+        if (status === 'PENDING_APPROVAL' || status === 'APPROVED' || status === 'PROCESSING') {
+            throw new Error(`disbursement is already in progress (status=${status})`);
+        }
+    
+        const now = new Date().toISOString();
+        const errorNote = reason
+            ? `retry: ${reason}`
+            : (row.error ? `retry after: ${row.error}` : 'retry');
+    
+        await this.db
+            .prepare(`
+                UPDATE disbursements
+                SET status = 'PENDING_APPROVAL',
+                    error = ?,
+                    execute_tx_hash = NULL,
+                    onchain_tx_index = NULL,
+                    executed_at = NULL,
+                    confirmations_count = 0,
+                    updated_at = ?
+                WHERE id = ?
+            `)
+            .bind(errorNote, now, id)
+            .run();
+    
+        // Clear previous approvals so the new attempt starts clean
+        await this.db
+            .prepare(`DELETE FROM disbursement_approvals WHERE disbursement_id = ?`)
+            .bind(id)
+            .run();
+    
+        return this.get(id);
+    }    
     async setStatus(id, status, extra = {}) {
         const now = new Date().toISOString();
         const fields = ['status = ?', 'updated_at = ?'];
