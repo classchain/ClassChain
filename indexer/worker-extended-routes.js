@@ -166,6 +166,7 @@ export async function handleExtendedRoutes(ctx) {
           projectId,
           requiredAmountRaw: body.required_amount_raw || body.requiredAmountRaw,
           networkId: body.network_id || body.networkId || null,
+          commitBalances: false,   // force secure path: plan only
         });
         let disbursement = null;
         try {
@@ -425,6 +426,22 @@ export async function handleExtendedRoutes(ctx) {
       }
     }
 
+    const retryMatch = path.match(/^\/api\/disburse\/(\d+)\/retry$/);
+    if (method === 'POST' && retryMatch) {
+      if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
+      const body = await readJsonBody(request);
+      try {
+        const svc = new DisbursementService(env.DB, { loadProjects: () => loadProjectsRegistry(env) });
+        const disbursement = await svc.prepareRetry(
+          Number(retryMatch[1]),
+          body?.reason || body?.error || null
+        );
+        return jsonResponse({ ok: true, disbursement });
+      } catch (e) {
+        return jsonResponse({ ok: false, error: e.message }, 400);
+      }
+    }
+  
     if (method === 'POST' && path === '/api/disburse/prepare') {
       if (!requireAdmin(request, env)) return jsonResponse({ ok: false, error: 'unauthorized' }, 401);
       const body = await readJsonBody(request);
