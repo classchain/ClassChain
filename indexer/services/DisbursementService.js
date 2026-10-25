@@ -13,6 +13,7 @@
 
 import { DisbursementRepository } from '../db/DisbursementRepository.js';
 import { AllocationRepository } from '../db/AllocationRepository.js';
+import { AllocationEngine } from './AllocationEngine.js';
 import { VotingService } from './VotingService.js';
 import { EvmClient } from '../adapters/evm/EvmClient.js';
 import { TronClient } from '../adapters/tron/TronClient.js';
@@ -28,6 +29,7 @@ export class DisbursementService {
         this.db = db;
         this.repo = new DisbursementRepository(db);
         this.allocationRepo = new AllocationRepository(db);
+        this.allocationEngine = new AllocationEngine(db);
         this.loadProjects = options.loadProjects || null;
         this.env = options.env || null;
     }
@@ -347,28 +349,43 @@ export class DisbursementService {
             throw new Error('execution hash/index does not match a recorded on-chain approval');
         }
 
-        const updated = await this.repo.setStatus(disbursementId, 'EXECUTED', {
-            executeTxHash,
-            onchainTxIndex,
-            executedAt: Math.floor(Date.now() / 1000),
-            error: null,
+    const updated = await this.repo.setStatus(disbursementId, 'EXECUTED', {
+        executeTxHash,
+        onchainTxIndex,
+        executedAt: Math.floor(Date.now() / 1000),
+        error: null,
+    });
+    
+    // Commit ledger for THIS network only (per-network decision)
+    let ledger = null;
+    try {
+        ledger = await this.allocationEngine.commitNetwork({
+            allocationBatchId: updated.allocation_batch_id,
+            networkId: updated.network_id,
         });
-
-        let round_finalize = null;
-        try {
-            const voting = new VotingService(this.db, {
-                loadProjects: this.loadProjects,
-            });
-            round_finalize = await voting.finalizeRoundIfBatchComplete(
-                updated.allocation_batch_id,
-                (batchId) => this.repo.listByBatch(batchId)
-            );
-        } catch (e) {
-            round_finalize = { finalized: false, error: e.message };
-        }
-
-        return { disbursement: updated, round_finalize };
+    } catch (e) {
+        ledger = { ok: false, error: e.message };
     }
+    
+    // Finalize overall round only when ALL disbursements of the batch are EXECUTED
+    let round_finalize = null;
+    try {
+        const voting = new VotingService(this.db, {
+            loadProjects: this.loadProjects,
+        });
+        round_finalize = await voting.finalizeRoundIfBatchComplete(
+            updated.allocation_batch_id,
+            (batchId) => this.repo.listByBatch(batchId)
+        );
+    } catch (e) {
+        round_finalize = { finalized: false, error: e.message };
+    }
+    
+    return {
+        disbursement: updated,
+        ledger,
+        round_finalize
+    };
 
     async markFailed(disbursementId, errorMessage) {
         return this.repo.setStatus(disbursementId, 'FAILED', {
