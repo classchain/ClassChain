@@ -63,6 +63,18 @@ export class AllocationRepository {
         return result.results || [];
     }
 
+    async countPlannedByBatch(allocationBatchId) {
+        const row = await this.db
+            .prepare(`
+                SELECT COUNT(*) AS c FROM allocations
+                WHERE allocation_batch_id = ?
+                  AND allocation_status = 'PLANNED'
+            `)
+            .bind(allocationBatchId)
+            .first();
+        return Number(row?.c || 0);
+    }
+
     /**
      * Commit only the PLANNED slices of one network inside a batch.
      */
