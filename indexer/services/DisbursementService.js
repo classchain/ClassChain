@@ -330,9 +330,18 @@ export class DisbursementService {
             if (String(row.execute_tx_hash).toLowerCase() !== txHash.toLowerCase()) {
                 throw new Error('disbursement is already executed with a different transaction hash');
             }
+            const required = Number(row.required_signatures) || 1;
+            if (required <= 1 && onchainTxIndex !== null) {
+                throw new Error('single-signature disbursement must not include a multisig transaction index');
+            }
+            if (required > 1 && row.onchain_tx_index == null) {
+                throw new Error(
+                    'disbursement is EXECUTED but has no recorded multisig transaction index; manual reconciliation is required'
+                );
+            }
             if (
+                required > 1 &&
                 onchainTxIndex !== null &&
-                row.onchain_tx_index != null &&
                 Number(onchainTxIndex) !== Number(row.onchain_tx_index)
             ) {
                 throw new Error('execution transaction index does not match the recorded disbursement');
