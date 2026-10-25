@@ -402,6 +402,19 @@ export class DisbursementService {
             if (!networkSlices.length) {
                 throw new Error('no allocation slices found for this disbursement network');
             }
+
+            // The planned/committed slices for this network must exactly reconcile
+            // to the transfer amount stored in the disbursement record.
+            const allocationTotal = networkSlices.reduce(
+                (total, slice) => total + BigInt(String(slice.amount_raw || '0')),
+                0n
+            );
+            if (allocationTotal !== BigInt(String(updated.amount_raw || '0'))) {
+                throw new Error(
+                    `network allocation total (${allocationTotal}) does not match disbursement amount (${updated.amount_raw})`
+                );
+            }
+
             const stillPlanned = networkSlices.some(
                 (slice) => String(slice.allocation_status || 'COMMITTED') === 'PLANNED'
             );
