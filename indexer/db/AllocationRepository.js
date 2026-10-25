@@ -129,7 +129,7 @@ export class AllocationRepository {
 
     _parseRaw(value, label) {
         const raw = String(value ?? '');
-        if (!/^\\d+$/.test(raw)) {
+        if (!/^\d+$/.test(raw)) {
             throw new Error(`${label} must be a non-negative integer string`);
         }
         return BigInt(raw);
