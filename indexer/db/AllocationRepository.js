@@ -380,7 +380,7 @@ export class AllocationRepository {
             .prepare(`
                 SELECT COALESCE(SUM(CAST(amount_raw AS INTEGER)), 0) AS total
                 FROM allocations
-                WHERE project_id = ?
+                WHERE project_id = ? AND allocation_status = 'COMMITTED'
             `)
             .bind(projectId)
             .first();

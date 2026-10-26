@@ -5,7 +5,7 @@
  *
  * Membership rules:
  *   - Contributor Community  ↔  unallocated > 0 (any linked wallet)
- *   - Project X Community    ↔  sum(allocations to X) > 0
+ *   - Project X Community    ↔  sum(COMMITTED allocations to X) > 0
  *   - Public Community       ↔  has at least one verified wallet link
  */
 
@@ -67,7 +67,7 @@ export class CommunityStatusService {
                     SELECT DISTINCT network_id FROM (
                         SELECT network_id FROM contribution_balances WHERE donor = ?
                         UNION
-                        SELECT network_id FROM allocations WHERE donor = ?
+                        SELECT network_id FROM allocations WHERE donor = ? AND allocation_status = 'COMMITTED'
                         UNION
                         SELECT network_id FROM wallet_links WHERE donor = ?
                     )
@@ -103,7 +103,7 @@ export class CommunityStatusService {
                 SELECT project_id,
                        CAST(SUM(CAST(amount_raw AS INTEGER)) AS TEXT) AS allocated_raw
                 FROM allocations
-                WHERE donor = ? AND network_id = ?
+                WHERE donor = ? AND network_id = ? AND allocation_status = 'COMMITTED'
                 GROUP BY project_id
                 HAVING SUM(CAST(amount_raw AS INTEGER)) > 0
                 ORDER BY project_id
@@ -178,7 +178,7 @@ export class CommunityStatusService {
                 FROM allocations a
                 LEFT JOIN wallet_links wl
                     ON wl.donor = a.donor AND wl.network_id = a.network_id
-                WHERE a.project_id = ?
+                WHERE a.project_id = ? AND a.allocation_status = 'COMMITTED'
                 GROUP BY a.donor, a.network_id
                 HAVING SUM(CAST(a.amount_raw AS INTEGER)) > 0
                 ORDER BY allocated_raw DESC
