@@ -791,7 +791,9 @@ async function walletAction(row) {
     }
     return finalizeSingleSig(row, recovery.approver || account, recovery.txHash);
   }
-  const priorApprovalsT = Array.isArray(row.approvals) ? row.approvals : [];
+  const priorApprovalsT = Array.isArray(latest.approvals)
+    ? latest.approvals
+    : (Array.isArray(row.approvals) ? row.approvals : []);
   // Tron base58 is case-sensitive — never lowercase-compare
   if (priorApprovalsT.some((x) => sameTronAddr(x.approver, account, tronWeb))) {
     throw new Error('این کیف قبلاً برای این درخواست امضا کرده است.');
@@ -854,6 +856,39 @@ async function walletAction(row) {
   if (!multisigAddress) throw new Error('آدرس Multisig خزانه عمومی پیدا نشد.');
 
   const effectiveRow = { ...row, multisig_address: multisigAddress };
+
+  // If a proposal already recorded for this disbursement executed on-chain,
+  // do not create a second proposal merely because D1 finalization failed.
+  const knownIndices = [...new Set(priorApprovalsT
+    .map((a) => a.onchain_tx_index)
+    .filter((v) => v !== null && v !== undefined && Number.isInteger(Number(v)) && Number(v) >= 0)
+    .map(Number))];
+  if (knownIndices.length) {
+    const token = window.ClassChainNetworkConfig.getTokenAddress(row.network_id, 'USDT');
+    if (!token) throw new Error('آدرس USDT شبکه پیدا نشد.');
+    const expectedData = buildTronWithdrawCalldata(tronWeb, token, row.to_address, row.amount_raw);
+    const knownMultisig = await tronWeb.contract(MULTISIG_ABI, multisigAddress);
+    for (const index of knownIndices) {
+      const tx = await knownMultisig.getTransaction(index).call().catch(() => null);
+      if (!tx) continue;
+      const data = String(tx.data || tx[2] || '').replace(/^0x/i, '').toLowerCase();
+      const toAddr = tx.to || tx[0];
+      const value = String(tx.value ?? tx[1] ?? '0');
+      const executed = tx.executed === true || tx[3] === true;
+      if (
+        executed &&
+        value === '0' &&
+        sameTronAddr(toAddr, row.from_address, tronWeb) &&
+        data === expectedData
+      ) {
+        throw new Error(
+          'پیشنهاد چندامضایی #' + index + ' برای همین پرداخت قبلاً روی شبکه اجرا شده است؛ ' +
+          'برای جلوگیری از پیشنهاد تکراری، از دکمه «بازبینی اجرای شبکه» استفاده کنید.'
+        );
+      }
+    }
+  }
+
   let existing = await findTronDisbursementTx(effectiveRow, tronWeb);
 
   if (!existing) {
@@ -932,7 +967,12 @@ function renderSignerRows(row) {
       <span class="disb-signer-act">${btn}</span></div></div>`;
   }
 
-  const reconcileButton = row.status === 'APPROVED' && required > 1
+  const hasRecordedOnchainApproval = approvals.some((a) =>
+    a.onchain_tx_index !== null && a.onchain_tx_index !== undefined && a.onchain_tx_hash
+  );
+  const reconcileButton = required > 1 &&
+    ['PENDING_APPROVAL', 'APPROVED'].includes(row.status) &&
+    hasRecordedOnchainApproval
     ? `<button type="button" class="primary" data-reconcile="${row.id}">بازبینی اجرای شبکه</button>`
     : '';
   const rowsHtml = owners.map((owner, i) => {
@@ -1047,23 +1087,85 @@ export async function loadDisbursePending() {
         b.disabled = true;
         b.textContent = 'در حال بررسی…';
         try {
-          const d = await api('/api/disburse/' + b.dataset.reconcile);
+          const id = b.dataset.reconcile;
+          const d = await api('/api/disburse/' + id);
           const row = d.disbursement;
           const approvals = Array.isArray(row?.approvals) ? row.approvals : [];
-          const finalApproval = approvals
+          const candidates = approvals
             .filter((a) => a.onchain_tx_index !== null && a.onchain_tx_index !== undefined && a.onchain_tx_hash)
-            .sort((a, c) => Number(c.approved_at || 0) - Number(a.approved_at || 0))[0];
-          if (!finalApproval) {
-            throw new Error('هش و شماره تراکنش امضای نهایی در D1 موجود نیست؛ از ارسال مجدد خودداری کنید.');
+            .map((a) => ({
+              index: Number(a.onchain_tx_index),
+              hash: String(a.onchain_tx_hash),
+              approvedAt: Number(a.approved_at || 0),
+            }))
+            .filter((a) => Number.isInteger(a.index) && a.index >= 0 && a.hash)
+            .sort((a, c) => c.approvedAt - a.approvedAt)
+            .filter((a, i, all) => all.findIndex((x) =>
+              x.index === a.index && x.hash.toLowerCase() === a.hash.toLowerCase()
+            ) === i);
+
+          if (!candidates.length) {
+            throw new Error('هش و شمارهٔ پیشنهاد چندامضایی در D1 موجود نیست؛ از ارسال مجدد خودداری کنید.');
           }
-          await api('/api/disburse/' + b.dataset.reconcile + '/executed', {
-            method: 'POST',
-            body: JSON.stringify({
-              execute_tx_hash: finalApproval.onchain_tx_hash,
-              onchain_tx_index: Number(finalApproval.onchain_tx_index),
-            }),
-          });
-          alert('اجرای واقعی USDT روی شبکه تأیید و وضعیت D1 اصلاح شد.');
+
+          const failures = [];
+          let reconciled = null;
+          for (const candidate of candidates) {
+            const payload = {
+              execute_tx_hash: candidate.hash,
+              onchain_tx_index: candidate.index,
+            };
+            try {
+              const result = await api('/api/disburse/' + id + '/executed', {
+                method: 'POST',
+                body: JSON.stringify(payload),
+              });
+              reconciled = { candidate, result };
+              break;
+            } catch (candidateError) {
+              failures.push('#' + candidate.index + ': ' + candidateError.message);
+
+              // Recover safely if the server committed EXECUTED but the response was lost.
+              const fresh = await api('/api/disburse/' + id).catch(() => null);
+              const freshRow = fresh?.disbursement;
+              if (
+                freshRow?.status === 'EXECUTED' &&
+                (!freshRow.execute_tx_hash ||
+                  freshRow.execute_tx_hash.toLowerCase() === candidate.hash.toLowerCase())
+              ) {
+                try {
+                  const result = await api('/api/disburse/' + id + '/executed', {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                  });
+                  reconciled = { candidate, result };
+                  break;
+                } catch (retryError) {
+                  failures.push('#' + candidate.index + ' retry: ' + retryError.message);
+                }
+              }
+            }
+          }
+
+          if (!reconciled) {
+            throw new Error(
+              'هیچ‌یک از هش‌های ثبت‌شده انتقال USDT متناظر با این پرداخت را تأیید نکرد. ' +
+              failures.join('؛ ')
+            );
+          }
+
+          const finalization = reconciled.result?.round_finalize;
+          if (finalization?.finalized || finalization?.reason === 'already_allocated') {
+            alert(
+              'رسید انتقال USDT تأیید شد؛ پیشنهاد #' + reconciled.candidate.index +
+              ' به EXECUTED رسید و راند/FIFO نیز نهایی شد.'
+            );
+          } else {
+            const detail = finalization?.reason || finalization?.error || 'وضعیت نهایی‌سازی در پاسخ موجود نیست';
+            alert(
+              'انتقال USDT تأیید و وضعیت پرداخت در D1 ثبت شد، اما نهایی‌سازی راند/FIFO کامل نشد: ' + detail
+            );
+          }
           await loadDisbursePending();
           await loadDisburseRounds();
         } catch (e) {

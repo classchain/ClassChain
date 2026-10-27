@@ -308,17 +308,31 @@ export class DisbursementService {
         return true;
     }
 
+    async _finalizeBatchIfComplete(row) {
+        try {
+            const voting = new VotingService(this.db, {
+                loadProjects: this.loadProjects,
+            });
+            return await voting.finalizeRoundIfBatchComplete(
+                row.allocation_batch_id,
+                (batchId) => this.repo.listByBatch(batchId)
+            );
+        } catch (e) {
+            return { finalized: false, error: e.message };
+        }
+    }
+
     async markExecuted(disbursementId, executeTxHash, onchainTxIndex = null) {
         if (!executeTxHash) throw new Error('executeTxHash is required');
 
         const row = await this.repo.get(disbursementId);
         if (!row) throw new Error('disbursement not found');
-        if (row.status === 'EXECUTED') {
-            // Idempotent retry: a lost HTTP response must not re-finalize or resend funds.
-            if (row.execute_tx_hash && String(row.execute_tx_hash).toLowerCase() !== String(executeTxHash).toLowerCase()) {
+        if (row.status === 'EXECUTED' && row.execute_tx_hash) {
+            // Idempotent retry: also retry FIFO/round finalization if the prior response was lost.
+            if (String(row.execute_tx_hash).toLowerCase() !== String(executeTxHash).toLowerCase()) {
                 throw new Error('disbursement is already executed with a different transaction hash');
             }
-            return { disbursement: row, round_finalize: null };
+            return { disbursement: row, round_finalize: await this._finalizeBatchIfComplete(row) };
         }
         if (row.status === 'NO_DESTINATION' || row.status === 'FAILED') {
             throw new Error(`cannot execute status=${row.status}`);
@@ -332,11 +346,10 @@ export class DisbursementService {
             throw new Error('on-chain multisig transaction index is required');
         }
         const approvals = await this.repo.listApprovals(disbursementId);
-        if (approvals.length < required) {
+        const isTron = String(row.network_id || '').startsWith('tron_');
+        if (approvals.length < required && !isTron) {
             throw new Error('cannot mark executed before required approvals are recorded');
         }
-        // D1 is updated only after independently verifying the actual USDT Transfer log.
-        await this._verifyOnChainTransfer(row, String(executeTxHash));
         const matchingApproval = approvals.some((a) =>
             String(a.onchain_tx_hash || '').toLowerCase() === String(executeTxHash).toLowerCase() &&
             (required <= 1
@@ -346,6 +359,10 @@ export class DisbursementService {
         if (!matchingApproval) {
             throw new Error('execution hash/index does not match a recorded on-chain approval');
         }
+        // D1 is updated only after independently verifying the actual USDT Transfer log.
+        // On TRON, that exact successful fund-to-treasury transfer proves the multisig threshold
+        // was satisfied even if one owner's confirmation was not persisted to D1.
+        await this._verifyOnChainTransfer(row, String(executeTxHash));
 
         const updated = await this.repo.setStatus(disbursementId, 'EXECUTED', {
             executeTxHash,
@@ -354,19 +371,7 @@ export class DisbursementService {
             error: null,
         });
 
-        let round_finalize = null;
-        try {
-            const voting = new VotingService(this.db, {
-                loadProjects: this.loadProjects,
-            });
-            round_finalize = await voting.finalizeRoundIfBatchComplete(
-                updated.allocation_batch_id,
-                (batchId) => this.repo.listByBatch(batchId)
-            );
-        } catch (e) {
-            round_finalize = { finalized: false, error: e.message };
-        }
-
+        const round_finalize = await this._finalizeBatchIfComplete(updated);
         return { disbursement: updated, round_finalize };
     }
 

@@ -169,4 +169,84 @@ try {
   globalThis.fetch = originalFetch;
 }
 
+
+const tronRecoveryHash = '571702ea880dde2ae4a07dd06a9cfdac2ea348a8cdc81668fe08ee8811575ae4';
+const tronRecoveryDb = makeDb({
+  id: 43,
+  network_id: 'tron_nile',
+  required_signatures: 2,
+  status: 'PENDING_APPROVAL',
+  error: null,
+  project_id: '8207',
+  allocation_batch_id: 'batch-tron-recovery',
+  from_address: 'TNpH6AyKJRLip6NEp6wjaTw3FbbduFD1hJ',
+  to_address: 'TSeX2tcCV5jwLwoxRpoMjDex2AboA6LKVa',
+  amount_raw: '17000000',
+  execute_tx_hash: null,
+  onchain_tx_index: null,
+});
+tronRecoveryDb.approvals.push({
+  id: 1,
+  disbursement_id: 43,
+  approver: 'TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1',
+  approved_at: 1,
+  onchain_tx_index: 6,
+  onchain_tx_hash: tronRecoveryHash,
+});
+const tronRecoveryService = new DisbursementService(tronRecoveryDb, { loadProjects: async () => registry });
+tronRecoveryService._verifyOnChainTransfer = async (_row, hash) => {
+  assert.equal(hash, tronRecoveryHash);
+  return true;
+};
+tronRecoveryService.repo.setStatus = async (_id, status, extra = {}) => {
+  Object.assign(tronRecoveryDb.row, {
+    status,
+    ...(extra.executeTxHash !== undefined ? { execute_tx_hash: extra.executeTxHash } : {}),
+    ...(extra.onchainTxIndex !== undefined ? { onchain_tx_index: extra.onchainTxIndex } : {}),
+    ...(extra.executedAt !== undefined ? { executed_at: extra.executedAt } : {}),
+    ...(extra.error !== undefined ? { error: extra.error } : {}),
+  });
+  return { ...tronRecoveryDb.row };
+};
+const tronRecovered = await tronRecoveryService.markExecuted(43, tronRecoveryHash, 6);
+assert.equal(tronRecovered.disbursement.status, 'EXECUTED',
+  'a chain-verified TRON transfer should recover even if one confirmation was not recorded in D1');
+
+const tronUnverifiedDb = makeDb({
+  id: 44,
+  network_id: 'tron_nile',
+  required_signatures: 2,
+  status: 'PENDING_APPROVAL',
+  error: null,
+  project_id: '8207',
+  allocation_batch_id: 'batch-tron-unverified',
+  from_address: 'TNpH6AyKJRLip6NEp6wjaTw3FbbduFD1hJ',
+  to_address: 'TSeX2tcCV5jwLwoxRpoMjDex2AboA6LKVa',
+  amount_raw: '17000000',
+  execute_tx_hash: null,
+  onchain_tx_index: null,
+});
+tronUnverifiedDb.approvals.push({
+  id: 2,
+  disbursement_id: 44,
+  approver: 'TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1',
+  approved_at: 1,
+  onchain_tx_index: 6,
+  onchain_tx_hash: tronRecoveryHash,
+});
+const tronUnverifiedService = new DisbursementService(tronUnverifiedDb, { loadProjects: async () => registry });
+tronUnverifiedService._verifyOnChainTransfer = async () => {
+  throw new Error('TRON receipt has no matching USDT Transfer for this disbursement');
+};
+tronUnverifiedService.repo.setStatus = async (_id, status) => {
+  tronUnverifiedDb.row.status = status;
+  return { ...tronUnverifiedDb.row };
+};
+await assert.rejects(
+  () => tronUnverifiedService.markExecuted(44, tronRecoveryHash, 6),
+  /no matching USDT Transfer/
+);
+assert.equal(tronUnverifiedDb.row.status, 'PENDING_APPROVAL',
+  'a missing USDT Transfer must leave D1 unchanged');
+
 console.log('Disbursement safety tests passed');
