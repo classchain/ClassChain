@@ -364,12 +364,14 @@ export class DisbursementService {
             }
 
             const approvals = await this.repo.listApprovals(disbursementId);
-            if (approvals.length < required) {
+            const isTron = String(row.network_id || '').startsWith('tron_');
+            if (approvals.length < required && !isTron) {
                 throw new Error('cannot mark executed before required approvals are recorded');
             }
 
-            // D1 status changes only after independently verifying the actual USDT Transfer log.
-            await this._verifyOnChainTransfer(row, txHash);
+            // A successful, exact USDT transfer on TRON proves the on-chain multisig
+            // threshold was reached even if one confirmation did not persist to D1.
+            // Still require this hash and proposal index to match a recorded approval.
             const matchingApproval = approvals.some((approval) =>
                 String(approval.onchain_tx_hash || '').toLowerCase() === txHash.toLowerCase() &&
                 (required <= 1
@@ -379,6 +381,9 @@ export class DisbursementService {
             if (!matchingApproval) {
                 throw new Error('execution hash/index does not match a recorded on-chain approval');
             }
+
+            // D1 status changes only after independently verifying the actual USDT Transfer log.
+            await this._verifyOnChainTransfer(row, txHash);
 
             updated = await this.repo.setStatus(disbursementId, 'EXECUTED', {
                 executeTxHash: txHash,
