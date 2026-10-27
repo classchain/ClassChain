@@ -149,4 +149,31 @@ export function setupAddProject(projectManager, loadProjectsTable) {
   if (addProjectBtn) {
     addProjectBtn.addEventListener('click', createNewProject);
   }
+
+  // --- انتخاب محل از WebGIS ---
+  const pickBtn = document.getElementById('btnPickLocation');
+  if (pickBtn) {
+    pickBtn.addEventListener('click', () => {
+      sessionStorage.setItem('classchain-pick-return', window.location.href.split('#')[0]);
+      window.location.href = '../frontend/WebGIS.html?pickLocation=1';
+    });
+  }
+
+  try {
+    const raw = sessionStorage.getItem('classchain-picked-location');
+    if (raw) {
+      const data = JSON.parse(raw);
+      sessionStorage.removeItem('classchain-picked-location');
+      if (data && data.x != null && data.y != null) {
+        const xEl = document.getElementById('newX');
+        const yEl = document.getElementById('newY');
+        if (xEl) xEl.value = data.x;
+        if (yEl) yEl.value = data.y;
+        const hint = document.getElementById('pickedLocationHint');
+        if (hint) hint.style.display = 'inline';
+      }
+    }
+  } catch (e) {
+    console.warn('pick location restore failed', e);
+  }
 }

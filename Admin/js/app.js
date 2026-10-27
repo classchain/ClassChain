@@ -366,12 +366,22 @@ async function createFund() {
             console.error('📦 تراکنش:', tx);
             throw new Error('آدرس خزانه دریافت نشد. لطفاً تراکنش را در Explorer بررسی کنید.');
         }
-
+        
         // اگر کاربر Multisig انتخاب کرده، حتماً isMultisig را true کن
         if (ownershipType === 'multisig') {
             isMultisig = true;
         }
-
+        
+        // 🔑 Fallback: اگر مولتی‌سیگ است و آدرس از رویداد نیامد → از owner() خزانه بخوان
+        if (isMultisig && !ownerOrMultisig && fundAddress) {
+            try {
+                ownerOrMultisig = await contractManager.getFundOwner(fundAddress);
+                console.log('✅ مالک/Multisig از owner() خزانه:', ownerOrMultisig);
+            } catch (e) {
+                console.warn('خطا در خواندن owner خزانه:', e);
+            }
+        }
+        
         // نرمال‌سازی آدرس‌های Tron به Base58
         ({ fundAddress, ownerOrMultisig, owners } = normalizeAddressesForNetwork(
             fundAddress, ownerOrMultisig, owners
@@ -399,7 +409,7 @@ async function createFund() {
 
         // بارگذاری مجدد جدول
         if (typeof loadProjectsTable === 'function') {
-            await loadProjectsTable();
+            await loadProjectsTable(false);
         }
 
     } catch (error) {
@@ -441,12 +451,14 @@ async function checkProject() {
     try {
         // بارگذاری پروژه‌ها فقط در صورت نیاز؛ پروژه‌ی تازه‌ساخته‌شده ممکن است هنوز روی GitHub نباشد
         if (!projectManager.projects) {
-            await projectManager.loadProjects();
+            ;
         }
         const project = await projectManager.getProjectById(projectId);
 
         if (!project) {
-            showError(`❌ پروژه ${projectId} در سیستم یافت نشد`);
+            showError(
+                `پروژه ${projectId} در سیستم یافت نشد. اگر همین الان اضافه کرده‌اید، ابتدا در بخش «افزودن پروژه» دکمهٔ «آپلود به GitHub» را بزنید، چند ثانیه صبر کنید، بعد دوباره بررسی کنید.`
+            );
             return;
         }
 
@@ -604,12 +616,17 @@ async function createFundFromCheck() {
     }
 
     // بررسی اینکه آیا پروژه در شبکه فعلی خزانه دارد
+    // فقط اگر هنوز بارگذاری نشده؛ پروژهٔ تازه‌اضافه‌شده ممکن است هنوز روی GitHub نباشد
     try {
-        await projectManager.loadProjects();
+        if (!projectManager.projects) {
+            await projectManager.loadProjects();
+        }
         const project = await projectManager.getProjectById(projectId);
 
         if (!project) {
-            showError(`پروژه ${projectId} یافت نشد`);
+            showError(
+                `پروژه ${projectId} یافت نشد. اگر تازه اضافه کرده‌اید، اول «آپلود به GitHub» را بزنید و چند ثانیه صبر کنید.`
+            );
             return;
         }
 
@@ -760,11 +777,10 @@ async function createFundFromCheck() {
         // نمایش نتیجه
         showSuccess(projectId, fundAddress, ownerOrMultisig, isMultisig, updatedJson);
 
-        // بارگذاری مجدد جدول و بررسی مجدد
-        await loadProjectsTable();
-
-        // بررسی مجدد پروژه برای نمایش وضعیت جدید
-        await checkProject();
+        // فقط جدول را رفرش کن؛ createResult را دست نزن تا کاربر بتواند JSON را ببیند و به GitHub پوش کند
+        if (typeof loadProjectsTable === 'function') {
+            await loadProjectsTable(false);
+        }
 
     } catch (error) {
         console.error('خطا:', error);

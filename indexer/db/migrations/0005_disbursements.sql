@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS disbursements (
     amount_raw              TEXT NOT NULL,   -- sum of FIFO slices on this network
 
     status                  TEXT NOT NULL DEFAULT 'PENDING_APPROVAL',
-    -- PENDING_APPROVAL | APPROVED | EXECUTED | FAILED | NO_DESTINATION
+    -- PENDING_APPROVAL | PROCESSING (single-sig claim) | APPROVED | EXECUTED | FAILED | NO_DESTINATION
 
     onchain_tx_index        INTEGER,         -- MultiSig submit index (when applicable)
     execute_tx_hash         TEXT,            -- final on-chain transfer hash

@@ -1,6 +1,6 @@
 /** ClassChain Ops core */
 export const INDEXER = localStorage.getItem('classchain_indexer_url') || 'https://classchain-indexer.classchain.workers.dev';
-export const PROJECTS_URL = '../frontend/data/Projects.json';
+export const PROJECTS_URL = 'https://raw.githubusercontent.com/classchain/ClassChain/admin/frontend/data/Projects.json';
 export const NET_COLORS = ['#22d3ee','#a78bfa','#34d399','#fbbf24','#f472b6','#60a5fa','#fb923c','#4ade80'];
 
 export function $(id) { return document.getElementById(id); }
