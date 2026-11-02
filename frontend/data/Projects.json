@@ -1107,7 +1107,20 @@
         "targetAmount(USDT)": 111,
         "status": null,
         "raisedAmount": null,
-        "funds": {}
+        "funds": {
+          "tron_nile": {
+            "address": "TVmQWsaBPymEWkPgYDvJDXwGLkPXAajPPP",
+            "multisigAddress": null,
+            "owners": [
+              "TY7XrUK9LbRq4CWcLwCUiLVW9Noju2EiD1"
+            ],
+            "requiredSignatures": 1,
+            "createdAt": "2026-11-02T11:53:33.787Z",
+            "network": "tron_nile",
+            "isMultisig": false,
+            "scanFromBlock": 72361141
+          }
+        }
       }
     },
     {
